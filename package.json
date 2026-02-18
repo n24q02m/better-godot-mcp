@@ -1,0 +1,65 @@
+{
+  "name": "@n24q02m/better-godot-mcp",
+  "version": "0.1.0",
+  "description": "Enhanced MCP server for Godot Engine with composite mega-tools and comprehensive game development tooling.",
+  "type": "module",
+  "main": "build/src/init-server.js",
+  "bin": {
+    "better-godot-mcp": "bin/cli.mjs"
+  },
+  "files": [
+    "build/",
+    "bin/",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc --build && node scripts/build-cli.js",
+    "dev": "tsx watch scripts/start-server.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "biome check . && tsc --noEmit",
+    "check:fix": "biome check --fix .",
+    "clean": "rm -rf build bin",
+    "prepublishOnly": "pnpm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.21.1",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.0",
+    "@types/node": "^24.0.0",
+    "esbuild": "^0.25.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0"
+  },
+  "engines": {
+    "node": ">=24.0.0",
+    "pnpm": ">=10.0.0"
+  },
+  "packageManager": "pnpm@10.12.1",
+  "keywords": [
+    "mcp",
+    "godot",
+    "godot-engine",
+    "game-development",
+    "model-context-protocol",
+    "ai",
+    "gdscript"
+  ],
+  "author": "n24q02m",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/n24q02m/better-godot-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/n24q02m/better-godot-mcp/issues"
+  },
+  "homepage": "https://github.com/n24q02m/better-godot-mcp#readme"
+}

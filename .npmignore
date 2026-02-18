@@ -1,0 +1,47 @@
+# .npmignore
+# Exclude from npm package
+
+# Source files
+src/
+tests/
+scripts/
+# Config files
+tsconfig.json
+.editorconfig
+.gitignore
+.gitattributes
+
+# GitHub
+.github/
+
+# Documentation (except README and LICENSE)
+docs/
+*.md
+!README.md
+!LICENSE
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Development
+.vscode/
+.idea/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+coverage/
+.nyc_output/
+
+# Misc
+.DS_Store
+*.swp
+*.swo
+*~
+
+# Godot temp
+temp/

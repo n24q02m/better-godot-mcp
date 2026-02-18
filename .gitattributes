@@ -1,0 +1,43 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# TypeScript / JavaScript
+*.ts text diff=typescript
+*.tsx text diff=typescript
+*.js text
+*.jsx text
+*.mjs text
+*.cjs text
+
+# GDScript
+*.gd text
+
+# Godot scene/resource files
+*.tscn text
+*.tres text
+*.gdextension text
+
+# Config
+*.json text
+*.toml text
+*.yaml text
+*.yml text
+*.cfg text
+
+# Markdown
+*.md text diff=markdown
+
+# Shell
+*.sh text eol=lf
+
+# Docker
+Dockerfile text
+docker-compose.yml text
+
+# Ensure lock files are not modified
+pnpm-lock.yaml text -diff linguist-generated
+
+# Binary
+*.png binary
+*.jpg binary
+*.ico binary

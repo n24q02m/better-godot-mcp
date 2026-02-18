@@ -1,0 +1,41 @@
+[tools]
+node = "24"
+pnpm = "latest"
+uv = "latest"
+python = "3.13"
+
+[settings]
+experimental = true
+
+[tasks.setup]
+description = "Setup development environment"
+run = """
+node scripts/clean-venv.mjs
+pnpm install
+uv tool install pre-commit --force
+pre-commit install
+"""
+
+[tasks.lint]
+description = "Run linting checks"
+run = "pnpm check"
+
+[tasks.test]
+description = "Run tests"
+run = "pnpm test"
+
+[tasks.fix]
+description = "Auto-fix lint issues"
+run = "pnpm check:fix"
+
+[tasks.dev]
+description = "Start development server"
+run = "pnpm dev"
+
+[tasks.build]
+description = "Build for production"
+run = "pnpm build"
+
+[tasks.clean]
+description = "Clean build artifacts"
+run = "pnpm clean"

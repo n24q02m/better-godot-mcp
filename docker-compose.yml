@@ -1,0 +1,6 @@
+services:
+  better-godot-mcp:
+    build: .
+    stdin_open: true
+    tty: true
+    restart: unless-stopped

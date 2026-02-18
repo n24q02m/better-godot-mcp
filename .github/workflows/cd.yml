@@ -1,0 +1,199 @@
+name: CD
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: "Release type"
+        required: true
+        type: choice
+        options:
+          - beta
+          - stable
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  DOCKERHUB_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/better-godot-mcp
+  GHCR_IMAGE: ghcr.io/${{ github.repository }}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  # ============================================================================
+  # Release: PSR analyzes commits -> bump version -> CHANGELOG -> tag -> Release
+  # ============================================================================
+  release:
+    name: Semantic Release
+    runs-on: ubuntu-latest
+    outputs:
+      released: ${{ steps.release.outputs.released }}
+      tag: ${{ steps.release.outputs.tag }}
+      version: ${{ steps.release.outputs.version }}
+      is_prerelease: ${{ steps.release.outputs.is_prerelease }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.GH_PAT }}
+          fetch-depth: 0
+
+      - uses: python-semantic-release/python-semantic-release@v10
+        id: release
+        with:
+          github_token: ${{ secrets.GH_PAT }}
+          config_file: semantic-release.toml
+          prerelease: ${{ inputs.release_type == 'beta' }}
+          prerelease_token: beta
+
+      - uses: python-semantic-release/publish-action@v10
+        if: steps.release.outputs.released == 'true'
+        with:
+          github_token: ${{ secrets.GH_PAT }}
+          tag: ${{ steps.release.outputs.tag }}
+
+  # ============================================================================
+  # Publish to npm
+  # ============================================================================
+  publish-npm:
+    name: Publish to npm
+    needs: release
+    if: needs.release.outputs.released == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.release.outputs.tag }}
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build
+
+      - run: pnpm publish --no-git-checks --tag ${{ needs.release.outputs.is_prerelease == 'true' && 'beta' || 'latest' }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  # ============================================================================
+  # Build Docker (multi-arch)
+  # ============================================================================
+  build-docker:
+    name: Build Docker (${{ matrix.platform }})
+    needs: release
+    if: needs.release.outputs.released == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+            artifact: linux-amd64
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            artifact: linux-arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.release.outputs.tag }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        id: build
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          outputs: type=image,"name=${{ env.DOCKERHUB_IMAGE }},${{ env.GHCR_IMAGE }}",push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=${{ github.ref_name }}-${{ matrix.artifact }}
+          cache-to: type=gha,mode=max,scope=${{ github.ref_name }}-${{ matrix.artifact }}
+
+      - run: |
+          mkdir -p ${{ runner.temp }}/digests
+          echo "${{ steps.build.outputs.digest }}" > "${{ runner.temp }}/digests/${{ matrix.artifact }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ matrix.artifact }}
+          path: ${{ runner.temp }}/digests/*
+
+  # ============================================================================
+  # Merge Docker Manifests
+  # ============================================================================
+  merge-docker:
+    name: Merge Docker Manifests
+    needs: [release, build-docker]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: digest-*
+          path: ${{ runner.temp }}/digests
+          merge-multiple: true
+
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and push manifests
+        env:
+          VERSION: ${{ needs.release.outputs.version }}
+          IS_PRERELEASE: ${{ needs.release.outputs.is_prerelease }}
+        run: |
+          if [ "$IS_PRERELEASE" = "true" ]; then
+            TAGS="beta ${VERSION}"
+          else
+            MAJOR=$(echo "$VERSION" | cut -d. -f1)
+            MINOR=$(echo "$VERSION" | cut -d. -f1-2)
+            TAGS="latest ${VERSION} ${MINOR} ${MAJOR}"
+          fi
+
+          DIGESTS=$(cat ${{ runner.temp }}/digests/*)
+
+          for IMAGE in "$DOCKERHUB_IMAGE" "$GHCR_IMAGE"; do
+            TAG_ARGS=""
+            for TAG in $TAGS; do
+              TAG_ARGS="$TAG_ARGS -t ${IMAGE}:${TAG}"
+            done
+            docker buildx imagetools create $TAG_ARGS \
+              $(echo "$DIGESTS" | xargs -I{} echo "${IMAGE}@{}")
+          done
+
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: README.md
+
+      - name: Update DockerHub description
+        uses: peter-evans/dockerhub-description@v5
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ env.DOCKERHUB_IMAGE }}
+          short-description: ${{ github.event.repository.description }}

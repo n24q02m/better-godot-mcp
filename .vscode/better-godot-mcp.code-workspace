@@ -1,0 +1,20 @@
+{
+	"folders": [
+		{
+			"path": ".."
+		},
+		{
+			"path": "../../better-notion-mcp"
+		},
+		{
+			"path": "../../fgrp-game"
+		},
+		{
+			"path": "../../mnemo-mcp"
+		},
+		{
+			"path": "../../wet-mcp"
+		}
+	],
+	"settings": {}
+}

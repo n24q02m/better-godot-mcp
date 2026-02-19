@@ -3,11 +3,12 @@
  * Actions: list | connect | disconnect
  */
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
-import { parseSceneContent } from '../helpers/scene-parser.js'
+import { parseScene, writeSceneAsync } from '../helpers/scene-parser.js'
 
 export async function handleSignals(action: string, args: Record<string, unknown>, config: GodotConfig) {
   const projectPath = (args.project_path as string) || config.projectPath
@@ -20,8 +21,7 @@ export async function handleSignals(action: string, args: Record<string, unknown
 
   switch (action) {
     case 'list': {
-      const content = readFileSync(fullPath, 'utf-8')
-      const scene = parseSceneContent(content)
+      const scene = await parseScene(fullPath)
 
       return formatJSON({
         scene: scenePath,
@@ -51,10 +51,10 @@ export async function handleSignals(action: string, args: Record<string, unknown
 
       const flags = args.flags as number | undefined
 
-      let content = readFileSync(fullPath, 'utf-8')
+      const scene = await parseScene(fullPath)
+      let content = scene.raw
 
       // Check for duplicate
-      const scene = parseSceneContent(content)
       const existing = scene.connections.find(
         (c) => c.signal === signal && c.from === from && c.to === to && c.method === method,
       )
@@ -71,7 +71,7 @@ export async function handleSignals(action: string, args: Record<string, unknown
       const connectionLine = `\n[connection signal="${signal}" from="${from}" to="${to}" method="${method}"${flagsAttr}]\n`
       content = `${content.trimEnd()}\n${connectionLine}`
 
-      writeFileSync(fullPath, content, 'utf-8')
+      await writeSceneAsync(fullPath, content)
       return formatSuccess(`Connected: ${from}.${signal} -> ${to}.${method}()`)
     }
 
@@ -88,7 +88,7 @@ export async function handleSignals(action: string, args: Record<string, unknown
         )
       }
 
-      const content = readFileSync(fullPath, 'utf-8')
+      const content = await readFile(fullPath, 'utf-8')
       const lines = content.split('\n')
       const filtered = lines.filter((line) => {
         const trimmed = line.trim()
@@ -109,7 +109,7 @@ export async function handleSignals(action: string, args: Record<string, unknown
         )
       }
 
-      writeFileSync(fullPath, filtered.join('\n'), 'utf-8')
+      await writeSceneAsync(fullPath, filtered.join('\n'))
       return formatSuccess(`Disconnected: ${from}.${signal} -> ${to}.${method}()`)
     }
 

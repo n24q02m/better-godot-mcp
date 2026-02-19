@@ -277,7 +277,7 @@ describe('scripts', () => {
     })
 
     it('should prevent creating script outside project', async () => {
-       await expect(
+      await expect(
         handleScripts(
           'create',
           {
@@ -290,7 +290,7 @@ describe('scripts', () => {
     })
 
     it('should prevent deleting script outside project', async () => {
-       await expect(
+      await expect(
         handleScripts(
           'delete',
           {

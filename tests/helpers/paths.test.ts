@@ -1,7 +1,7 @@
-import { join, resolve } from 'node:path'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { safeResolve } from '../../src/tools/helpers/paths.js'
 import { GodotMCPError } from '../../src/tools/helpers/errors.js'
+import { safeResolve } from '../../src/tools/helpers/paths.js'
 
 describe('safeResolve', () => {
   // Use a predictable base path
@@ -43,6 +43,6 @@ describe('safeResolve', () => {
   })
 
   it('should throw for complex traversal attempt', () => {
-     expect(() => safeResolve(base, 'scripts/../../outside.gd')).toThrow(GodotMCPError)
+    expect(() => safeResolve(base, 'scripts/../../outside.gd')).toThrow(GodotMCPError)
   })
 })

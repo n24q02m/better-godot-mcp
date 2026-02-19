@@ -18,7 +18,7 @@ export function safeResolve(basePath: string, targetPath: string): string {
     throw new GodotMCPError(
       `Path traversal detected: ${targetPath} resolves to ${resolvedTarget} which is outside of ${basePath}`,
       'INVALID_ARGS',
-      'Ensure the path is within the project directory.'
+      'Ensure the path is within the project directory.',
     )
   }
 

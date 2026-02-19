@@ -187,7 +187,6 @@ export async function handleScripts(action: string, args: Record<string, unknown
       const resPath = `res://${scriptPath.replace(/\\/g, '/')}`
 
       if (nodeName) {
-        // Use \\[ to get literal \[ in regex string
         const nodePattern = new RegExp(`(\\[node name="${nodeName}"[^\\]]*\\])`)
         const match = content.match(nodePattern)
         if (!match)
@@ -198,8 +197,9 @@ export async function handleScripts(action: string, args: Record<string, unknown
           )
         content = content.replace(nodePattern, `$1\nscript = ExtResource("${resPath}")`)
       } else {
-        // Use [^]]+ to match non-] chars (unescaped closing bracket works inside [])
-        content = content.replace(/(\[node [^]]+\])/, `$1\nscript = ExtResource("${resPath}")`)
+        // Use [^\\]]+ (escaped inside backslash) to match non-] chars (unescaped closing bracket works inside [])
+        // Biome complains about [^]] so we use [^\\]]
+        content = content.replace(/(\[node [^\\\]]+\])/, `$1\nscript = ExtResource("${resPath}")`)
       }
 
       writeFileSync(sceneFullPath, content, 'utf-8')

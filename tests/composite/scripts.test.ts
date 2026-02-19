@@ -246,6 +246,64 @@ describe('scripts', () => {
   })
 
   // ==========================================
+  // security
+  // ==========================================
+  describe('security', () => {
+    it('should prevent writing script outside project', async () => {
+      await expect(
+        handleScripts(
+          'write',
+          {
+            project_path: projectPath,
+            script_path: '../outside.gd',
+            content: 'extends Node',
+          },
+          config,
+        ),
+      ).rejects.toThrow(/Path traversal detected/)
+    })
+
+    it('should prevent reading script outside project', async () => {
+      await expect(
+        handleScripts(
+          'read',
+          {
+            project_path: projectPath,
+            script_path: '../outside.gd',
+          },
+          config,
+        ),
+      ).rejects.toThrow(/Path traversal detected/)
+    })
+
+    it('should prevent creating script outside project', async () => {
+      await expect(
+        handleScripts(
+          'create',
+          {
+            project_path: projectPath,
+            script_path: '../outside.gd',
+          },
+          config,
+        ),
+      ).rejects.toThrow(/Path traversal detected/)
+    })
+
+    it('should prevent deleting script outside project', async () => {
+      await expect(
+        handleScripts(
+          'delete',
+          {
+            project_path: projectPath,
+            script_path: '../outside.gd',
+          },
+          config,
+        ),
+      ).rejects.toThrow(/Path traversal detected/)
+    })
+  })
+
+  // ==========================================
   // invalid action
   // ==========================================
   it('should throw for unknown action', async () => {

@@ -6,13 +6,23 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { detectGodot } from '../../godot/detector.js'
-import type { GodotConfig } from '../../godot/types.js'
+import type { DetectionResult, GodotConfig } from '../../godot/types.js'
 import { formatJSON, GodotMCPError } from '../helpers/errors.js'
+
+// Cache the detection result since installation path is unlikely to change
+let cachedDetection: DetectionResult | null | undefined
+
+function getDetection(): DetectionResult | null {
+  if (cachedDetection === undefined) {
+    cachedDetection = detectGodot()
+  }
+  return cachedDetection
+}
 
 export async function handleSetup(action: string, _args: Record<string, unknown>, config: GodotConfig) {
   switch (action) {
     case 'detect_godot': {
-      const result = detectGodot()
+      const result = getDetection()
       if (!result) {
         return formatJSON({
           found: false,
@@ -36,7 +46,7 @@ export async function handleSetup(action: string, _args: Record<string, unknown>
     }
 
     case 'check': {
-      const detection = detectGodot()
+      const detection = getDetection()
       const projectPath = config.projectPath
 
       const status = {

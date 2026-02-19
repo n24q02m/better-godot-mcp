@@ -4,9 +4,10 @@
  */
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
-import { dirname, extname, join, relative, resolve } from 'node:path'
+import { dirname, extname, join, relative } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
+import { safeResolve } from '../helpers/paths.js'
 
 const SCRIPT_TEMPLATES: Record<string, string> = {
   Node: `extends Node
@@ -127,7 +128,8 @@ export async function handleScripts(action: string, args: Record<string, unknown
       const extendsType = (args.extends as string) || 'Node'
       const content = (args.content as string) || getTemplate(extendsType)
 
-      const fullPath = projectPath ? resolve(projectPath, scriptPath) : resolve(scriptPath)
+      const base = projectPath || process.cwd()
+      const fullPath = safeResolve(base, scriptPath)
       if (existsSync(fullPath)) {
         throw new GodotMCPError(
           `Script already exists: ${scriptPath}`,
@@ -145,7 +147,8 @@ export async function handleScripts(action: string, args: Record<string, unknown
       const scriptPath = args.script_path as string
       if (!scriptPath) throw new GodotMCPError('No script_path specified', 'INVALID_ARGS', 'Provide script_path.')
 
-      const fullPath = projectPath ? resolve(projectPath, scriptPath) : resolve(scriptPath)
+      const base = projectPath || process.cwd()
+      const fullPath = safeResolve(base, scriptPath)
       if (!existsSync(fullPath))
         throw new GodotMCPError(`Script not found: ${scriptPath}`, 'SCRIPT_ERROR', 'Check the file path.')
 
@@ -160,7 +163,8 @@ export async function handleScripts(action: string, args: Record<string, unknown
       if (content === undefined || content === null)
         throw new GodotMCPError('No content specified', 'INVALID_ARGS', 'Provide content to write.')
 
-      const fullPath = projectPath ? resolve(projectPath, scriptPath) : resolve(scriptPath)
+      const base = projectPath || process.cwd()
+      const fullPath = safeResolve(base, scriptPath)
       mkdirSync(dirname(fullPath), { recursive: true })
       writeFileSync(fullPath, content, 'utf-8')
       return formatSuccess(`Written: ${scriptPath} (${content.length} chars)`)
@@ -178,7 +182,8 @@ export async function handleScripts(action: string, args: Record<string, unknown
         )
       }
 
-      const sceneFullPath = projectPath ? resolve(projectPath, scenePath) : resolve(scenePath)
+      const base = projectPath || process.cwd()
+      const sceneFullPath = safeResolve(base, scenePath)
       if (!existsSync(sceneFullPath))
         throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Create the scene first.')
 
@@ -207,7 +212,7 @@ export async function handleScripts(action: string, args: Record<string, unknown
       if (!projectPath)
         throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path argument.')
 
-      const resolvedPath = resolve(projectPath)
+      const resolvedPath = safeResolve(projectPath, '.')
       const scripts = findScriptFiles(resolvedPath)
       const relativePaths = scripts.map((s) => relative(resolvedPath, s).replace(/\\/g, '/'))
 
@@ -219,7 +224,8 @@ export async function handleScripts(action: string, args: Record<string, unknown
       if (!scriptPath)
         throw new GodotMCPError('No script_path specified', 'INVALID_ARGS', 'Provide script_path to delete.')
 
-      const fullPath = projectPath ? resolve(projectPath, scriptPath) : resolve(scriptPath)
+      const base = projectPath || process.cwd()
+      const fullPath = safeResolve(base, scriptPath)
       if (!existsSync(fullPath))
         throw new GodotMCPError(`Script not found: ${scriptPath}`, 'SCRIPT_ERROR', 'Check the file path.')
 

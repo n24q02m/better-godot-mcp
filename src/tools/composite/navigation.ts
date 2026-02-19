@@ -4,12 +4,13 @@
  */
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatSuccess, GodotMCPError } from '../helpers/errors.js'
+import { safeResolve } from '../helpers/paths.js'
 
 function resolveScene(projectPath: string | null | undefined, scenePath: string): string {
-  const fullPath = projectPath ? resolve(projectPath, scenePath) : resolve(scenePath)
+  const base = projectPath || process.cwd()
+  const fullPath = safeResolve(base, scenePath)
   if (!existsSync(fullPath))
     throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
   return fullPath

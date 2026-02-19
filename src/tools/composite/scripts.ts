@@ -3,7 +3,7 @@
  * Actions: create | read | write | attach | list | delete
  */
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
+import { mkdir, readdir, readFile, stat, unlink, writeFile } from 'node:fs/promises'
 import { dirname, extname, join, relative, resolve } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
@@ -96,16 +96,16 @@ function getTemplate(extendsType: string): string {
   return SCRIPT_TEMPLATES[extendsType] || `extends ${extendsType}\n\n\nfunc _ready() -> void:\n\tpass\n`
 }
 
-function findScriptFiles(dir: string): string[] {
+async function findScriptFiles(dir: string): Promise<string[]> {
   const results: string[] = []
   try {
-    const entries = readdirSync(dir)
+    const entries = await readdir(dir)
     for (const entry of entries) {
       if (entry.startsWith('.') || entry === 'node_modules' || entry === 'build' || entry === 'addons') continue
       const fullPath = join(dir, entry)
-      const stat = statSync(fullPath)
-      if (stat.isDirectory()) {
-        results.push(...findScriptFiles(fullPath))
+      const stats = await stat(fullPath)
+      if (stats.isDirectory()) {
+        results.push(...(await findScriptFiles(fullPath)))
       } else if (extname(entry) === '.gd') {
         results.push(fullPath)
       }
@@ -128,16 +128,25 @@ export async function handleScripts(action: string, args: Record<string, unknown
       const content = (args.content as string) || getTemplate(extendsType)
 
       const fullPath = projectPath ? resolve(projectPath, scriptPath) : resolve(scriptPath)
-      if (existsSync(fullPath)) {
+
+      // Check if file exists using stat (non-throwing if caught, but access is better if we only care about existence)
+      // Or use wx flag in writeFile, but we need to report specific error.
+      try {
+        await stat(fullPath)
+        // If stat succeeds, file exists
         throw new GodotMCPError(
           `Script already exists: ${scriptPath}`,
           'SCRIPT_ERROR',
           'Use write action to modify existing scripts.',
         )
+      } catch (error: any) {
+        if (error instanceof GodotMCPError) throw error
+        if (error.code !== 'ENOENT') throw error
+        // File does not exist, proceed
       }
 
-      mkdirSync(dirname(fullPath), { recursive: true })
-      writeFileSync(fullPath, content, 'utf-8')
+      await mkdir(dirname(fullPath), { recursive: true })
+      await writeFile(fullPath, content, 'utf-8')
       return formatSuccess(`Created script: ${scriptPath}\nExtends: ${extendsType}`)
     }
 
@@ -146,11 +155,16 @@ export async function handleScripts(action: string, args: Record<string, unknown
       if (!scriptPath) throw new GodotMCPError('No script_path specified', 'INVALID_ARGS', 'Provide script_path.')
 
       const fullPath = projectPath ? resolve(projectPath, scriptPath) : resolve(scriptPath)
-      if (!existsSync(fullPath))
-        throw new GodotMCPError(`Script not found: ${scriptPath}`, 'SCRIPT_ERROR', 'Check the file path.')
 
-      const content = readFileSync(fullPath, 'utf-8')
-      return formatSuccess(`File: ${scriptPath}\n\n${content}`)
+      try {
+        const content = await readFile(fullPath, 'utf-8')
+        return formatSuccess(`File: ${scriptPath}\n\n${content}`)
+      } catch (error: any) {
+        if (error.code === 'ENOENT') {
+             throw new GodotMCPError(`Script not found: ${scriptPath}`, 'SCRIPT_ERROR', 'Check the file path.')
+        }
+        throw error
+      }
     }
 
     case 'write': {
@@ -161,8 +175,8 @@ export async function handleScripts(action: string, args: Record<string, unknown
         throw new GodotMCPError('No content specified', 'INVALID_ARGS', 'Provide content to write.')
 
       const fullPath = projectPath ? resolve(projectPath, scriptPath) : resolve(scriptPath)
-      mkdirSync(dirname(fullPath), { recursive: true })
-      writeFileSync(fullPath, content, 'utf-8')
+      await mkdir(dirname(fullPath), { recursive: true })
+      await writeFile(fullPath, content, 'utf-8')
       return formatSuccess(`Written: ${scriptPath} (${content.length} chars)`)
     }
 
@@ -179,10 +193,16 @@ export async function handleScripts(action: string, args: Record<string, unknown
       }
 
       const sceneFullPath = projectPath ? resolve(projectPath, scenePath) : resolve(scenePath)
-      if (!existsSync(sceneFullPath))
-        throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Create the scene first.')
+      let content: string
+      try {
+        content = await readFile(sceneFullPath, 'utf-8')
+      } catch (error: any) {
+         if (error.code === 'ENOENT') {
+             throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Create the scene first.')
+        }
+        throw error
+      }
 
-      let content = readFileSync(sceneFullPath, 'utf-8')
       const resPath = `res://${scriptPath.replace(/\\/g, '/')}`
 
       if (nodeName) {
@@ -199,7 +219,7 @@ export async function handleScripts(action: string, args: Record<string, unknown
         content = content.replace(/(\[node [^\]]+\])/, `$1\nscript = ExtResource("${resPath}")`)
       }
 
-      writeFileSync(sceneFullPath, content, 'utf-8')
+      await writeFile(sceneFullPath, content, 'utf-8')
       return formatSuccess(`Attached script ${scriptPath} to ${nodeName || 'root node'} in ${scenePath}`)
     }
 
@@ -208,7 +228,7 @@ export async function handleScripts(action: string, args: Record<string, unknown
         throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path argument.')
 
       const resolvedPath = resolve(projectPath)
-      const scripts = findScriptFiles(resolvedPath)
+      const scripts = await findScriptFiles(resolvedPath)
       const relativePaths = scripts.map((s) => relative(resolvedPath, s).replace(/\\/g, '/'))
 
       return formatJSON({ project: resolvedPath, count: relativePaths.length, scripts: relativePaths })
@@ -220,11 +240,16 @@ export async function handleScripts(action: string, args: Record<string, unknown
         throw new GodotMCPError('No script_path specified', 'INVALID_ARGS', 'Provide script_path to delete.')
 
       const fullPath = projectPath ? resolve(projectPath, scriptPath) : resolve(scriptPath)
-      if (!existsSync(fullPath))
-        throw new GodotMCPError(`Script not found: ${scriptPath}`, 'SCRIPT_ERROR', 'Check the file path.')
 
-      unlinkSync(fullPath)
-      return formatSuccess(`Deleted script: ${scriptPath}`)
+      try {
+        await unlink(fullPath)
+        return formatSuccess(`Deleted script: ${scriptPath}`)
+      } catch (error: any) {
+        if (error.code === 'ENOENT') {
+             throw new GodotMCPError(`Script not found: ${scriptPath}`, 'SCRIPT_ERROR', 'Check the file path.')
+        }
+        throw error
+      }
     }
 
     default:

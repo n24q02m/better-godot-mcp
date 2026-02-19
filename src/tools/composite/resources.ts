@@ -127,8 +127,8 @@ export async function handleResources(action: string, args: Record<string, unkno
         }
 
         return formatJSON(info)
-      } catch (err: any) {
-        if (err.code === 'ENOENT') {
+      } catch (err: unknown) {
+        if (err && typeof err === 'object' && 'code' in err && (err as { code: string }).code === 'ENOENT') {
              throw new GodotMCPError(`Resource not found: ${resPath}`, 'RESOURCE_ERROR', 'Check the file path.')
         }
         throw err

@@ -3,23 +3,37 @@
  * Actions: launch | status
  */
 
-import { execSync } from 'node:child_process'
+import { exec } from 'node:child_process'
 import { resolve } from 'node:path'
 import { launchGodotEditor } from '../../godot/headless.js'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
 
 /**
+ * Promisified exec
+ */
+function execAsync(command: string, options: any): Promise<{ stdout: string; stderr: string }> {
+  return new Promise((resolve, reject) => {
+    exec(command, options, (error, stdout, stderr) => {
+      if (error) {
+        reject(error)
+      } else {
+        resolve({ stdout: stdout as string, stderr: stderr as string })
+      }
+    })
+  })
+}
+
+/**
  * Check if any Godot processes are running
  */
-function getGodotProcesses(): Array<{ pid: string; name: string }> {
+async function getGodotProcesses(): Promise<Array<{ pid: string; name: string }>> {
   try {
     if (process.platform === 'win32') {
-      const output = execSync('tasklist /FI "IMAGENAME eq godot*" /FO CSV /NH', {
+      const { stdout } = await execAsync('tasklist /FI "IMAGENAME eq godot*" /FO CSV /NH', {
         encoding: 'utf-8',
-        stdio: ['pipe', 'pipe', 'pipe'],
       })
-      return output
+      return stdout
         .split('\n')
         .filter((line) => line.includes('godot'))
         .map((line) => {
@@ -28,11 +42,10 @@ function getGodotProcesses(): Array<{ pid: string; name: string }> {
         })
     }
 
-    const output = execSync('pgrep -la godot', {
+    const { stdout } = await execAsync('pgrep -la godot', {
       encoding: 'utf-8',
-      stdio: ['pipe', 'pipe', 'pipe'],
     })
-    return output
+    return stdout
       .split('\n')
       .filter(Boolean)
       .map((line) => {
@@ -64,7 +77,7 @@ export async function handleEditor(action: string, args: Record<string, unknown>
     }
 
     case 'status': {
-      const processes = getGodotProcesses()
+      const processes = await getGodotProcesses()
       return formatJSON({
         running: processes.length > 0,
         processes,

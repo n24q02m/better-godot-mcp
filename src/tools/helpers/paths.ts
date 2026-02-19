@@ -23,7 +23,7 @@ export function safeResolve(basePath: string, relativePath: string): string {
     throw new GodotMCPError(
       `Path traversal detected: ${relativePath}`,
       'INVALID_ARGS',
-      'Path must be within project directory.'
+      'Path must be within project directory.',
     )
   }
 

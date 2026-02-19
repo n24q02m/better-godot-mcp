@@ -3,10 +3,11 @@
  * Actions: create | read | write | attach | list | delete
  */
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
-import { dirname, extname, join, relative, resolve } from 'node:path'
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
+import { dirname, relative, resolve } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
+import { findFiles } from '../helpers/files.js'
 
 const SCRIPT_TEMPLATES: Record<string, string> = {
   Node: `extends Node
@@ -94,26 +95,6 @@ func _ready() -> void:
 
 function getTemplate(extendsType: string): string {
   return SCRIPT_TEMPLATES[extendsType] || `extends ${extendsType}\n\n\nfunc _ready() -> void:\n\tpass\n`
-}
-
-function findScriptFiles(dir: string): string[] {
-  const results: string[] = []
-  try {
-    const entries = readdirSync(dir)
-    for (const entry of entries) {
-      if (entry.startsWith('.') || entry === 'node_modules' || entry === 'build' || entry === 'addons') continue
-      const fullPath = join(dir, entry)
-      const stat = statSync(fullPath)
-      if (stat.isDirectory()) {
-        results.push(...findScriptFiles(fullPath))
-      } else if (extname(entry) === '.gd') {
-        results.push(fullPath)
-      }
-    }
-  } catch {
-    // Skip inaccessible
-  }
-  return results
 }
 
 export async function handleScripts(action: string, args: Record<string, unknown>, config: GodotConfig) {
@@ -208,7 +189,11 @@ export async function handleScripts(action: string, args: Record<string, unknown
         throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path argument.')
 
       const resolvedPath = resolve(projectPath)
-      const scripts = findScriptFiles(resolvedPath)
+      const scripts = await findFiles(
+        resolvedPath,
+        new Set(['.gd']),
+        new Set(['node_modules', 'build', '.git', '.godot', 'addons']),
+      )
       const relativePaths = scripts.map((s) => relative(resolvedPath, s).replace(/\\/g, '/'))
 
       return formatJSON({ project: resolvedPath, count: relativePaths.length, scripts: relativePaths })

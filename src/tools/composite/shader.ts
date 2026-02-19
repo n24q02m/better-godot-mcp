@@ -3,10 +3,11 @@
  * Actions: create | read | write | get_params | list
  */
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
-import { dirname, extname, join, relative, resolve } from 'node:path'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { dirname, relative, resolve } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
+import { findFiles } from '../helpers/files.js'
 
 const SHADER_TEMPLATES: Record<string, string> = {
   canvas_item: `shader_type canvas_item;
@@ -46,26 +47,6 @@ void fog() {
 \tALBEDO = vec3(0.8);
 }
 `,
-}
-
-function findShaderFiles(dir: string): string[] {
-  const results: string[] = []
-  try {
-    const entries = readdirSync(dir)
-    for (const entry of entries) {
-      if (entry.startsWith('.') || entry === 'node_modules' || entry === 'build') continue
-      const fullPath = join(dir, entry)
-      const stat = statSync(fullPath)
-      if (stat.isDirectory()) {
-        results.push(...findShaderFiles(fullPath))
-      } else if (extname(entry) === '.gdshader' || extname(entry) === '.gdshaderinc') {
-        results.push(fullPath)
-      }
-    }
-  } catch {
-    // Skip inaccessible
-  }
-  return results
 }
 
 export async function handleShader(action: string, args: Record<string, unknown>, config: GodotConfig) {
@@ -149,7 +130,7 @@ export async function handleShader(action: string, args: Record<string, unknown>
       if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
 
       const resolvedPath = resolve(projectPath)
-      const shaders = findShaderFiles(resolvedPath)
+      const shaders = findFiles(resolvedPath, new Set(['.gdshader', '.gdshaderinc']))
       const relativePaths = shaders.map((s) => relative(resolvedPath, s).replace(/\\/g, '/'))
 
       return formatJSON({ project: resolvedPath, count: relativePaths.length, shaders: relativePaths })

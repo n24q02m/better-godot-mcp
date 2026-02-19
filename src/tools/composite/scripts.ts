@@ -3,7 +3,7 @@
  * Actions: create | read | write | attach | list | delete
  */
 
-import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync, promises as fs } from 'node:fs'
+import { existsSync, promises as fs, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { dirname, extname, join, relative, resolve } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'

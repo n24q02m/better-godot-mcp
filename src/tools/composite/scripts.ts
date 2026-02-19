@@ -129,8 +129,6 @@ export async function handleScripts(action: string, args: Record<string, unknown
 
       const fullPath = projectPath ? resolve(projectPath, scriptPath) : resolve(scriptPath)
 
-      // Check if file exists using stat (non-throwing if caught, but access is better if we only care about existence)
-      // Or use wx flag in writeFile, but we need to report specific error.
       try {
         await stat(fullPath)
         // If stat succeeds, file exists
@@ -139,9 +137,10 @@ export async function handleScripts(action: string, args: Record<string, unknown
           'SCRIPT_ERROR',
           'Use write action to modify existing scripts.',
         )
-      } catch (error: any) {
+      } catch (error) {
         if (error instanceof GodotMCPError) throw error
-        if (error.code !== 'ENOENT') throw error
+        const err = error as { code?: string }
+        if (err.code !== 'ENOENT') throw error
         // File does not exist, proceed
       }
 
@@ -159,9 +158,10 @@ export async function handleScripts(action: string, args: Record<string, unknown
       try {
         const content = await readFile(fullPath, 'utf-8')
         return formatSuccess(`File: ${scriptPath}\n\n${content}`)
-      } catch (error: any) {
-        if (error.code === 'ENOENT') {
-             throw new GodotMCPError(`Script not found: ${scriptPath}`, 'SCRIPT_ERROR', 'Check the file path.')
+      } catch (error) {
+        const err = error as { code?: string }
+        if (err.code === 'ENOENT') {
+          throw new GodotMCPError(`Script not found: ${scriptPath}`, 'SCRIPT_ERROR', 'Check the file path.')
         }
         throw error
       }
@@ -196,9 +196,10 @@ export async function handleScripts(action: string, args: Record<string, unknown
       let content: string
       try {
         content = await readFile(sceneFullPath, 'utf-8')
-      } catch (error: any) {
-         if (error.code === 'ENOENT') {
-             throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Create the scene first.')
+      } catch (error) {
+        const err = error as { code?: string }
+        if (err.code === 'ENOENT') {
+          throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Create the scene first.')
         }
         throw error
       }
@@ -244,9 +245,10 @@ export async function handleScripts(action: string, args: Record<string, unknown
       try {
         await unlink(fullPath)
         return formatSuccess(`Deleted script: ${scriptPath}`)
-      } catch (error: any) {
-        if (error.code === 'ENOENT') {
-             throw new GodotMCPError(`Script not found: ${scriptPath}`, 'SCRIPT_ERROR', 'Check the file path.')
+      } catch (error) {
+        const err = error as { code?: string }
+        if (err.code === 'ENOENT') {
+          throw new GodotMCPError(`Script not found: ${scriptPath}`, 'SCRIPT_ERROR', 'Check the file path.')
         }
         throw error
       }

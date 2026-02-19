@@ -1,8 +1,8 @@
 import { existsSync, mkdirSync, rmSync } from 'node:fs'
-import type { GodotConfig } from '../../src/godot/types.js'
 import { tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import type { GodotConfig } from '../../src/godot/types.js'
 import { handleScripts } from '../../src/tools/composite/scripts.js'
 import { createTmpProject, makeConfig } from '../fixtures.js'
 

@@ -7,12 +7,11 @@ import {
   copyFileSync,
   existsSync,
   mkdirSync,
-  readdirSync,
   readFileSync,
-  statSync,
   unlinkSync,
   writeFileSync,
 } from 'node:fs'
+import { readdir, stat } from 'node:fs/promises'
 import { basename, dirname, extname, join, relative, resolve } from 'node:path'
 import type { GodotConfig, SceneInfo, SceneNode } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
@@ -72,22 +71,45 @@ function parseTscnFile(filePath: string): SceneInfo {
 /**
  * Recursively find all .tscn files in a directory
  */
-function findSceneFiles(dir: string): string[] {
+async function findSceneFiles(dir: string): Promise<string[]> {
   const results: string[] = []
 
   try {
-    const entries = readdirSync(dir)
+    const entries = await readdir(dir, { withFileTypes: true })
+    const promises: Promise<string[]>[] = []
+
     for (const entry of entries) {
-      if (entry.startsWith('.') || entry === 'node_modules' || entry === 'build') continue
+      if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === 'build') continue
 
-      const fullPath = join(dir, entry)
-      const stat = statSync(fullPath)
+      const fullPath = join(dir, entry.name)
 
-      if (stat.isDirectory()) {
-        results.push(...findSceneFiles(fullPath))
-      } else if (extname(entry) === '.tscn') {
+      if (entry.isDirectory()) {
+        promises.push(findSceneFiles(fullPath))
+      } else if (entry.isSymbolicLink()) {
+        promises.push(
+          (async () => {
+            try {
+              const stats = await stat(fullPath)
+              if (stats.isDirectory()) {
+                return findSceneFiles(fullPath)
+              }
+              if (stats.isFile() && extname(entry.name) === '.tscn') {
+                return [fullPath]
+              }
+            } catch {
+              // Ignore invalid symlinks
+            }
+            return []
+          })()
+        )
+      } else if (entry.isFile() && extname(entry.name) === '.tscn') {
         results.push(fullPath)
       }
+    }
+
+    const subResults = await Promise.all(promises)
+    for (const sub of subResults) {
+      results.push(...sub)
     }
   } catch {
     // Skip inaccessible directories
@@ -140,7 +162,7 @@ export async function handleScenes(action: string, args: Record<string, unknown>
         throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path argument.')
       }
       const resolvedPath = resolve(projectPath)
-      const scenes = findSceneFiles(resolvedPath)
+      const scenes = await findSceneFiles(resolvedPath)
       const relativePaths = scenes.map((s) => relative(resolvedPath, s).replace(/\\/g, '/'))
 
       return formatJSON({

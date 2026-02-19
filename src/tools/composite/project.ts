@@ -4,14 +4,15 @@
  */
 
 import { execSync } from 'node:child_process'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
+import { readFile, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { execGodotSync, runGodotProject } from '../../godot/headless.js'
 import type { GodotConfig, ProjectInfo } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
-import { getSetting, parseProjectSettings, setSettingInContent } from '../helpers/project-settings.js'
+import { getSetting, parseProjectSettingsAsync, setSettingInContent } from '../helpers/project-settings.js'
 
-function parseProjectGodot(projectPath: string): ProjectInfo {
+async function parseProjectGodot(projectPath: string): Promise<ProjectInfo> {
   const configPath = join(projectPath, 'project.godot')
   if (!existsSync(configPath)) {
     throw new GodotMCPError(
@@ -21,7 +22,7 @@ function parseProjectGodot(projectPath: string): ProjectInfo {
     )
   }
 
-  const content = readFileSync(configPath, 'utf-8')
+  const content = await readFile(configPath, 'utf-8')
   const lines = content.split('\n')
 
   const info: ProjectInfo = { name: 'Unknown', configVersion: 5, mainScene: null, features: [], settings: {} }
@@ -71,7 +72,7 @@ export async function handleProject(action: string, args: Record<string, unknown
           'Provide project_path argument or set it via config.set action.',
         )
       }
-      const info = parseProjectGodot(resolve(projectPath))
+      const info = await parseProjectGodot(resolve(projectPath))
       return formatJSON(info)
     }
 
@@ -117,7 +118,7 @@ export async function handleProject(action: string, args: Record<string, unknown
       if (!existsSync(configPath))
         throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
 
-      const settings = parseProjectSettings(configPath)
+      const settings = await parseProjectSettingsAsync(configPath)
       const value = getSetting(settings, key)
 
       return formatJSON({ key, value: value ?? null })
@@ -135,9 +136,9 @@ export async function handleProject(action: string, args: Record<string, unknown
       if (!existsSync(configPath))
         throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
 
-      const content = readFileSync(configPath, 'utf-8')
+      const content = await readFile(configPath, 'utf-8')
       const updated = setSettingInContent(content, key, value)
-      writeFileSync(configPath, updated, 'utf-8')
+      await writeFile(configPath, updated, 'utf-8')
 
       return formatSuccess(`Set ${key} = ${value}`)
     }

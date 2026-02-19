@@ -12,6 +12,7 @@
  */
 
 import { readFileSync, writeFileSync } from 'node:fs'
+import type { SceneNode } from '../../godot/types.js'
 
 export interface TscnHeader {
   format: number
@@ -311,4 +312,26 @@ export function getNodeProperty(scene: ParsedScene, nodeName: string, property: 
  */
 export function writeScene(filePath: string, content: string): void {
   writeFileSync(filePath, content, 'utf-8')
+}
+
+/**
+ * Map SceneNodeInfo to SceneNode structure
+ */
+export function mapToSceneNode(info: SceneNodeInfo): SceneNode {
+  const properties = { ...info.properties }
+  const script = properties.script ?? null
+  if (script) {
+    delete properties.script
+  }
+
+  // Determine type: explicit type > instance placeholder > generic Node
+  const type = info.type || (info.instance ? 'Instance' : 'Node')
+
+  return {
+    name: info.name,
+    type,
+    parent: info.parent ?? null,
+    properties,
+    script,
+  }
 }

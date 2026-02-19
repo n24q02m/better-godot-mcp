@@ -7,7 +7,16 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!**/build", "!**/bin", "!**/node_modules", "!**/*.d.ts", "!**/addons", "!**/temp"]
+    "includes": [
+      "**",
+      "!**/build",
+      "!**/bin",
+      "!**/node_modules",
+      "!**/*.d.ts",
+      "!**/addons",
+      "!**/temp",
+      "!**/.vscode"
+    ]
   },
   "formatter": {
     "enabled": true,

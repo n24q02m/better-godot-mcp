@@ -14,7 +14,6 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import type { SceneNode } from '../../godot/types.js'
 
-
 export interface TscnHeader {
   format: number
   loadSteps: number

@@ -107,13 +107,11 @@ function findWinGetGodotBinaries(localAppData: string): string[] {
       const pkgDir = join(packagesDir, dir.name)
       try {
         const files = readdirSync(pkgDir)
-        // Prefer console version (has stdout for --version), then regular
+        // Prefer GUI version (has actual editor window), then console as fallback
+        const regularExe = files.find((f) => /^Godot_v[\d.]+-\w+_win64\.exe$/i.test(f) && !f.includes('console'))
+        if (regularExe) results.push(join(pkgDir, regularExe))
         const consoleExe = files.find((f) => /^Godot_v[\d.]+-\w+_win64_console\.exe$/i.test(f))
         if (consoleExe) results.push(join(pkgDir, consoleExe))
-        const regularExe = files.find(
-          (f) => /^Godot_v[\d.]+-\w+_win64\.exe$/i.test(f) && !f.includes('console'),
-        )
-        if (regularExe) results.push(join(pkgDir, regularExe))
       } catch {
         // Skip unreadable package directories
       }

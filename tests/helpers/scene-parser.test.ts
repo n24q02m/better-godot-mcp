@@ -167,14 +167,16 @@ describe('scene-parser', () => {
 
     it('should return name for direct child (parent=".")', () => {
       const scene = parseSceneContent(COMPLEX_TSCN)
-      const sprite = scene.nodes.find((n) => n.name === 'Sprite')!
-      expect(getNodePath(scene, sprite)).toBe('Sprite')
+      const sprite = scene.nodes.find((n) => n.name === 'Sprite')
+      expect(sprite).toBeDefined()
+      expect(getNodePath(scene, sprite!)).toBe('Sprite')
     })
 
     it('should return full path for nested node', () => {
       const scene = parseSceneContent(COMPLEX_TSCN)
-      const label = scene.nodes.find((n) => n.name === 'Label')!
-      expect(getNodePath(scene, label)).toBe('UI/Label')
+      const label = scene.nodes.find((n) => n.name === 'Label')
+      expect(label).toBeDefined()
+      expect(getNodePath(scene, label!)).toBe('UI/Label')
     })
   })
 

@@ -100,7 +100,7 @@ async function findSceneFiles(dir: string): Promise<string[]> {
               // Ignore invalid symlinks
             }
             return []
-          })()
+          })(),
         )
       } else if (entry.isFile() && extname(entry.name) === '.tscn') {
         results.push(fullPath)

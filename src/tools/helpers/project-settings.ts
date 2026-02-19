@@ -27,6 +27,9 @@ export function parseProjectSettings(filePath: string): ProjectSettings {
  */
 export function parseProjectSettingsContent(content: string): ProjectSettings {
   const sections = new Map<string, Map<string, string>>()
+  // Initialize global section
+  sections.set('', new Map())
+
   let currentSection = ''
 
   for (const rawLine of content.split('\n')) {
@@ -45,7 +48,7 @@ export function parseProjectSettingsContent(content: string): ProjectSettings {
 
     // Key=value
     const kvMatch = line.match(/^([^=]+)=(.*)$/)
-    if (kvMatch && currentSection) {
+    if (kvMatch) {
       const key = kvMatch[1].trim()
       const value = kvMatch[2].trim()
       sections.get(currentSection)?.set(key, value)

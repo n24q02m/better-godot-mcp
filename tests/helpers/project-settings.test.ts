@@ -48,17 +48,28 @@ describe('project-settings', () => {
 
     it('should handle empty content', () => {
       const settings = parseProjectSettingsContent('')
-      expect(settings.sections.size).toBe(0)
+      // Should have global section
+      expect(settings.sections.has('')).toBe(true)
+      expect(settings.sections.size).toBe(1)
     })
 
     it('should handle content with only comments', () => {
       const settings = parseProjectSettingsContent('; just a comment\n; another one\n')
-      expect(settings.sections.size).toBe(0)
+      expect(settings.sections.has('')).toBe(true)
+      expect(settings.sections.size).toBe(1)
     })
 
     it('should preserve raw content', () => {
       const settings = parseProjectSettingsContent(SAMPLE_PROJECT_GODOT)
       expect(settings.raw).toBe(SAMPLE_PROJECT_GODOT)
+    })
+
+    it('should parse global keys', () => {
+      const content = 'config_version=5\n\n[application]\nconfig/name="Test"'
+      const settings = parseProjectSettingsContent(content)
+      const global = settings.sections.get('')
+      expect(global?.get('config_version')).toBe('5')
+      expect(settings.sections.get('application')?.get('config/name')).toBe('"Test"')
     })
   })
 

@@ -4,7 +4,7 @@
  */
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
-import { dirname, extname, join, relative, resolve } from 'node:path'
+import { dirname, extname, join, relative } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
@@ -212,7 +212,7 @@ export async function handleScripts(action: string, args: Record<string, unknown
       if (!projectPath)
         throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path argument.')
 
-      const resolvedPath = resolve(projectPath)
+      const resolvedPath = safeResolve(projectPath, '.')
       const scripts = findScriptFiles(resolvedPath)
       const relativePaths = scripts.map((s) => relative(resolvedPath, s).replace(/\\/g, '/'))
 

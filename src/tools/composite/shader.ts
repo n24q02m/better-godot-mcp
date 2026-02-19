@@ -4,7 +4,7 @@
  */
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
-import { dirname, extname, join, relative, resolve } from 'node:path'
+import { dirname, extname, join, relative } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
@@ -153,7 +153,7 @@ export async function handleShader(action: string, args: Record<string, unknown>
     case 'list': {
       if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
 
-      const resolvedPath = resolve(projectPath)
+      const resolvedPath = safeResolve(projectPath, '.')
       const shaders = findShaderFiles(resolvedPath)
       const relativePaths = shaders.map((s) => relative(resolvedPath, s).replace(/\\/g, '/'))
 

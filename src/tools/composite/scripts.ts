@@ -7,7 +7,7 @@ import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from '
 import { dirname, relative, resolve } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
-import { findFiles, DEFAULT_IGNORE_DIRS } from '../helpers/files.js'
+import { DEFAULT_IGNORE_DIRS, findFiles } from '../helpers/files.js'
 
 const SCRIPT_TEMPLATES: Record<string, string> = {
   Node: `extends Node
@@ -177,7 +177,7 @@ export async function handleScripts(action: string, args: Record<string, unknown
           )
         content = content.replace(nodePattern, `$1\nscript = ExtResource("${resPath}")`)
       } else {
-        content = content.replace(/(\[node [^\]]+\])/, `$1\nscript = ExtResource("${resPath}")`)
+        content = content.replace(/(\[node [^\\]+\])/, `$1\nscript = ExtResource("${resPath}")`)
       }
 
       writeFileSync(sceneFullPath, content, 'utf-8')

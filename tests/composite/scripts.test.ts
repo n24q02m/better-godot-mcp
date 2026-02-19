@@ -7,7 +7,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { GodotConfig } from '../../src/godot/types.js'
 import { handleScripts } from '../../src/tools/composite/scripts.js'
-import { createTmpProject, createTmpScript, createTmpScene, makeConfig } from '../fixtures.js'
+import { createTmpProject, createTmpScene, createTmpScript, makeConfig } from '../fixtures.js'
 
 describe('scripts', () => {
   let projectPath: string
@@ -199,23 +199,27 @@ describe('scripts', () => {
     })
 
     it('should attach script to specific node', async () => {
-        createTmpScene(projectPath, 'scene.tscn', '[gd_scene format=3]\n\n[node name="Root" type="Node2D"]\n\n[node name="Child" type="Sprite2D" parent="."]\n')
-        createTmpScript(projectPath, 'child.gd')
+      createTmpScene(
+        projectPath,
+        'scene.tscn',
+        '[gd_scene format=3]\n\n[node name="Root" type="Node2D"]\n\n[node name="Child" type="Sprite2D" parent="."]\n',
+      )
+      createTmpScript(projectPath, 'child.gd')
 
-        const result = await handleScripts(
-            'attach',
-            {
-                project_path: projectPath,
-                scene_path: 'scene.tscn',
-                script_path: 'child.gd',
-                node_name: 'Child'
-            },
-            config
-        )
+      const result = await handleScripts(
+        'attach',
+        {
+          project_path: projectPath,
+          scene_path: 'scene.tscn',
+          script_path: 'child.gd',
+          node_name: 'Child',
+        },
+        config,
+      )
 
-        expect(result.content[0].text).toContain('Attached script')
-        const content = readFileSync(join(projectPath, 'scene.tscn'), 'utf-8')
-        expect(content).toMatch(/\[node name="Child"[^\]]*\]\s+script = ExtResource\("res:\/\/child\.gd"\)/)
+      expect(result.content[0].text).toContain('Attached script')
+      const content = readFileSync(join(projectPath, 'scene.tscn'), 'utf-8')
+      expect(content).toMatch(/\[node name="Child"[^\]]*\]\s+script = ExtResource\("res:\/\/child\.gd"\)/)
     })
   })
 

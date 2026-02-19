@@ -1,5 +1,5 @@
-import { join } from 'node:path'
 import { mkdirSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { findFiles } from '../../src/tools/helpers/files.js'
 import { createTmpProject } from '../fixtures.js'
@@ -25,8 +25,8 @@ describe('files helper', () => {
 
     const results = findFiles(tmpDir, new Set(['.txt']))
     expect(results).toHaveLength(2)
-    expect(results.map(p => p.toLowerCase())).toContain(join(tmpDir, 'file1.txt').toLowerCase())
-    expect(results.map(p => p.toLowerCase())).toContain(join(tmpDir, 'file3.txt').toLowerCase())
+    expect(results.map((p) => p.toLowerCase())).toContain(join(tmpDir, 'file1.txt').toLowerCase())
+    expect(results.map((p) => p.toLowerCase())).toContain(join(tmpDir, 'file3.txt').toLowerCase())
   })
 
   it('should find files recursively', () => {

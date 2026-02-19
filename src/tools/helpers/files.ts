@@ -12,11 +12,7 @@ export const DEFAULT_IGNORE_DIRS = ['node_modules', 'build']
  * @param extensions Set of file extensions to include (e.g. ['.tscn', '.gd'])
  * @param ignoreDirs Array of directory names to ignore
  */
-export function findFiles(
-  dir: string,
-  extensions: Set<string>,
-  ignoreDirs: string[] = DEFAULT_IGNORE_DIRS,
-): string[] {
+export function findFiles(dir: string, extensions: Set<string>, ignoreDirs: string[] = DEFAULT_IGNORE_DIRS): string[] {
   const results: string[] = []
 
   try {

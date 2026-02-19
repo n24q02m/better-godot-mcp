@@ -1,5 +1,5 @@
 import { execFileSync, execSync } from 'node:child_process'
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { execGodotSync } from '../../src/godot/headless.js'
 
 vi.mock('node:child_process', () => ({
@@ -25,21 +25,27 @@ describe('execGodotSync', () => {
 
     // We expect execFileSync to be called after refactor
     // For now, this assertion will fail, which is expected for TDD
-    expect(execFileSync).toHaveBeenCalledWith(godotPath, args, expect.objectContaining({
-      timeout: 30000,
-      encoding: 'utf-8',
-      stdio: ['pipe', 'pipe', 'pipe'],
-    }))
+    expect(execFileSync).toHaveBeenCalledWith(
+      godotPath,
+      args,
+      expect.objectContaining({
+        timeout: 30000,
+        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      }),
+    )
 
     expect(result.success).toBe(true)
     expect(result.stdout).toBe('4.3.stable')
   })
 
   it('should handle execution errors', () => {
-    const error = new Error('Command failed') as any
-    error.status = 1
-    error.stdout = ''
-    error.stderr = 'Error executing command'
+    const error = new Error('Command failed')
+    Object.assign(error, {
+      status: 1,
+      stdout: '',
+      stderr: 'Error executing command',
+    })
 
     vi.mocked(execFileSync).mockImplementation(() => {
       throw error

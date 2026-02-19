@@ -7,6 +7,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSy
 import { dirname, extname, join, relative, resolve } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
+import { safeResolve } from '../helpers/paths.js'
 
 const SHADER_TEMPLATES: Record<string, string> = {
   canvas_item: `shader_type canvas_item;
@@ -83,7 +84,8 @@ export async function handleShader(action: string, args: Record<string, unknown>
       const shaderType = (args.shader_type as string) || 'canvas_item'
       const content = (args.content as string) || SHADER_TEMPLATES[shaderType] || SHADER_TEMPLATES.canvas_item
 
-      const fullPath = projectPath ? resolve(projectPath, shaderPath) : resolve(shaderPath)
+      const base = projectPath || process.cwd()
+      const fullPath = safeResolve(base, shaderPath)
       if (existsSync(fullPath))
         throw new GodotMCPError(`Shader already exists: ${shaderPath}`, 'SHADER_ERROR', 'Use write action to modify.')
 
@@ -96,7 +98,8 @@ export async function handleShader(action: string, args: Record<string, unknown>
       const shaderPath = args.shader_path as string
       if (!shaderPath) throw new GodotMCPError('No shader_path specified', 'INVALID_ARGS', 'Provide shader_path.')
 
-      const fullPath = projectPath ? resolve(projectPath, shaderPath) : resolve(shaderPath)
+      const base = projectPath || process.cwd()
+      const fullPath = safeResolve(base, shaderPath)
       if (!existsSync(fullPath))
         throw new GodotMCPError(`Shader not found: ${shaderPath}`, 'SHADER_ERROR', 'Check the file path.')
 
@@ -110,7 +113,8 @@ export async function handleShader(action: string, args: Record<string, unknown>
       const content = args.content as string
       if (!content) throw new GodotMCPError('No content specified', 'INVALID_ARGS', 'Provide shader content.')
 
-      const fullPath = projectPath ? resolve(projectPath, shaderPath) : resolve(shaderPath)
+      const base = projectPath || process.cwd()
+      const fullPath = safeResolve(base, shaderPath)
       mkdirSync(dirname(fullPath), { recursive: true })
       writeFileSync(fullPath, content, 'utf-8')
       return formatSuccess(`Written: ${shaderPath} (${content.length} chars)`)
@@ -120,7 +124,8 @@ export async function handleShader(action: string, args: Record<string, unknown>
       const shaderPath = args.shader_path as string
       if (!shaderPath) throw new GodotMCPError('No shader_path specified', 'INVALID_ARGS', 'Provide shader_path.')
 
-      const fullPath = projectPath ? resolve(projectPath, shaderPath) : resolve(shaderPath)
+      const base = projectPath || process.cwd()
+      const fullPath = safeResolve(base, shaderPath)
       if (!existsSync(fullPath))
         throw new GodotMCPError(`Shader not found: ${shaderPath}`, 'SHADER_ERROR', 'Check the file path.')
 

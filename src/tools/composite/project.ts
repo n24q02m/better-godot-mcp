@@ -5,10 +5,11 @@
 
 import { execSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { resolve } from 'node:path'
 import { execGodotSync, runGodotProject } from '../../godot/headless.js'
 import type { GodotConfig, ProjectInfo } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
+import { safeResolve } from '../helpers/paths.js'
 import { getSetting, parseProjectSettings, setSettingInContent } from '../helpers/project-settings.js'
 
 function parseProjectGodot(projectPath: string): ProjectInfo {
@@ -113,7 +114,7 @@ export async function handleProject(action: string, args: Record<string, unknown
       if (!key)
         throw new GodotMCPError('No key specified', 'INVALID_ARGS', 'Provide key (e.g., "application/config/name").')
 
-      const configPath = join(resolve(projectPath), 'project.godot')
+      const configPath = safeResolve(projectPath, 'project.godot')
       if (!existsSync(configPath))
         throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
 
@@ -131,7 +132,7 @@ export async function handleProject(action: string, args: Record<string, unknown
       if (!key || value === undefined)
         throw new GodotMCPError('key and value required', 'INVALID_ARGS', 'Provide key and value.')
 
-      const configPath = join(resolve(projectPath), 'project.godot')
+      const configPath = safeResolve(projectPath, 'project.godot')
       if (!existsSync(configPath))
         throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
 
@@ -163,7 +164,7 @@ export async function handleProject(action: string, args: Record<string, unknown
         resolve(projectPath),
         '--export-release',
         preset,
-        resolve(projectPath, outputPath),
+        safeResolve(projectPath, outputPath),
       ])
 
       return formatSuccess(`Export complete: ${outputPath}\n${result.stdout}`)

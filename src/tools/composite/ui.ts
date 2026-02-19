@@ -7,6 +7,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
+import { safeResolve } from '../helpers/paths.js'
 
 const CONTROL_TEMPLATES: Record<string, Record<string, string>> = {
   Button: { text: '"Click"' },
@@ -30,7 +31,8 @@ const CONTROL_TEMPLATES: Record<string, Record<string, string>> = {
 }
 
 function resolveScene(projectPath: string | null | undefined, scenePath: string): string {
-  const fullPath = projectPath ? resolve(projectPath, scenePath) : resolve(scenePath)
+  const base = projectPath || process.cwd()
+  const fullPath = safeResolve(base, scenePath)
   if (!existsSync(fullPath))
     throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
   return fullPath
@@ -86,7 +88,8 @@ export async function handleUI(action: string, args: Record<string, unknown>, co
           'Provide theme_path (e.g., "themes/main.tres").',
         )
 
-      const fullPath = projectPath ? resolve(projectPath, themePath) : resolve(themePath)
+      const base = projectPath || process.cwd()
+      const fullPath = safeResolve(base, themePath)
 
       const fontSize = (args.font_size as number) || 16
       const _fontColor = (args.font_color as string) || 'Color(1, 1, 1, 1)'

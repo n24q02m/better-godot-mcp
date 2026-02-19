@@ -1,9 +1,9 @@
-import { readFileSync, existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { GodotConfig } from '../../src/godot/types.js'
 import { handleUI } from '../../src/tools/composite/ui.js'
-import { createTmpProject, createTmpScene, makeConfig, MINIMAL_TSCN } from '../fixtures.js'
+import { MINIMAL_TSCN, createTmpProject, createTmpScene, makeConfig } from '../fixtures.js'
 
 describe('ui', () => {
   let projectPath: string
@@ -131,7 +131,7 @@ describe('ui', () => {
 
   describe('layout', () => {
     it('should apply full_rect preset', async () => {
-      createTmpScene(projectPath, 'ui.tscn', MINIMAL_TSCN + '\n[node name="Panel" type="Panel" parent="."]\n')
+      createTmpScene(projectPath, 'ui.tscn', `${MINIMAL_TSCN}\n[node name="Panel" type="Panel" parent="."]\n`)
 
       const result = await handleUI(
         'layout',
@@ -152,7 +152,7 @@ describe('ui', () => {
     })
 
     it('should apply center preset', async () => {
-      createTmpScene(projectPath, 'ui.tscn', MINIMAL_TSCN + '\n[node name="Panel" type="Panel" parent="."]\n')
+      createTmpScene(projectPath, 'ui.tscn', `${MINIMAL_TSCN}\n[node name="Panel" type="Panel" parent="."]\n`)
 
       const result = await handleUI(
         'layout',
@@ -190,7 +190,7 @@ describe('ui', () => {
     })
 
     it('should throw if preset is invalid', async () => {
-      createTmpScene(projectPath, 'ui.tscn', MINIMAL_TSCN + '\n[node name="Panel" type="Panel" parent="."]\n')
+      createTmpScene(projectPath, 'ui.tscn', `${MINIMAL_TSCN}\n[node name="Panel" type="Panel" parent="."]\n`)
 
       await expect(
         handleUI(
@@ -209,9 +209,10 @@ describe('ui', () => {
 
   describe('list_controls', () => {
     it('should list controls in scene', async () => {
-      const sceneContent = MINIMAL_TSCN +
-        '\n[node name="MyButton" type="Button" parent="."]\n' +
-        '\n[node name="MyLabel" type="Label" parent="."]\n'
+      const sceneContent =
+        `${MINIMAL_TSCN}\n` +
+        '[node name="MyButton" type="Button" parent="."]\n\n' +
+        '[node name="MyLabel" type="Label" parent="."]\n'
       createTmpScene(projectPath, 'ui.tscn', sceneContent)
 
       const result = await handleUI(
@@ -227,10 +228,12 @@ describe('ui', () => {
       expect(data.scene).toBe('ui.tscn')
       expect(data.count).toBe(2)
       expect(data.controls).toHaveLength(2)
-      expect(data.controls).toEqual(expect.arrayContaining([
-        expect.objectContaining({ name: 'MyButton', type: 'Button' }),
-        expect.objectContaining({ name: 'MyLabel', type: 'Label' }),
-      ]))
+      expect(data.controls).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'MyButton', type: 'Button' }),
+          expect.objectContaining({ name: 'MyLabel', type: 'Label' }),
+        ]),
+      )
     })
 
     it('should return empty list if no controls found', async () => {

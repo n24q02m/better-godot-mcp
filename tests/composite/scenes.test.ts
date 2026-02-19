@@ -263,6 +263,39 @@ describe('scenes', () => {
   })
 
   // ==========================================
+  // security
+  // ==========================================
+  describe('security', () => {
+    it('should prevent path traversal outside project directory', async () => {
+      await expect(
+        handleScenes(
+          'info',
+          {
+            project_path: projectPath,
+            scene_path: '../outside.tscn',
+          },
+          config,
+        ),
+      ).rejects.toThrow('Path traversal detected')
+    })
+
+    it('should prevent path traversal in duplicate destination', async () => {
+      createTmpScene(projectPath, 'safe.tscn')
+      await expect(
+        handleScenes(
+          'duplicate',
+          {
+            project_path: projectPath,
+            scene_path: 'safe.tscn',
+            new_path: '../unsafe_copy.tscn',
+          },
+          config,
+        ),
+      ).rejects.toThrow('Path traversal detected')
+    })
+  })
+
+  // ==========================================
   // invalid action
   // ==========================================
   it('should throw for unknown action', async () => {

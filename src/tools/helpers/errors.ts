@@ -3,6 +3,7 @@
  */
 
 export type GodotMCPErrorCode =
+  | 'SECURITY_VIOLATION'
   | 'GODOT_NOT_FOUND'
   | 'VERSION_MISMATCH'
   | 'PROJECT_NOT_FOUND'

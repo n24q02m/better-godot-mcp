@@ -19,7 +19,7 @@ export async function handlePhysics(action: string, args: Record<string, unknown
       if (!existsSync(configPath))
         throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify project path.')
 
-      const settings = parseProjectSettings(configPath)
+      const settings = await parseProjectSettings(configPath)
       const layers2d: Record<string, string> = {}
       const layers3d: Record<string, string> = {}
 

@@ -117,7 +117,7 @@ export async function handleProject(action: string, args: Record<string, unknown
       if (!existsSync(configPath))
         throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
 
-      const settings = parseProjectSettings(configPath)
+      const settings = await parseProjectSettings(configPath)
       const value = getSetting(settings, key)
 
       return formatJSON({ key, value: value ?? null })

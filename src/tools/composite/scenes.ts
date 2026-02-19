@@ -3,19 +3,11 @@
  * Actions: create | list | info | delete | duplicate | set_main
  */
 
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  statSync,
-  unlinkSync,
-  writeFileSync,
-} from 'node:fs'
-import { basename, dirname, extname, join, relative, resolve } from 'node:path'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
+import { basename, dirname, join, relative, resolve } from 'node:path'
 import type { GodotConfig, SceneInfo, SceneNode } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
+import { findFiles } from '../helpers/files.js'
 import { setSettingInContent } from '../helpers/project-settings.js'
 
 /**
@@ -69,33 +61,6 @@ function parseTscnFile(filePath: string): SceneInfo {
   return { path: filePath, rootNode, rootType, nodeCount: nodes.length, nodes, resources }
 }
 
-/**
- * Recursively find all .tscn files in a directory
- */
-function findSceneFiles(dir: string): string[] {
-  const results: string[] = []
-
-  try {
-    const entries = readdirSync(dir)
-    for (const entry of entries) {
-      if (entry.startsWith('.') || entry === 'node_modules' || entry === 'build') continue
-
-      const fullPath = join(dir, entry)
-      const stat = statSync(fullPath)
-
-      if (stat.isDirectory()) {
-        results.push(...findSceneFiles(fullPath))
-      } else if (extname(entry) === '.tscn') {
-        results.push(fullPath)
-      }
-    }
-  } catch {
-    // Skip inaccessible directories
-  }
-
-  return results
-}
-
 function generateTscnContent(rootName: string, rootType: string): string {
   return [`[gd_scene format=3]`, '', `[node name="${rootName}" type="${rootType}"]`, ''].join('\n')
 }
@@ -140,7 +105,7 @@ export async function handleScenes(action: string, args: Record<string, unknown>
         throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path argument.')
       }
       const resolvedPath = resolve(projectPath)
-      const scenes = findSceneFiles(resolvedPath)
+      const scenes = findFiles(resolvedPath, new Set(['.tscn']))
       const relativePaths = scenes.map((s) => relative(resolvedPath, s).replace(/\\/g, '/'))
 
       return formatJSON({

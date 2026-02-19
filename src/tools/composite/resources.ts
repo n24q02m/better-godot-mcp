@@ -3,10 +3,11 @@
  * Actions: list | info | delete | import_config
  */
 
-import { existsSync, readdirSync, readFileSync, statSync, unlinkSync } from 'node:fs'
-import { extname, join, relative, resolve } from 'node:path'
+import { existsSync, readFileSync, statSync, unlinkSync } from 'node:fs'
+import { extname, relative, resolve } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
+import { findFiles } from '../helpers/files.js'
 
 const RESOURCE_EXTENSIONS = new Set([
   '.tres',
@@ -27,27 +28,6 @@ const RESOURCE_EXTENSIONS = new Set([
   '.gdshaderinc',
   '.import',
 ])
-
-function findResourceFiles(dir: string, extensions?: Set<string>): string[] {
-  const exts = extensions || RESOURCE_EXTENSIONS
-  const results: string[] = []
-  try {
-    const entries = readdirSync(dir)
-    for (const entry of entries) {
-      if (entry.startsWith('.') || entry === 'node_modules' || entry === 'build') continue
-      const fullPath = join(dir, entry)
-      const stat = statSync(fullPath)
-      if (stat.isDirectory()) {
-        results.push(...findResourceFiles(fullPath, exts))
-      } else if (exts.has(extname(entry).toLowerCase())) {
-        results.push(fullPath)
-      }
-    }
-  } catch {
-    // Skip inaccessible
-  }
-  return results
-}
 
 export async function handleResources(action: string, args: Record<string, unknown>, config: GodotConfig) {
   const projectPath = (args.project_path as string) || config.projectPath
@@ -70,7 +50,7 @@ export async function handleResources(action: string, args: Record<string, unkno
         if (typeMap[filterType]) exts = new Set(typeMap[filterType])
       }
 
-      const resources = findResourceFiles(resolvedPath, exts)
+      const resources = findFiles(resolvedPath, exts || RESOURCE_EXTENSIONS)
       const relativePaths = resources.map((r) => ({
         path: relative(resolvedPath, r).replace(/\\/g, '/'),
         ext: extname(r),

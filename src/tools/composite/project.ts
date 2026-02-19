@@ -21,40 +21,28 @@ function parseProjectGodot(projectPath: string): ProjectInfo {
     )
   }
 
-  const content = readFileSync(configPath, 'utf-8')
-  const lines = content.split('\n')
-
+  const settings = parseProjectSettings(configPath)
   const info: ProjectInfo = { name: 'Unknown', configVersion: 5, mainScene: null, features: [], settings: {} }
-  let currentSection = ''
 
-  for (const line of lines) {
-    const trimmed = line.trim()
+  for (const [sectionName, sectionData] of settings.sections) {
+    for (const [key, rawValue] of sectionData) {
+      const value = rawValue.replace(/^"(.*)"$/, '$1')
+      const fullKey = sectionName ? `${sectionName}/${key}` : key
 
-    const sectionMatch = trimmed.match(/^\[(.+)\]$/)
-    if (sectionMatch) {
-      currentSection = sectionMatch[1]
-      continue
-    }
-
-    const kvMatch = trimmed.match(/^(\S+)\s*=\s*(.+)$/)
-    if (!kvMatch) continue
-
-    const [, key, rawValue] = kvMatch
-    const value = rawValue.replace(/^"(.*)"$/, '$1')
-
-    if (currentSection === '' || currentSection === 'application') {
-      if (key === 'config/name') info.name = value
-      if (key === 'run/main_scene') info.mainScene = value
-      if (key === 'config/features') {
-        const featMatch = rawValue.match(/PackedStringArray\((.+)\)/)
-        if (featMatch) {
-          info.features = featMatch[1].split(',').map((f) => f.trim().replace(/"/g, ''))
+      if (sectionName === '' || sectionName === 'application') {
+        if (key === 'config/name') info.name = value
+        if (key === 'run/main_scene') info.mainScene = value
+        if (key === 'config/features') {
+          const featMatch = rawValue.match(/PackedStringArray\((.+)\)/)
+          if (featMatch) {
+            info.features = featMatch[1].split(',').map((f) => f.trim().replace(/"/g, ''))
+          }
         }
       }
-    }
 
-    if (key === 'config_version') info.configVersion = Number.parseInt(value, 10)
-    info.settings[`${currentSection ? `${currentSection}/` : ''}${key}`] = value
+      if (key === 'config_version') info.configVersion = Number.parseInt(value, 10)
+      info.settings[fullKey] = value
+    }
   }
 
   return info

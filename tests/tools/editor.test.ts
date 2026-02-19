@@ -18,8 +18,7 @@ vi.mock('node:child_process', () => {
       // Mock success
       if (cmd.includes('tasklist') || cmd.includes('pgrep')) {
         // Return fake process list
-        const output =
-          process.platform === 'win32' ? '"godot.exe","1234","Console","1","12,345 K"' : '1234 godot'
+        const output = process.platform === 'win32' ? '"godot.exe","1234","Console","1","12,345 K"' : '1234 godot'
         cb?.(null, output, '')
       } else {
         cb?.(new Error(`Unknown command: ${cmd}`), '', '')

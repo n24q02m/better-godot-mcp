@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { execSync, spawn } from 'node:child_process'
+import { type ChildProcess, execSync, spawn } from 'node:child_process'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { execGodotScript, execGodotSync, launchGodotEditor, runGodotProject } from '../../src/godot/headless.js'
 
 vi.mock('node:child_process', () => {
@@ -29,7 +29,7 @@ describe('headless', () => {
         expect.objectContaining({
           timeout: 30000,
           encoding: 'utf-8',
-        })
+        }),
       )
       expect(result).toEqual({
         success: true,
@@ -49,7 +49,7 @@ describe('headless', () => {
         expect.objectContaining({
           timeout: 5000,
           cwd: '/tmp',
-        })
+        }),
       )
     })
 
@@ -75,43 +75,43 @@ describe('headless', () => {
     })
 
     it('should handle generic error', () => {
-        const error = new Error('Generic error')
-        vi.mocked(execSync).mockImplementation(() => {
-            throw error
-        })
+      const error = new Error('Generic error')
+      vi.mocked(execSync).mockImplementation(() => {
+        throw error
+      })
 
-        const result = execGodotSync(godotPath, ['--version'])
+      const result = execGodotSync(godotPath, ['--version'])
 
-        expect(result).toEqual({
-            success: false,
-            stdout: '',
-            stderr: 'Generic error',
-            exitCode: 1
-        })
+      expect(result).toEqual({
+        success: false,
+        stdout: '',
+        stderr: 'Generic error',
+        exitCode: 1,
+      })
     })
   })
 
   describe('execGodotScript', () => {
     it('should verify argument construction', () => {
-        vi.mocked(execSync).mockReturnValue('{}')
+      vi.mocked(execSync).mockReturnValue('{}')
 
-        execGodotScript(godotPath, scriptPath, projectPath, ['arg1', 'arg2'])
+      execGodotScript(godotPath, scriptPath, projectPath, ['arg1', 'arg2'])
 
-        expect(execSync).toHaveBeenCalledWith(
-            `"${godotPath}" --headless --path ${projectPath} --script ${scriptPath} -- arg1 arg2`,
-            expect.any(Object)
-        )
+      expect(execSync).toHaveBeenCalledWith(
+        `"${godotPath}" --headless --path ${projectPath} --script ${scriptPath} -- arg1 arg2`,
+        expect.any(Object),
+      )
     })
 
     it('should handle no args', () => {
-        vi.mocked(execSync).mockReturnValue('{}')
+      vi.mocked(execSync).mockReturnValue('{}')
 
-        execGodotScript(godotPath, scriptPath, projectPath)
+      execGodotScript(godotPath, scriptPath, projectPath)
 
-        expect(execSync).toHaveBeenCalledWith(
-            `"${godotPath}" --headless --path ${projectPath} --script ${scriptPath}`,
-            expect.any(Object)
-        )
+      expect(execSync).toHaveBeenCalledWith(
+        `"${godotPath}" --headless --path ${projectPath} --script ${scriptPath}`,
+        expect.any(Object),
+      )
     })
   })
 
@@ -121,7 +121,7 @@ describe('headless', () => {
         unref: vi.fn(),
         pid: 12345,
       }
-      vi.mocked(spawn).mockReturnValue(mockChild as any)
+      vi.mocked(spawn).mockReturnValue(mockChild as unknown as ChildProcess)
 
       const result = runGodotProject(godotPath, projectPath)
 
@@ -131,7 +131,7 @@ describe('headless', () => {
         expect.objectContaining({
           detached: true,
           stdio: 'ignore',
-        })
+        }),
       )
       expect(mockChild.unref).toHaveBeenCalled()
       expect(result).toEqual({ pid: 12345 })
@@ -144,7 +144,7 @@ describe('headless', () => {
         unref: vi.fn(),
         pid: 67890,
       }
-      vi.mocked(spawn).mockReturnValue(mockChild as any)
+      vi.mocked(spawn).mockReturnValue(mockChild as unknown as ChildProcess)
 
       const result = launchGodotEditor(godotPath, projectPath)
 
@@ -154,7 +154,7 @@ describe('headless', () => {
         expect.objectContaining({
           detached: true,
           stdio: 'ignore',
-        })
+        }),
       )
       expect(mockChild.unref).toHaveBeenCalled()
       expect(result).toEqual({ pid: 67890 })

@@ -3,7 +3,7 @@
  * Actions: create | read | write | get_params | list
  */
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, extname, join, relative, resolve } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
@@ -48,24 +48,28 @@ void fog() {
 `,
 }
 
-function findShaderFiles(dir: string): string[] {
-  const results: string[] = []
+async function findShaderFiles(dir: string): Promise<string[]> {
   try {
-    const entries = readdirSync(dir)
-    for (const entry of entries) {
-      if (entry.startsWith('.') || entry === 'node_modules' || entry === 'build') continue
-      const fullPath = join(dir, entry)
-      const stat = statSync(fullPath)
-      if (stat.isDirectory()) {
-        results.push(...findShaderFiles(fullPath))
-      } else if (extname(entry) === '.gdshader' || extname(entry) === '.gdshaderinc') {
-        results.push(fullPath)
+    const entries = await readdir(dir, { withFileTypes: true })
+    const promises = entries.map(async (entry) => {
+      const name = entry.name
+      if (name.startsWith('.') || name === 'node_modules' || name === 'build') return []
+      const fullPath = join(dir, name)
+
+      if (entry.isDirectory()) {
+        return findShaderFiles(fullPath)
+      } else if (entry.isFile() && (extname(name) === '.gdshader' || extname(name) === '.gdshaderinc')) {
+        return [fullPath]
       }
-    }
+      return []
+    })
+
+    const nestedResults = await Promise.all(promises)
+    return nestedResults.flat()
   } catch {
     // Skip inaccessible
+    return []
   }
-  return results
 }
 
 export async function handleShader(action: string, args: Record<string, unknown>, config: GodotConfig) {
@@ -84,11 +88,20 @@ export async function handleShader(action: string, args: Record<string, unknown>
       const content = (args.content as string) || SHADER_TEMPLATES[shaderType] || SHADER_TEMPLATES.canvas_item
 
       const fullPath = projectPath ? resolve(projectPath, shaderPath) : resolve(shaderPath)
-      if (existsSync(fullPath))
-        throw new GodotMCPError(`Shader already exists: ${shaderPath}`, 'SHADER_ERROR', 'Use write action to modify.')
 
-      mkdirSync(dirname(fullPath), { recursive: true })
-      writeFileSync(fullPath, content, 'utf-8')
+      // Ensure directory exists
+      await mkdir(dirname(fullPath), { recursive: true })
+
+      try {
+        // 'wx' flag fails if path exists
+        await writeFile(fullPath, content, { encoding: 'utf-8', flag: 'wx' })
+      } catch (error: any) {
+        if (error.code === 'EEXIST') {
+          throw new GodotMCPError(`Shader already exists: ${shaderPath}`, 'SHADER_ERROR', 'Use write action to modify.')
+        }
+        throw error
+      }
+
       return formatSuccess(`Created shader: ${shaderPath} (type: ${shaderType})`)
     }
 
@@ -97,11 +110,16 @@ export async function handleShader(action: string, args: Record<string, unknown>
       if (!shaderPath) throw new GodotMCPError('No shader_path specified', 'INVALID_ARGS', 'Provide shader_path.')
 
       const fullPath = projectPath ? resolve(projectPath, shaderPath) : resolve(shaderPath)
-      if (!existsSync(fullPath))
-        throw new GodotMCPError(`Shader not found: ${shaderPath}`, 'SHADER_ERROR', 'Check the file path.')
 
-      const content = readFileSync(fullPath, 'utf-8')
-      return formatSuccess(`File: ${shaderPath}\n\n${content}`)
+      try {
+        const content = await readFile(fullPath, 'utf-8')
+        return formatSuccess(`File: ${shaderPath}\n\n${content}`)
+      } catch (error: any) {
+        if (error.code === 'ENOENT') {
+          throw new GodotMCPError(`Shader not found: ${shaderPath}`, 'SHADER_ERROR', 'Check the file path.')
+        }
+        throw error
+      }
     }
 
     case 'write': {
@@ -111,8 +129,8 @@ export async function handleShader(action: string, args: Record<string, unknown>
       if (!content) throw new GodotMCPError('No content specified', 'INVALID_ARGS', 'Provide shader content.')
 
       const fullPath = projectPath ? resolve(projectPath, shaderPath) : resolve(shaderPath)
-      mkdirSync(dirname(fullPath), { recursive: true })
-      writeFileSync(fullPath, content, 'utf-8')
+      await mkdir(dirname(fullPath), { recursive: true })
+      await writeFile(fullPath, content, 'utf-8')
       return formatSuccess(`Written: ${shaderPath} (${content.length} chars)`)
     }
 
@@ -121,35 +139,40 @@ export async function handleShader(action: string, args: Record<string, unknown>
       if (!shaderPath) throw new GodotMCPError('No shader_path specified', 'INVALID_ARGS', 'Provide shader_path.')
 
       const fullPath = projectPath ? resolve(projectPath, shaderPath) : resolve(shaderPath)
-      if (!existsSync(fullPath))
-        throw new GodotMCPError(`Shader not found: ${shaderPath}`, 'SHADER_ERROR', 'Check the file path.')
 
-      const content = readFileSync(fullPath, 'utf-8')
-      const params: { name: string; type: string; hint?: string; default?: string }[] = []
+      try {
+        const content = await readFile(fullPath, 'utf-8')
+        const params: { name: string; type: string; hint?: string; default?: string }[] = []
 
-      const uniformRegex = /uniform\s+(\w+)\s+(\w+)(?:\s*:\s*(\w+(?:\([^)]*\))?))?(?:\s*=\s*([^;]+))?;/g
-      for (const match of content.matchAll(uniformRegex)) {
-        params.push({
-          type: match[1],
-          name: match[2],
-          hint: match[3],
-          default: match[4]?.trim(),
+        const uniformRegex = /uniform\s+(\w+)\s+(\w+)(?:\s*:\s*(\w+(?:\([^)]*\))?))?(?:\s*=\s*([^;]+))?;/g
+        for (const match of content.matchAll(uniformRegex)) {
+          params.push({
+            type: match[1],
+            name: match[2],
+            hint: match[3],
+            default: match[4]?.trim(),
+          })
+        }
+
+        const typeMatch = content.match(/shader_type\s+(\w+);/)
+        return formatJSON({
+          shader: shaderPath,
+          shaderType: typeMatch?.[1] || 'unknown',
+          params,
         })
+      } catch (error: any) {
+         if (error.code === 'ENOENT') {
+          throw new GodotMCPError(`Shader not found: ${shaderPath}`, 'SHADER_ERROR', 'Check the file path.')
+        }
+        throw error
       }
-
-      const typeMatch = content.match(/shader_type\s+(\w+);/)
-      return formatJSON({
-        shader: shaderPath,
-        shaderType: typeMatch?.[1] || 'unknown',
-        params,
-      })
     }
 
     case 'list': {
       if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
 
       const resolvedPath = resolve(projectPath)
-      const shaders = findShaderFiles(resolvedPath)
+      const shaders = await findShaderFiles(resolvedPath)
       const relativePaths = shaders.map((s) => relative(resolvedPath, s).replace(/\\/g, '/'))
 
       return formatJSON({ project: resolvedPath, count: relativePaths.length, shaders: relativePaths })

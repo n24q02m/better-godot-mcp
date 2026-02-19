@@ -3,7 +3,7 @@
  * Actions: launch | status
  */
 
-import { exec } from 'node:child_process'
+import { type ExecOptions, exec } from 'node:child_process'
 import { resolve } from 'node:path'
 import { launchGodotEditor } from '../../godot/headless.js'
 import type { GodotConfig } from '../../godot/types.js'
@@ -12,7 +12,7 @@ import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
 /**
  * Promisified exec
  */
-function execAsync(command: string, options: any): Promise<{ stdout: string; stderr: string }> {
+function execAsync(command: string, options: ExecOptions): Promise<{ stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
     exec(command, options, (error, stdout, stderr) => {
       if (error) {

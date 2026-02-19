@@ -177,7 +177,7 @@ describe('input-map', () => {
       expect(result.content[0].text).toContain('Added key event')
       const content = readFileSync(join(projectPath, 'project.godot'), 'utf-8')
       expect(content).toContain('InputEventKey')
-      expect(content).toContain('KEY_SPACE')
+      expect(content).toContain('physical_keycode":32')
     })
 
     it('should throw for non-existent action', async () => {

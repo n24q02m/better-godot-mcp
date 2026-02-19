@@ -1,36 +1,31 @@
-FROM node:24-slim AS base
+# Better Godot MCP - Composite MCP Server for Godot Engine
+# syntax=docker/dockerfile:1
 
-RUN corepack enable pnpm
+# Build stage
+FROM node:24-alpine AS builder
+
+RUN corepack enable && corepack prepare pnpm@latest --activate
 
 WORKDIR /app
 
-# Install dependencies
-FROM base AS deps
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile --prod
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile
 
-# Build
-FROM base AS build
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
-COPY tsconfig.json biome.json ./
-COPY src/ src/
-COPY scripts/ scripts/
+COPY . .
 RUN pnpm build
 
-# Production
-FROM base AS production
+# Production stage
+FROM node:24-alpine
+
+COPY --from=builder /app/build /usr/local/lib/node_modules/@n24q02m/better-godot-mcp/build
+COPY --from=builder /app/bin /usr/local/lib/node_modules/@n24q02m/better-godot-mcp/bin
+COPY --from=builder /app/package.json /usr/local/lib/node_modules/@n24q02m/better-godot-mcp/
+COPY --from=builder /app/node_modules /usr/local/lib/node_modules/@n24q02m/better-godot-mcp/node_modules
+
+RUN ln -s /usr/local/lib/node_modules/@n24q02m/better-godot-mcp/bin/cli.mjs /usr/local/bin/better-godot-mcp
 
 ENV NODE_ENV=production
 
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=build /app/bin ./bin
-COPY --from=build /app/build ./build
-COPY package.json ./
-
-# Create symlink for global CLI access
-RUN ln -s /app/bin/cli.mjs /usr/local/bin/better-godot-mcp
-
 USER node
 
-ENTRYPOINT ["node", "bin/cli.mjs"]
+ENTRYPOINT ["better-godot-mcp"]

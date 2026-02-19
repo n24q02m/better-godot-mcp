@@ -14,36 +14,92 @@ import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
  */
 const GODOT_KEY_CODES: Record<string, number> = {
   // Letters (ASCII)
-  KEY_A: 65, KEY_B: 66, KEY_C: 67, KEY_D: 68, KEY_E: 69,
-  KEY_F: 70, KEY_G: 71, KEY_H: 72, KEY_I: 73, KEY_J: 74,
-  KEY_K: 75, KEY_L: 76, KEY_M: 77, KEY_N: 78, KEY_O: 79,
-  KEY_P: 80, KEY_Q: 81, KEY_R: 82, KEY_S: 83, KEY_T: 84,
-  KEY_U: 85, KEY_V: 86, KEY_W: 87, KEY_X: 88, KEY_Y: 89, KEY_Z: 90,
+  KEY_A: 65,
+  KEY_B: 66,
+  KEY_C: 67,
+  KEY_D: 68,
+  KEY_E: 69,
+  KEY_F: 70,
+  KEY_G: 71,
+  KEY_H: 72,
+  KEY_I: 73,
+  KEY_J: 74,
+  KEY_K: 75,
+  KEY_L: 76,
+  KEY_M: 77,
+  KEY_N: 78,
+  KEY_O: 79,
+  KEY_P: 80,
+  KEY_Q: 81,
+  KEY_R: 82,
+  KEY_S: 83,
+  KEY_T: 84,
+  KEY_U: 85,
+  KEY_V: 86,
+  KEY_W: 87,
+  KEY_X: 88,
+  KEY_Y: 89,
+  KEY_Z: 90,
   // Numbers
-  KEY_0: 48, KEY_1: 49, KEY_2: 50, KEY_3: 51, KEY_4: 52,
-  KEY_5: 53, KEY_6: 54, KEY_7: 55, KEY_8: 56, KEY_9: 57,
+  KEY_0: 48,
+  KEY_1: 49,
+  KEY_2: 50,
+  KEY_3: 51,
+  KEY_4: 52,
+  KEY_5: 53,
+  KEY_6: 54,
+  KEY_7: 55,
+  KEY_8: 56,
+  KEY_9: 57,
   // Common keys
-  KEY_SPACE: 32, KEY_ESCAPE: 4194305, KEY_TAB: 4194306,
-  KEY_BACKSPACE: 4194308, KEY_ENTER: 4194309, KEY_INSERT: 4194311,
-  KEY_DELETE: 4194312, KEY_PAUSE: 4194313, KEY_HOME: 4194315,
-  KEY_END: 4194316, KEY_PAGEUP: 4194323, KEY_PAGEDOWN: 4194324,
+  KEY_SPACE: 32,
+  KEY_ESCAPE: 4194305,
+  KEY_TAB: 4194306,
+  KEY_BACKSPACE: 4194308,
+  KEY_ENTER: 4194309,
+  KEY_INSERT: 4194311,
+  KEY_DELETE: 4194312,
+  KEY_PAUSE: 4194313,
+  KEY_HOME: 4194315,
+  KEY_END: 4194316,
+  KEY_PAGEUP: 4194323,
+  KEY_PAGEDOWN: 4194324,
   // Arrow keys
-  KEY_LEFT: 4194319, KEY_UP: 4194320, KEY_RIGHT: 4194321, KEY_DOWN: 4194322,
+  KEY_LEFT: 4194319,
+  KEY_UP: 4194320,
+  KEY_RIGHT: 4194321,
+  KEY_DOWN: 4194322,
   // Modifiers
-  KEY_SHIFT: 4194325, KEY_CTRL: 4194326, KEY_ALT: 4194328, KEY_META: 4194329,
+  KEY_SHIFT: 4194325,
+  KEY_CTRL: 4194326,
+  KEY_ALT: 4194328,
+  KEY_META: 4194329,
   // Function keys
-  KEY_F1: 4194332, KEY_F2: 4194333, KEY_F3: 4194334, KEY_F4: 4194335,
-  KEY_F5: 4194336, KEY_F6: 4194337, KEY_F7: 4194338, KEY_F8: 4194339,
-  KEY_F9: 4194340, KEY_F10: 4194341, KEY_F11: 4194342, KEY_F12: 4194343,
+  KEY_F1: 4194332,
+  KEY_F2: 4194333,
+  KEY_F3: 4194334,
+  KEY_F4: 4194335,
+  KEY_F5: 4194336,
+  KEY_F6: 4194337,
+  KEY_F7: 4194338,
+  KEY_F8: 4194339,
+  KEY_F9: 4194340,
+  KEY_F10: 4194341,
+  KEY_F11: 4194342,
+  KEY_F12: 4194343,
 }
 
 /**
  * Godot 4.x MouseButton enum numeric values
  */
 const GODOT_MOUSE_CODES: Record<string, number> = {
-  MOUSE_BUTTON_LEFT: 1, MOUSE_BUTTON_RIGHT: 2, MOUSE_BUTTON_MIDDLE: 3,
-  MOUSE_BUTTON_WHEEL_UP: 4, MOUSE_BUTTON_WHEEL_DOWN: 5,
-  MOUSE_BUTTON_WHEEL_LEFT: 6, MOUSE_BUTTON_WHEEL_RIGHT: 7,
+  MOUSE_BUTTON_LEFT: 1,
+  MOUSE_BUTTON_RIGHT: 2,
+  MOUSE_BUTTON_MIDDLE: 3,
+  MOUSE_BUTTON_WHEEL_UP: 4,
+  MOUSE_BUTTON_WHEEL_DOWN: 5,
+  MOUSE_BUTTON_WHEEL_LEFT: 6,
+  MOUSE_BUTTON_WHEEL_RIGHT: 7,
 }
 
 /**
@@ -111,9 +167,9 @@ function parseInputActions(content: string): Map<string, string[]> {
         const eventsMatch = match[2].match(/"events":\s*\[([^\]]*)\]/)
         const events = eventsMatch
           ? eventsMatch[1]
-            .split(',')
-            .map((e) => e.trim())
-            .filter(Boolean)
+              .split(',')
+              .map((e) => e.trim())
+              .filter(Boolean)
           : []
         actions.set(actionName, events)
       } else {
@@ -138,9 +194,9 @@ function parseInputActions(content: string): Map<string, string[]> {
           const eventsMatch = accumulated.match(/"events":\s*\[([^\]]*)\]/)
           const events = eventsMatch
             ? eventsMatch[1]
-              .split(',')
-              .map((e) => e.trim())
-              .filter(Boolean)
+                .split(',')
+                .map((e) => e.trim())
+                .filter(Boolean)
             : []
           actions.set(actionName, events)
         }

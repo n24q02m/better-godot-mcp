@@ -26,48 +26,41 @@
 
 ## Quick Start
 
-### NPX (Recommended)
+### Option 1: npx (Recommended)
 
-```json
+```jsonc
 {
   "mcpServers": {
     "better-godot": {
       "command": "npx",
-      "args": ["-y", "@n24q02m/better-godot-mcp@latest"],
-      "env": {
-        "GODOT_PROJECT_PATH": "/path/to/your/godot/project"
-      }
+      "args": ["-y", "@n24q02m/better-godot-mcp@latest"]
     }
   }
 }
 ```
 
-### Docker
+### Option 2: Docker
 
-```json
+```jsonc
 {
   "mcpServers": {
     "better-godot": {
       "command": "docker",
       "args": [
-        "run", "-i", "--rm", "--name", "mcp-godot",
-        "-e", "GODOT_PROJECT_PATH",
-        "-v", "/path/to/project:/project",
+        "run", "-i", "--rm",
+        "--name", "mcp-godot",
         "n24q02m/better-godot-mcp:latest"
-      ],
-      "env": {
-        "GODOT_PROJECT_PATH": "/project"
-      }
+      ]
     }
   }
 }
 ```
 
+> **Note:** Project path is passed via tool parameters (`project_path`), not environment variables.
+
 ---
 
 ## Tools
-
-### P0 - Core (8 tools)
 
 | Tool | Actions |
 |------|---------|
@@ -76,31 +69,16 @@
 | `nodes` | add, remove, rename, list, set_property, get_property |
 | `scripts` | create, read, write, attach, list, delete |
 | `editor` | launch, status |
-| `detector` | detect_godot, check |
+| `setup` | detect_godot, check |
 | `config` | status, set |
 | `help` | Get full documentation for any tool |
-
-### P1 - Extended (3 tools)
-
-| Tool | Actions |
-|------|---------|
 | `resources` | list, info, delete, import_config |
 | `input_map` | list, add_action, remove_action, add_event |
 | `signals` | list, connect, disconnect |
-
-### P2 - Specialized (4 tools)
-
-| Tool | Actions |
-|------|---------|
 | `animation` | create_player, add_animation, add_track, add_keyframe, list |
 | `tilemap` | create_tileset, add_source, set_tile, paint, list |
 | `shader` | create, read, write, get_params, list |
-| `physics` | layers, collision_setup, body_config, list_layers |
-
-### P3 - Advanced (3 tools)
-
-| Tool | Actions |
-|------|---------|
+| `physics` | layers, collision_setup, body_config, set_layer_name |
 | `audio` | list_buses, add_bus, add_effect, create_stream |
 | `navigation` | create_region, add_agent, add_obstacle |
 | `ui` | create_control, set_theme, layout, list_controls |
@@ -126,8 +104,8 @@
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `GODOT_PROJECT_PATH` | Recommended | Path to your Godot project directory |
-| `GODOT_PATH` | Optional | Path to Godot executable (auto-detected if not set) |
+| `GODOT_PROJECT_PATH` | No | Default project path (most tools accept `project_path` param) |
+| `GODOT_PATH` | No | Path to Godot binary (auto-detected if not set) |
 
 ---
 
@@ -135,7 +113,7 @@
 
 - Requires Godot 4.x project structure
 - Scene files (`.tscn`) are parsed/modified via text manipulation, not Godot's internal API
-- `run`/`stop`/`export` actions require `GODOT_PATH` to be set
+- `run`/`stop`/`export` actions require Godot binary to be installed
 - Docker mode has limited filesystem access (mount your project directory)
 
 ---

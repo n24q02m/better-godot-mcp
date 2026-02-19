@@ -228,6 +228,13 @@ export async function handleInputMap(action: string, args: Record<string, unknow
       const configPath = getProjectGodotPath(projectPath)
       const actionName = args.action_name as string
       if (!actionName) throw new GodotMCPError('No action_name specified', 'INVALID_ARGS', 'Provide action_name.')
+      if (!/^[a-zA-Z0-9_-]+$/.test(actionName)) {
+        throw new GodotMCPError(
+          `Invalid action name: ${actionName}`,
+          'INVALID_ARGS',
+          'Action names must contain only alphanumeric characters, underscores, and hyphens.',
+        )
+      }
       const deadzone = (args.deadzone as number) || 0.5
 
       let content = readFileSync(configPath, 'utf-8')
@@ -254,6 +261,13 @@ export async function handleInputMap(action: string, args: Record<string, unknow
       const configPath = getProjectGodotPath(projectPath)
       const actionName = args.action_name as string
       if (!actionName) throw new GodotMCPError('No action_name specified', 'INVALID_ARGS', 'Provide action_name.')
+      if (!/^[a-zA-Z0-9_-]+$/.test(actionName)) {
+        throw new GodotMCPError(
+          `Invalid action name: ${actionName}`,
+          'INVALID_ARGS',
+          'Action names must contain only alphanumeric characters, underscores, and hyphens.',
+        )
+      }
 
       const content = readFileSync(configPath, 'utf-8')
       // Remove the action line(s) - handles multi-line format
@@ -278,6 +292,13 @@ export async function handleInputMap(action: string, args: Record<string, unknow
           'action_name, event_type, and event_value required',
           'INVALID_ARGS',
           'Provide action_name, event_type (key/mouse/joypad), and event_value (e.g., "KEY_SPACE").',
+        )
+      }
+      if (!/^[a-zA-Z0-9_-]+$/.test(actionName)) {
+        throw new GodotMCPError(
+          `Invalid action name: ${actionName}`,
+          'INVALID_ARGS',
+          'Action names must contain only alphanumeric characters, underscores, and hyphens.',
         )
       }
 

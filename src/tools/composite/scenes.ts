@@ -3,16 +3,8 @@
  * Actions: create | list | info | delete | duplicate | set_main
  */
 
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  statSync,
-  unlinkSync,
-  writeFileSync,
-} from 'node:fs'
+import { existsSync } from 'node:fs'
+import { copyFile, mkdir, readdir, readFile, stat, unlink, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, join, relative, resolve } from 'node:path'
 import type { GodotConfig, SceneInfo, SceneNode } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
@@ -21,8 +13,8 @@ import { setSettingInContent } from '../helpers/project-settings.js'
 /**
  * Parse a .tscn file to extract scene information
  */
-function parseTscnFile(filePath: string): SceneInfo {
-  const content = readFileSync(filePath, 'utf-8')
+async function parseTscnFile(filePath: string): Promise<SceneInfo> {
+  const content = await readFile(filePath, 'utf-8')
   const lines = content.split('\n')
 
   const nodes: SceneNode[] = []
@@ -72,23 +64,27 @@ function parseTscnFile(filePath: string): SceneInfo {
 /**
  * Recursively find all .tscn files in a directory
  */
-function findSceneFiles(dir: string): string[] {
+async function findSceneFiles(dir: string): Promise<string[]> {
   const results: string[] = []
 
   try {
-    const entries = readdirSync(dir)
-    for (const entry of entries) {
-      if (entry.startsWith('.') || entry === 'node_modules' || entry === 'build') continue
+    const entries = await readdir(dir)
+    const promises = entries.map(async (entry) => {
+      if (entry.startsWith('.') || entry === 'node_modules' || entry === 'build') return []
 
       const fullPath = join(dir, entry)
-      const stat = statSync(fullPath)
+      const st = await stat(fullPath)
 
-      if (stat.isDirectory()) {
-        results.push(...findSceneFiles(fullPath))
+      if (st.isDirectory()) {
+        return findSceneFiles(fullPath)
       } else if (extname(entry) === '.tscn') {
-        results.push(fullPath)
+        return [fullPath]
       }
-    }
+      return []
+    })
+
+    const nested = await Promise.all(promises)
+    results.push(...nested.flat())
   } catch {
     // Skip inaccessible directories
   }
@@ -120,6 +116,8 @@ export async function handleScenes(action: string, args: Record<string, unknown>
       const rootName = (args.root_name as string) || basename(scenePath, '.tscn')
 
       const fullPath = resolve(projectPath, scenePath)
+      // We can use existsSync for quick check before async ops, or just handle error in write.
+      // But preserving existing behavior:
       if (existsSync(fullPath)) {
         throw new GodotMCPError(
           `Scene already exists: ${scenePath}`,
@@ -129,8 +127,8 @@ export async function handleScenes(action: string, args: Record<string, unknown>
       }
 
       const content = generateTscnContent(rootName, rootType)
-      mkdirSync(dirname(fullPath), { recursive: true })
-      writeFileSync(fullPath, content, 'utf-8')
+      await mkdir(dirname(fullPath), { recursive: true })
+      await writeFile(fullPath, content, 'utf-8')
 
       return formatSuccess(`Created scene: ${scenePath}\nRoot: ${rootName} (${rootType})`)
     }
@@ -140,7 +138,7 @@ export async function handleScenes(action: string, args: Record<string, unknown>
         throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path argument.')
       }
       const resolvedPath = resolve(projectPath)
-      const scenes = findSceneFiles(resolvedPath)
+      const scenes = await findSceneFiles(resolvedPath)
       const relativePaths = scenes.map((s) => relative(resolvedPath, s).replace(/\\/g, '/'))
 
       return formatJSON({
@@ -160,7 +158,7 @@ export async function handleScenes(action: string, args: Record<string, unknown>
         throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path and try again.')
       }
 
-      const info = parseTscnFile(fullPath)
+      const info = await parseTscnFile(fullPath)
       return formatJSON(info)
     }
 
@@ -174,7 +172,7 @@ export async function handleScenes(action: string, args: Record<string, unknown>
         throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
       }
 
-      unlinkSync(fullPath)
+      await unlink(fullPath)
       return formatSuccess(`Deleted scene: ${scenePath}`)
     }
 
@@ -201,8 +199,8 @@ export async function handleScenes(action: string, args: Record<string, unknown>
         )
       }
 
-      mkdirSync(dirname(dstFull), { recursive: true })
-      copyFileSync(srcFull, dstFull)
+      await mkdir(dirname(dstFull), { recursive: true })
+      await copyFile(srcFull, dstFull)
       return formatSuccess(`Duplicated: ${scenePath} -> ${newPath}`)
     }
 
@@ -221,9 +219,9 @@ export async function handleScenes(action: string, args: Record<string, unknown>
       }
 
       const resPath = `res://${scenePath.replace(/\\/g, '/')}`
-      const content = readFileSync(configPath, 'utf-8')
+      const content = await readFile(configPath, 'utf-8')
       const updated = setSettingInContent(content, 'application/run/main_scene', `"${resPath}"`)
-      writeFileSync(configPath, updated, 'utf-8')
+      await writeFile(configPath, updated, 'utf-8')
 
       return formatSuccess(`Set main scene: ${resPath}`)
     }

@@ -3,7 +3,7 @@
  * Actions: list | connect | disconnect
  */
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { readFile, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
@@ -15,12 +15,21 @@ export async function handleSignals(action: string, args: Record<string, unknown
 
   if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
   const fullPath = projectPath ? resolve(projectPath, scenePath) : resolve(scenePath)
-  if (!existsSync(fullPath))
-    throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
+
+  async function readScene() {
+    try {
+      return await readFile(fullPath, 'utf-8')
+    } catch (error: any) {
+      if (error.code === 'ENOENT') {
+        throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
+      }
+      throw error
+    }
+  }
 
   switch (action) {
     case 'list': {
-      const content = readFileSync(fullPath, 'utf-8')
+      const content = await readScene()
       const scene = parseSceneContent(content)
 
       return formatJSON({
@@ -51,7 +60,7 @@ export async function handleSignals(action: string, args: Record<string, unknown
 
       const flags = args.flags as number | undefined
 
-      let content = readFileSync(fullPath, 'utf-8')
+      let content = await readScene()
 
       // Check for duplicate
       const scene = parseSceneContent(content)
@@ -71,7 +80,7 @@ export async function handleSignals(action: string, args: Record<string, unknown
       const connectionLine = `\n[connection signal="${signal}" from="${from}" to="${to}" method="${method}"${flagsAttr}]\n`
       content = `${content.trimEnd()}\n${connectionLine}`
 
-      writeFileSync(fullPath, content, 'utf-8')
+      await writeFile(fullPath, content, 'utf-8')
       return formatSuccess(`Connected: ${from}.${signal} -> ${to}.${method}()`)
     }
 
@@ -88,7 +97,7 @@ export async function handleSignals(action: string, args: Record<string, unknown
         )
       }
 
-      const content = readFileSync(fullPath, 'utf-8')
+      const content = await readScene()
       const lines = content.split('\n')
       const filtered = lines.filter((line) => {
         const trimmed = line.trim()
@@ -109,7 +118,7 @@ export async function handleSignals(action: string, args: Record<string, unknown
         )
       }
 
-      writeFileSync(fullPath, filtered.join('\n'), 'utf-8')
+      await writeFile(fullPath, filtered.join('\n'), 'utf-8')
       return formatSuccess(`Disconnected: ${from}.${signal} -> ${to}.${method}()`)
     }
 

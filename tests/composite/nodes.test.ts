@@ -121,6 +121,53 @@ describe('nodes', () => {
       const content = readFileSync(join(projectPath, 'test.tscn'), 'utf-8')
       expect(content).not.toContain('name="Camera"')
     })
+
+    it('should silently succeed when removing a non-existent node', async () => {
+      createTmpScene(projectPath, 'test.tscn', COMPLEX_TSCN)
+      const originalContent = readFileSync(join(projectPath, 'test.tscn'), 'utf-8')
+
+      const result = await handleNodes(
+        'remove',
+        {
+          project_path: projectPath,
+          scene_path: 'test.tscn',
+          name: 'NonExistentNode',
+        },
+        config,
+      )
+
+      expect(result.content[0].text).toContain('Removed node')
+      const newContent = readFileSync(join(projectPath, 'test.tscn'), 'utf-8')
+      expect(newContent).toBe(originalContent)
+    })
+
+    it('should throw for missing scene', async () => {
+      await expect(
+        handleNodes(
+          'remove',
+          {
+            project_path: projectPath,
+            scene_path: 'ghost.tscn',
+            name: 'Node',
+          },
+          config,
+        ),
+      ).rejects.toThrow('Scene not found')
+    })
+
+    it('should throw when node name is missing', async () => {
+      createTmpScene(projectPath, 'test.tscn', MINIMAL_TSCN)
+      await expect(
+        handleNodes(
+          'remove',
+          {
+            project_path: projectPath,
+            scene_path: 'test.tscn',
+          },
+          config,
+        ),
+      ).rejects.toThrow('No node name specified')
+    })
   })
 
   // ==========================================

@@ -1,5 +1,5 @@
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { join, resolve, sep } from 'node:path'
 import { safeResolve } from '../../src/tools/helpers/paths.js'
 
 describe('safeResolve', () => {

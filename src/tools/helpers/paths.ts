@@ -22,16 +22,13 @@ export function safeResolve(basePath: string, ...paths: string[]): string {
   // On Windows, relative can return an absolute path if on a different drive.
   // We also check for '..' at the start to catch traversal.
   // Note: '..foo' is a valid filename, so we check for '..' exact match or '..' followed by separator.
-  const isOutside =
-    rel === '..' ||
-    rel.startsWith(`..${sep}`) ||
-    (process.platform === 'win32' && isAbsolute(rel))
+  const isOutside = rel === '..' || rel.startsWith(`..${sep}`) || (process.platform === 'win32' && isAbsolute(rel))
 
   if (isOutside) {
     throw new GodotMCPError(
       'Access denied: Path traversal detected',
       'INVALID_ARGS',
-      `Path '${paths.join('/')}' resolves to '${resolvedPath}', which is outside the project directory '${absoluteBase}'`
+      `Path '${paths.join('/')}' resolves to '${resolvedPath}', which is outside the project directory '${absoluteBase}'`,
     )
   }
 

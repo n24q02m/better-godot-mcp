@@ -5,6 +5,7 @@
 
 import { existsSync, readdirSync, readFileSync, statSync, unlinkSync } from 'node:fs'
 import { extname, join, relative, resolve } from 'node:path'
+import { safeResolve } from '../helpers/paths.js'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
 
@@ -83,7 +84,8 @@ export async function handleResources(action: string, args: Record<string, unkno
     case 'info': {
       const resPath = args.resource_path as string
       if (!resPath) throw new GodotMCPError('No resource_path specified', 'INVALID_ARGS', 'Provide resource_path.')
-      const fullPath = projectPath ? resolve(projectPath, resPath) : resolve(resPath)
+      const basePath = projectPath ? resolve(projectPath) : process.cwd()
+      const fullPath = safeResolve(basePath, resPath)
       if (!existsSync(fullPath))
         throw new GodotMCPError(`Resource not found: ${resPath}`, 'RESOURCE_ERROR', 'Check the file path.')
 
@@ -111,7 +113,8 @@ export async function handleResources(action: string, args: Record<string, unkno
     case 'delete': {
       const resPath = args.resource_path as string
       if (!resPath) throw new GodotMCPError('No resource_path specified', 'INVALID_ARGS', 'Provide resource_path.')
-      const fullPath = projectPath ? resolve(projectPath, resPath) : resolve(resPath)
+      const basePath = projectPath ? resolve(projectPath) : process.cwd()
+      const fullPath = safeResolve(basePath, resPath)
       if (!existsSync(fullPath))
         throw new GodotMCPError(`Resource not found: ${resPath}`, 'RESOURCE_ERROR', 'Check the file path.')
 
@@ -127,7 +130,8 @@ export async function handleResources(action: string, args: Record<string, unkno
       const resPath = args.resource_path as string
       if (!resPath) throw new GodotMCPError('No resource_path specified', 'INVALID_ARGS', 'Provide resource_path.')
 
-      const importPath = projectPath ? resolve(projectPath, `${resPath}.import`) : resolve(`${resPath}.import`)
+      const basePath = projectPath ? resolve(projectPath) : process.cwd()
+      const importPath = safeResolve(basePath, `${resPath}.import`)
 
       if (!existsSync(importPath)) {
         return formatJSON({ path: resPath, imported: false, message: 'No .import file found.' })

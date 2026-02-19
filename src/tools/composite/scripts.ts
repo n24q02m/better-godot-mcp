@@ -7,6 +7,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync,
 import { dirname, extname, join, relative, resolve } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
+import { safeResolve } from '../helpers/paths.js'
 
 const SCRIPT_TEMPLATES: Record<string, string> = {
   Node: `extends Node
@@ -127,7 +128,7 @@ export async function handleScripts(action: string, args: Record<string, unknown
       const extendsType = (args.extends as string) || 'Node'
       const content = (args.content as string) || getTemplate(extendsType)
 
-      const fullPath = projectPath ? resolve(projectPath, scriptPath) : resolve(scriptPath)
+      const fullPath = safeResolve(projectPath || process.cwd(), scriptPath)
       if (existsSync(fullPath)) {
         throw new GodotMCPError(
           `Script already exists: ${scriptPath}`,
@@ -145,7 +146,7 @@ export async function handleScripts(action: string, args: Record<string, unknown
       const scriptPath = args.script_path as string
       if (!scriptPath) throw new GodotMCPError('No script_path specified', 'INVALID_ARGS', 'Provide script_path.')
 
-      const fullPath = projectPath ? resolve(projectPath, scriptPath) : resolve(scriptPath)
+      const fullPath = safeResolve(projectPath || process.cwd(), scriptPath)
       if (!existsSync(fullPath))
         throw new GodotMCPError(`Script not found: ${scriptPath}`, 'SCRIPT_ERROR', 'Check the file path.')
 
@@ -160,7 +161,7 @@ export async function handleScripts(action: string, args: Record<string, unknown
       if (content === undefined || content === null)
         throw new GodotMCPError('No content specified', 'INVALID_ARGS', 'Provide content to write.')
 
-      const fullPath = projectPath ? resolve(projectPath, scriptPath) : resolve(scriptPath)
+      const fullPath = safeResolve(projectPath || process.cwd(), scriptPath)
       mkdirSync(dirname(fullPath), { recursive: true })
       writeFileSync(fullPath, content, 'utf-8')
       return formatSuccess(`Written: ${scriptPath} (${content.length} chars)`)
@@ -178,7 +179,7 @@ export async function handleScripts(action: string, args: Record<string, unknown
         )
       }
 
-      const sceneFullPath = projectPath ? resolve(projectPath, scenePath) : resolve(scenePath)
+      const sceneFullPath = safeResolve(projectPath || process.cwd(), scenePath)
       if (!existsSync(sceneFullPath))
         throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Create the scene first.')
 
@@ -186,6 +187,7 @@ export async function handleScripts(action: string, args: Record<string, unknown
       const resPath = `res://${scriptPath.replace(/\\/g, '/')}`
 
       if (nodeName) {
+        // Use \\[ to get literal \[ in regex string
         const nodePattern = new RegExp(`(\\[node name="${nodeName}"[^\\]]*\\])`)
         const match = content.match(nodePattern)
         if (!match)
@@ -196,7 +198,8 @@ export async function handleScripts(action: string, args: Record<string, unknown
           )
         content = content.replace(nodePattern, `$1\nscript = ExtResource("${resPath}")`)
       } else {
-        content = content.replace(/(\[node [^\]]+\])/, `$1\nscript = ExtResource("${resPath}")`)
+        // Use [^]]+ to match non-] chars (unescaped closing bracket works inside [])
+        content = content.replace(/(\[node [^]]+\])/, `$1\nscript = ExtResource("${resPath}")`)
       }
 
       writeFileSync(sceneFullPath, content, 'utf-8')
@@ -219,7 +222,7 @@ export async function handleScripts(action: string, args: Record<string, unknown
       if (!scriptPath)
         throw new GodotMCPError('No script_path specified', 'INVALID_ARGS', 'Provide script_path to delete.')
 
-      const fullPath = projectPath ? resolve(projectPath, scriptPath) : resolve(scriptPath)
+      const fullPath = safeResolve(projectPath || process.cwd(), scriptPath)
       if (!existsSync(fullPath))
         throw new GodotMCPError(`Script not found: ${scriptPath}`, 'SCRIPT_ERROR', 'Check the file path.')
 

@@ -1,4 +1,4 @@
-import { writeFileSync, existsSync, rmSync, mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { handleScripts } from '../../src/tools/composite/scripts.js'
@@ -43,12 +43,12 @@ describe('Security: Path Traversal', () => {
         'delete',
         {
           project_path: projectPath,
-          script_path: `../${resolve(outsideDir).split('/').pop()}/secret.txt`
+          script_path: `../${resolve(outsideDir).split('/').pop()}/secret.txt`,
         },
-        config
+        config,
       )
-    } catch (error: any) {
-      if (error.message.includes('Path traversal detected')) {
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message.includes('Path traversal detected')) {
         return
       }
     }
@@ -60,29 +60,33 @@ describe('Security: Path Traversal', () => {
     const config = makeConfig({ projectPath })
     const outsideDirName = resolve(outsideDir).split('/').pop()
 
-    await expect(handleScripts(
-      'read',
-      {
-        project_path: projectPath,
-        script_path: `../${outsideDirName}/secret.txt`
-      },
-      config
-    )).rejects.toThrow(/Path traversal detected/)
+    await expect(
+      handleScripts(
+        'read',
+        {
+          project_path: projectPath,
+          script_path: `../${outsideDirName}/secret.txt`,
+        },
+        config,
+      ),
+    ).rejects.toThrow(/Path traversal detected/)
   })
 
   it('should prevent writing files outside project directory', async () => {
     const config = makeConfig({ projectPath })
     const outsideDirName = resolve(outsideDir).split('/').pop()
 
-    await expect(handleScripts(
-      'write',
-      {
-        project_path: projectPath,
-        script_path: `../${outsideDirName}/new_secret.txt`,
-        content: 'hacked'
-      },
-      config
-    )).rejects.toThrow(/Path traversal detected/)
+    await expect(
+      handleScripts(
+        'write',
+        {
+          project_path: projectPath,
+          script_path: `../${outsideDirName}/new_secret.txt`,
+          content: 'hacked',
+        },
+        config,
+      ),
+    ).rejects.toThrow(/Path traversal detected/)
 
     expect(existsSync(join(outsideDir, 'new_secret.txt'))).toBe(false)
   })

@@ -13,6 +13,7 @@ import {
   unlinkSync,
   writeFileSync,
 } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { basename, dirname, extname, join, relative, resolve } from 'node:path'
 import type { GodotConfig, SceneInfo, SceneNode } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
@@ -21,8 +22,8 @@ import { setSettingInContent } from '../helpers/project-settings.js'
 /**
  * Parse a .tscn file to extract scene information
  */
-function parseTscnFile(filePath: string): SceneInfo {
-  const content = readFileSync(filePath, 'utf-8')
+export async function parseTscnFile(filePath: string): Promise<SceneInfo> {
+  const content = await readFile(filePath, 'utf-8')
   const lines = content.split('\n')
 
   const nodes: SceneNode[] = []
@@ -160,7 +161,7 @@ export async function handleScenes(action: string, args: Record<string, unknown>
         throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path and try again.')
       }
 
-      const info = parseTscnFile(fullPath)
+      const info = await parseTscnFile(fullPath)
       return formatJSON(info)
     }
 

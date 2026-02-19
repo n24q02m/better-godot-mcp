@@ -11,8 +11,9 @@
  * [connection signal="..." from="..." to="..." method="..."]
  */
 
-import type { SceneNode } from '../../godot/types.js'
 import { readFileSync, writeFileSync } from 'node:fs'
+import type { SceneNode } from '../../godot/types.js'
+
 
 export interface TscnHeader {
   format: number
@@ -319,9 +320,9 @@ export function writeScene(filePath: string, content: string): void {
  */
 export function mapToSceneNode(info: SceneNodeInfo): SceneNode {
   const properties = { ...info.properties }
-  const script = properties['script'] ?? null
+  const script = properties.script ?? null
   if (script) {
-    delete properties['script']
+    delete properties.script
   }
 
   // Determine type: explicit type > instance placeholder > generic Node

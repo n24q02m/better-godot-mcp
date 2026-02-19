@@ -1,6 +1,6 @@
 {
   "name": "@n24q02m/better-godot-mcp",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Enhanced MCP server for Godot Engine with composite mega-tools and comprehensive game development tooling.",
   "type": "module",
   "main": "build/src/init-server.js",

@@ -4,7 +4,8 @@
  */
 
 import { execSync } from 'node:child_process'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
+import { readFile, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { execGodotSync, runGodotProject } from '../../godot/headless.js'
 import type { GodotConfig, ProjectInfo } from '../../godot/types.js'
@@ -135,9 +136,9 @@ export async function handleProject(action: string, args: Record<string, unknown
       if (!existsSync(configPath))
         throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
 
-      const content = readFileSync(configPath, 'utf-8')
+      const content = await readFile(configPath, 'utf-8')
       const updated = setSettingInContent(content, key, value)
-      writeFileSync(configPath, updated, 'utf-8')
+      await writeFile(configPath, updated, 'utf-8')
 
       return formatSuccess(`Set ${key} = ${value}`)
     }

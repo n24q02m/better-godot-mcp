@@ -7,7 +7,7 @@
  * key/subkey=value
  */
 
-import { readFileSync, writeFileSync } from 'node:fs'
+import { writeFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 
 export interface ProjectSettings {

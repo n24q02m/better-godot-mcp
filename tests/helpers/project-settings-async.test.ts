@@ -2,10 +2,10 @@
  * Async tests for project.godot settings parser
  */
 
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { parseProjectSettings } from '../../src/tools/helpers/project-settings.js'
 import { createTmpProject, SAMPLE_PROJECT_GODOT } from '../fixtures.js'
-import { join } from 'node:path'
 
 describe('project-settings async', () => {
   it('should parse project settings asynchronously', async () => {

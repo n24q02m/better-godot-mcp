@@ -23,7 +23,12 @@ describe('files', () => {
     writeFileSync(join(projectPath, 'assets/icon.png'), 'fake-png')
 
     const files = await findFiles(projectPath, null)
-    const relative = files.map((f) => f.replace(projectPath, '').replace(/^[/\\]/, '').replace(/\\/g, '/'))
+    const relative = files.map((f) =>
+      f
+        .replace(projectPath, '')
+        .replace(/^[/\\]/, '')
+        .replace(/\\/g, '/'),
+    )
 
     expect(relative).toContain('main.tscn')
     expect(relative).toContain('scripts/player.gd')
@@ -36,7 +41,12 @@ describe('files', () => {
     createTmpScript(projectPath, 'scripts/player.gd')
 
     const files = await findFiles(projectPath, new Set(['.gd']))
-    const relative = files.map((f) => f.replace(projectPath, '').replace(/^[/\\]/, '').replace(/\\/g, '/'))
+    const relative = files.map((f) =>
+      f
+        .replace(projectPath, '')
+        .replace(/^[/\\]/, '')
+        .replace(/\\/g, '/'),
+    )
 
     expect(relative).toContain('scripts/player.gd')
     expect(relative).not.toContain('main.tscn')
@@ -49,7 +59,12 @@ describe('files', () => {
     createTmpScript(projectPath, 'build/output.gd')
 
     const files = await findFiles(projectPath, new Set(['.gd']), new Set(['build']))
-    const relative = files.map((f) => f.replace(projectPath, '').replace(/^[/\\]/, '').replace(/\\/g, '/'))
+    const relative = files.map((f) =>
+      f
+        .replace(projectPath, '')
+        .replace(/^[/\\]/, '')
+        .replace(/\\/g, '/'),
+    )
 
     expect(relative).toContain('scripts/player.gd')
     expect(relative).not.toContain('build/output.gd')
@@ -62,7 +77,12 @@ describe('files', () => {
     createTmpScript(projectPath, '.git/config')
 
     const files = await findFiles(projectPath, null)
-    const relative = files.map((f) => f.replace(projectPath, '').replace(/^[/\\]/, '').replace(/\\/g, '/'))
+    const relative = files.map((f) =>
+      f
+        .replace(projectPath, '')
+        .replace(/^[/\\]/, '')
+        .replace(/\\/g, '/'),
+    )
 
     expect(relative).toContain('visible.gd')
     expect(relative).not.toContain('.hidden.gd')
@@ -76,7 +96,12 @@ describe('files', () => {
     createTmpScript(projectPath, 'libs/good.gd')
 
     const files = await findFiles(projectPath, new Set(['.gd']), new Set(['node_modules']))
-    const relative = files.map((f) => f.replace(projectPath, '').replace(/^[/\\]/, '').replace(/\\/g, '/'))
+    const relative = files.map((f) =>
+      f
+        .replace(projectPath, '')
+        .replace(/^[/\\]/, '')
+        .replace(/\\/g, '/'),
+    )
 
     expect(relative).toContain('libs/good.gd')
     expect(relative).not.toContain('libs/node_modules/bad.gd')

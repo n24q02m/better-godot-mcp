@@ -1,7 +1,7 @@
 import { execSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import { execGodotSync, runGodotProject } from '../../src/godot/headless.js'
 import type { GodotConfig } from '../../src/godot/types.js'
 import { handleProject } from '../../src/tools/composite/project.js'
@@ -115,9 +115,9 @@ describe('project', () => {
     })
 
     it('should throw if project_path missing', async () => {
-        // config has projectPath set in beforeEach, so we need to clear it
-        const noProjectConfig = makeConfig({ godotPath: '/usr/bin/godot' })
-        await expect(handleProject('run', {}, noProjectConfig)).rejects.toThrow('No project path specified')
+      // config has projectPath set in beforeEach, so we need to clear it
+      const noProjectConfig = makeConfig({ godotPath: '/usr/bin/godot' })
+      await expect(handleProject('run', {}, noProjectConfig)).rejects.toThrow('No project path specified')
     })
   })
 
@@ -159,20 +159,22 @@ describe('project', () => {
     })
 
     it('should return null for missing setting', async () => {
-        const result = await handleProject(
-          'settings_get',
-          {
-            project_path: projectPath,
-            key: 'application/config/missing',
-          },
-          config,
-        )
-        const data = JSON.parse(result.content[0].text)
-        expect(data.value).toBeNull()
+      const result = await handleProject(
+        'settings_get',
+        {
+          project_path: projectPath,
+          key: 'application/config/missing',
+        },
+        config,
+      )
+      const data = JSON.parse(result.content[0].text)
+      expect(data.value).toBeNull()
     })
 
     it('should throw if key missing', async () => {
-        await expect(handleProject('settings_get', { project_path: projectPath }, config)).rejects.toThrow('No key specified')
+      await expect(handleProject('settings_get', { project_path: projectPath }, config)).rejects.toThrow(
+        'No key specified',
+      )
     })
   })
 
@@ -198,25 +200,25 @@ describe('project', () => {
     })
 
     it('should add new setting', async () => {
-        const result = await handleProject(
-            'settings_set',
-            {
-              project_path: projectPath,
-              key: 'application/config/new_setting',
-              value: '"NewValue"',
-            },
-            config,
-        )
-        expect(result.content[0].text).toContain('Set application/config/new_setting = "NewValue"')
+      const result = await handleProject(
+        'settings_set',
+        {
+          project_path: projectPath,
+          key: 'application/config/new_setting',
+          value: '"NewValue"',
+        },
+        config,
+      )
+      expect(result.content[0].text).toContain('Set application/config/new_setting = "NewValue"')
 
-        const content = readFileSync(join(projectPath, 'project.godot'), 'utf-8')
-        expect(content).toContain('new_setting="NewValue"')
+      const content = readFileSync(join(projectPath, 'project.godot'), 'utf-8')
+      expect(content).toContain('new_setting="NewValue"')
     })
 
-     it('should throw if value missing', async () => {
-        await expect(
-            handleProject('settings_set', { project_path: projectPath, key: 'k' }, config)
-        ).rejects.toThrow('key and value required')
+    it('should throw if value missing', async () => {
+      await expect(handleProject('settings_set', { project_path: projectPath, key: 'k' }, config)).rejects.toThrow(
+        'key and value required',
+      )
     })
   })
 
@@ -245,14 +247,14 @@ describe('project', () => {
       expect(result.content[0].text).toContain('Export complete')
       expect(execGodotSync).toHaveBeenCalledWith(
         '/usr/bin/godot',
-        expect.arrayContaining(['--export-release', 'Linux'])
+        expect.arrayContaining(['--export-release', 'Linux']),
       )
     })
 
     it('should throw if args missing', async () => {
-        await expect(
-            handleProject('export', { project_path: projectPath, preset: 'Linux' }, config)
-        ).rejects.toThrow('preset and output_path required')
+      await expect(handleProject('export', { project_path: projectPath, preset: 'Linux' }, config)).rejects.toThrow(
+        'preset and output_path required',
+      )
     })
   })
 

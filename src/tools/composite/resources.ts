@@ -5,9 +5,9 @@
 
 import { existsSync, readdirSync, readFileSync, statSync, unlinkSync } from 'node:fs'
 import { extname, join, relative, resolve } from 'node:path'
-import { safeResolve } from '../helpers/paths.js'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
+import { safeResolve } from '../helpers/paths.js'
 
 const RESOURCE_EXTENSIONS = new Set([
   '.tres',
@@ -73,7 +73,7 @@ export async function handleResources(action: string, args: Record<string, unkno
 
       const resources = findResourceFiles(resolvedPath, exts)
       const relativePaths = resources.map((r) => ({
-        path: relative(resolvedPath, r).replace(/\\/g, '/'),
+        path: relative(resolvedPath, r).replace(/\\/g, "/"),
         ext: extname(r),
         size: statSync(r).size,
       }))

@@ -1,8 +1,8 @@
-import { describe, expect, it, beforeEach, afterEach } from 'vitest'
-import { parseScene } from '../../src/tools/helpers/scene-parser.js'
-import { writeFileSync, unlinkSync } from 'node:fs'
-import { join } from 'node:path'
+import { unlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { parseScene } from '../../src/tools/helpers/scene-parser.js'
 
 const TEST_SCENE_CONTENT = `[gd_scene load_steps=1 format=3 uid="uid://test"]
 

@@ -7,6 +7,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
+import { safeResolve } from '../helpers/paths.js'
 
 export async function handleAudio(action: string, args: Record<string, unknown>, config: GodotConfig) {
   const projectPath = (args.project_path as string) || config.projectPath
@@ -156,7 +157,7 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       const parent = (args.parent as string) || '.'
       const bus = (args.bus as string) || 'Master'
 
-      const fullPath = projectPath ? resolve(projectPath, scenePath) : resolve(scenePath)
+      const fullPath = safeResolve(projectPath || process.cwd(), scenePath)
       if (!existsSync(fullPath))
         throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check file path.')
 

@@ -1,4 +1,3 @@
-
 import { existsSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -32,27 +31,31 @@ describe('Path Traversal Security', () => {
 
     // Attempt to read the file outside the project directory
     // This should fail with a security error
-    await expect(handleScripts(
-      'read',
-      {
-        project_path: projectPath,
-        script_path: '../outside_secret.txt'
-      },
-      config
-    )).rejects.toThrow(/Access denied|Path traversal detected/i)
+    await expect(
+      handleScripts(
+        'read',
+        {
+          project_path: projectPath,
+          script_path: '../outside_secret.txt',
+        },
+        config,
+      ),
+    ).rejects.toThrow(/Access denied|Path traversal detected/i)
   })
 
   it('should prevent writing files outside project directory via ../', async () => {
     const config = makeConfig({ projectPath })
 
-    await expect(handleScripts(
-      'write',
-      {
-        project_path: projectPath,
-        script_path: '../outside_hacker.gd',
-        content: 'extends Node'
-      },
-      config
-    )).rejects.toThrow(/Access denied|Path traversal detected/i)
+    await expect(
+      handleScripts(
+        'write',
+        {
+          project_path: projectPath,
+          script_path: '../outside_hacker.gd',
+          content: 'extends Node',
+        },
+        config,
+      ),
+    ).rejects.toThrow(/Access denied|Path traversal detected/i)
   })
 })

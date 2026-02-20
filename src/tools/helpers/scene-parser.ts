@@ -12,6 +12,7 @@
  */
 
 import { readFileSync, writeFileSync } from 'node:fs'
+import { readFile, writeFile } from 'node:fs/promises'
 
 export interface TscnHeader {
   format: number
@@ -63,6 +64,14 @@ export interface ParsedScene {
  */
 export function parseScene(filePath: string): ParsedScene {
   const raw = readFileSync(filePath, 'utf-8')
+  return parseSceneContent(raw)
+}
+
+/**
+ * Parse a .tscn file into structured data (async)
+ */
+export async function parseSceneAsync(filePath: string): Promise<ParsedScene> {
+  const raw = await readFile(filePath, 'utf-8')
   return parseSceneContent(raw)
 }
 
@@ -311,4 +320,11 @@ export function getNodeProperty(scene: ParsedScene, nodeName: string, property: 
  */
 export function writeScene(filePath: string, content: string): void {
   writeFileSync(filePath, content, 'utf-8')
+}
+
+/**
+ * Write a parsed scene back to file (async)
+ */
+export async function writeSceneAsync(filePath: string, content: string): Promise<void> {
+  await writeFile(filePath, content, 'utf-8')
 }

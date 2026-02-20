@@ -3,7 +3,7 @@
  * Actions: add | remove | rename | list | set_property | get_property
  */
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { readFile, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import type { GodotConfig, SceneNode } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
@@ -75,10 +75,16 @@ export async function handleNodes(action: string, args: Record<string, unknown>,
       const parent = (args.parent as string) || '.'
 
       const fullPath = resolveScenePath(projectPath, scenePath)
-      if (!existsSync(fullPath))
-        throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Create the scene first.')
+      let content: string
+      try {
+        content = await readFile(fullPath, 'utf-8')
+      } catch (err: any) {
+        if (err.code === 'ENOENT') {
+          throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Create the scene first.')
+        }
+        throw err
+      }
 
-      const content = readFileSync(fullPath, 'utf-8')
       const existingNodes = parseNodes(content)
       const duplicate = existingNodes.find((n) => n.name === nodeName && (n.parent || '.') === parent)
       if (duplicate) {
@@ -92,7 +98,7 @@ export async function handleNodes(action: string, args: Record<string, unknown>,
       const parentAttr = parent === '.' ? '' : ` parent="${parent}"`
       const nodeDecl = `\n[node name="${nodeName}" type="${nodeType}"${parentAttr}]\n`
       const updated = `${content.trimEnd()}\n${nodeDecl}`
-      writeFileSync(fullPath, updated, 'utf-8')
+      await writeFile(fullPath, updated, 'utf-8')
 
       return formatSuccess(`Added node: ${nodeName} (${nodeType}) under ${parent}`)
     }
@@ -105,12 +111,18 @@ export async function handleNodes(action: string, args: Record<string, unknown>,
         throw new GodotMCPError('No node name specified', 'INVALID_ARGS', 'Provide name of node to remove.')
 
       const fullPath = resolveScenePath(projectPath, scenePath)
-      if (!existsSync(fullPath))
-        throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
+      let content: string
+      try {
+        content = await readFile(fullPath, 'utf-8')
+      } catch (err: any) {
+        if (err.code === 'ENOENT') {
+          throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
+        }
+        throw err
+      }
 
-      const content = readFileSync(fullPath, 'utf-8')
       const updated = removeNodeFromContent(content, nodeName)
-      writeFileSync(fullPath, updated, 'utf-8')
+      await writeFile(fullPath, updated, 'utf-8')
 
       return formatSuccess(`Removed node: ${nodeName} from ${scenePath}`)
     }
@@ -124,12 +136,18 @@ export async function handleNodes(action: string, args: Record<string, unknown>,
         throw new GodotMCPError('Both name and new_name required', 'INVALID_ARGS', 'Provide name and new_name.')
 
       const fullPath = resolveScenePath(projectPath, scenePath)
-      if (!existsSync(fullPath))
-        throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
+      let content: string
+      try {
+        content = await readFile(fullPath, 'utf-8')
+      } catch (err: any) {
+        if (err.code === 'ENOENT') {
+          throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
+        }
+        throw err
+      }
 
-      const content = readFileSync(fullPath, 'utf-8')
       const updated = renameNodeInContent(content, nodeName, newName)
-      writeFileSync(fullPath, updated, 'utf-8')
+      await writeFile(fullPath, updated, 'utf-8')
 
       return formatSuccess(`Renamed node: ${nodeName} -> ${newName} in ${scenePath}`)
     }
@@ -139,10 +157,16 @@ export async function handleNodes(action: string, args: Record<string, unknown>,
       if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
 
       const fullPath = resolveScenePath(projectPath, scenePath)
-      if (!existsSync(fullPath))
-        throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
+      let content: string
+      try {
+        content = await readFile(fullPath, 'utf-8')
+      } catch (err: any) {
+        if (err.code === 'ENOENT') {
+          throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
+        }
+        throw err
+      }
 
-      const content = readFileSync(fullPath, 'utf-8')
       const nodes = parseNodes(content)
 
       return formatJSON({
@@ -172,12 +196,18 @@ export async function handleNodes(action: string, args: Record<string, unknown>,
       }
 
       const fullPath = resolveScenePath(projectPath, scenePath)
-      if (!existsSync(fullPath))
-        throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
+      let content: string
+      try {
+        content = await readFile(fullPath, 'utf-8')
+      } catch (err: any) {
+        if (err.code === 'ENOENT') {
+          throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
+        }
+        throw err
+      }
 
-      const content = readFileSync(fullPath, 'utf-8')
       const updated = setNodePropertyInContent(content, nodeName, property, value)
-      writeFileSync(fullPath, updated, 'utf-8')
+      await writeFile(fullPath, updated, 'utf-8')
 
       return formatSuccess(`Set ${property} = ${value} on node ${nodeName}`)
     }
@@ -192,10 +222,16 @@ export async function handleNodes(action: string, args: Record<string, unknown>,
       }
 
       const fullPath = resolveScenePath(projectPath, scenePath)
-      if (!existsSync(fullPath))
-        throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
+      let content: string
+      try {
+        content = await readFile(fullPath, 'utf-8')
+      } catch (err: any) {
+        if (err.code === 'ENOENT') {
+          throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
+        }
+        throw err
+      }
 
-      const content = readFileSync(fullPath, 'utf-8')
       const scene = parseSceneContent(content)
       const val = getNodeProperty(scene, nodeName, property)
 

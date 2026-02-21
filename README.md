@@ -2,6 +2,7 @@
 
 **Composite MCP Server for Godot Engine - Optimized for AI Agents**
 
+[![CI](https://github.com/n24q02m/better-godot-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/n24q02m/better-godot-mcp/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/@n24q02m/better-godot-mcp)](https://www.npmjs.com/package/@n24q02m/better-godot-mcp)
 [![Docker](https://img.shields.io/docker/v/n24q02m/better-godot-mcp?label=docker)](https://hub.docker.com/r/n24q02m/better-godot-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)

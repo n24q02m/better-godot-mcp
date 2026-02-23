@@ -16,6 +16,7 @@ import {
 import { basename, dirname, extname, join, relative, resolve } from 'node:path'
 import type { GodotConfig, SceneInfo, SceneNode } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
+import { safeResolve } from '../helpers/paths.js'
 import { setSettingInContent } from '../helpers/project-settings.js'
 
 /**
@@ -119,7 +120,7 @@ export async function handleScenes(action: string, args: Record<string, unknown>
       const rootType = (args.root_type as string) || 'Node2D'
       const rootName = (args.root_name as string) || basename(scenePath, '.tscn')
 
-      const fullPath = resolve(projectPath, scenePath)
+      const fullPath = safeResolve(projectPath, scenePath)
       if (existsSync(fullPath)) {
         throw new GodotMCPError(
           `Scene already exists: ${scenePath}`,
@@ -155,7 +156,7 @@ export async function handleScenes(action: string, args: Record<string, unknown>
       if (!scenePath) {
         throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path to parse.')
       }
-      const fullPath = projectPath ? resolve(projectPath, scenePath) : resolve(scenePath)
+      const fullPath = safeResolve(projectPath || process.cwd(), scenePath)
       if (!existsSync(fullPath)) {
         throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path and try again.')
       }
@@ -169,7 +170,7 @@ export async function handleScenes(action: string, args: Record<string, unknown>
       if (!scenePath) {
         throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path to delete.')
       }
-      const fullPath = projectPath ? resolve(projectPath, scenePath) : resolve(scenePath)
+      const fullPath = safeResolve(projectPath || process.cwd(), scenePath)
       if (!existsSync(fullPath)) {
         throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
       }
@@ -188,8 +189,8 @@ export async function handleScenes(action: string, args: Record<string, unknown>
           'Provide source and destination paths.',
         )
       }
-      const srcFull = projectPath ? resolve(projectPath, scenePath) : resolve(scenePath)
-      const dstFull = projectPath ? resolve(projectPath, newPath) : resolve(newPath)
+      const srcFull = safeResolve(projectPath || process.cwd(), scenePath)
+      const dstFull = safeResolve(projectPath || process.cwd(), newPath)
       if (!existsSync(srcFull)) {
         throw new GodotMCPError(`Source scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the source path.')
       }

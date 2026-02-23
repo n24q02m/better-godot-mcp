@@ -24,6 +24,7 @@ export type GodotMCPErrorCode =
   | 'AUDIO_ERROR'
   | 'NAVIGATION_ERROR'
   | 'UI_ERROR'
+  | 'ACCESS_DENIED'
 
 export class GodotMCPError extends Error {
   constructor(

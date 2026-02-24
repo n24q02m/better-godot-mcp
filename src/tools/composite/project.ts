@@ -9,6 +9,7 @@ import { join, resolve } from 'node:path'
 import { execGodotSync, runGodotProject } from '../../godot/headless.js'
 import type { GodotConfig, ProjectInfo } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
+import { safeResolve } from '../helpers/paths.js'
 import { getSetting, parseProjectSettings, setSettingInContent } from '../helpers/project-settings.js'
 
 function parseProjectGodot(projectPath: string): ProjectInfo {
@@ -157,13 +158,16 @@ export async function handleProject(action: string, args: Record<string, unknown
         )
       }
 
+      const base = projectPath ? resolve(projectPath) : process.cwd()
+      const exportPath = safeResolve(base, outputPath)
+
       const result = execGodotSync(config.godotPath, [
         '--headless',
         '--path',
-        resolve(projectPath),
+        base,
         '--export-release',
         preset,
-        resolve(projectPath, outputPath),
+        exportPath,
       ])
 
       return formatSuccess(`Export complete: ${outputPath}\n${result.stdout}`)

@@ -8,6 +8,7 @@
  */
 
 import { readFileSync, writeFileSync } from 'node:fs'
+import { readFile, writeFile } from 'node:fs/promises'
 
 export interface ProjectSettings {
   sections: Map<string, Map<string, string>>
@@ -19,6 +20,14 @@ export interface ProjectSettings {
  */
 export function parseProjectSettings(filePath: string): ProjectSettings {
   const raw = readFileSync(filePath, 'utf-8')
+  return parseProjectSettingsContent(raw)
+}
+
+/**
+ * Parse project.godot file asynchronously
+ */
+export async function parseProjectSettingsAsync(filePath: string): Promise<ProjectSettings> {
+  const raw = await readFile(filePath, 'utf-8')
   return parseProjectSettingsContent(raw)
 }
 
@@ -131,6 +140,13 @@ export function setSettingInContent(content: string, path: string, value: string
  */
 export function writeProjectSettings(filePath: string, content: string): void {
   writeFileSync(filePath, content, 'utf-8')
+}
+
+/**
+ * Write project settings back to file asynchronously
+ */
+export async function writeProjectSettingsAsync(filePath: string, content: string): Promise<void> {
+  await writeFile(filePath, content, 'utf-8')
 }
 
 /**

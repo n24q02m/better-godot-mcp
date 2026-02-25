@@ -1,7 +1,7 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended", ":semanticCommits"],
-  "schedule": ["before 9am on monday"],
+  "schedule": ["before 5am every day"],
   "timezone": "Asia/Ho_Chi_Minh",
   "prConcurrentLimit": 5,
   "prHourlyLimit": 3,
@@ -9,7 +9,7 @@
   "rangeStrategy": "bump",
   "lockFileMaintenance": {
     "enabled": true,
-    "schedule": ["before 9am on monday"]
+    "schedule": ["before 5am every day"]
   },
   "packageRules": [
     {

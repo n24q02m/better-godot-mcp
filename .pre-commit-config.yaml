@@ -1,38 +1,78 @@
-repos:
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
-    hooks:
-      - id: trailing-whitespace
-        exclude: '\.md$'
-      - id: end-of-file-fixer
-      - id: check-yaml
-      - id: check-json
-      - id: check-added-large-files
-        args: ['--maxkb=500']
-      - id: check-merge-conflict
-      - id: detect-private-key
-      - id: mixed-line-ending
-        args: ['--fix=lf']
+# Pre-commit Hooks Configuration
+# Installation: https://pre-commit.com/
+#
+# Quick start:
+#   1. Install pre-commit: uv pip install pre-commit
+#   2. Install hooks: pre-commit install
+#   3. Run manually: pre-commit run --all-files
+#
+# Bypass checks: git commit --no-verify (use only in emergency)
 
-  - repo: https://github.com/biomejs/pre-commit
-    rev: v2.3.0
-    hooks:
-      - id: biome-check
-        additional_dependencies: ['@biomejs/biome@2.3.0']
-        args: ['--diagnostic-level=error']
+repos:
+  # ============================================================================
+  # TypeScript/JavaScript
+  # ============================================================================
 
   - repo: local
     hooks:
+      - id: biome-check
+        name: biome check
+        entry: pnpm exec biome check --write
+        language: system
+        types_or: [javascript, ts, tsx, jsx, json, css]
+        pass_filenames: true
+
       - id: typescript-check
-        name: TypeScript type check
+        name: typescript type check
         entry: pnpm exec tsc --noEmit
         language: system
         types: [ts]
         pass_filenames: false
 
       - id: test
-        name: Run tests
+        name: test (TypeScript)
         entry: pnpm test
         language: system
+        types: [ts]
         pass_filenames: false
-        stages: [pre-push]
+
+  # ============================================================================
+  # Common Checks
+  # ============================================================================
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        name: trim trailing whitespace
+        exclude_types: [image]
+
+      - id: check-merge-conflict
+        name: check for merge conflicts
+
+      - id: check-json
+        name: check JSON files
+        types: [json]
+
+      - id: check-yaml
+        name: check YAML files
+        types: [yaml]
+
+      - id: check-toml
+        name: check TOML files
+        types: [toml]
+
+      - id: end-of-file-fixer
+        name: fix end of files
+        exclude_types: [image]
+
+  # ============================================================================
+  # Commit Message Enforcement
+  # ============================================================================
+  - repo: local
+    hooks:
+      - id: enforce-commit
+        name: Enforce feat and fix commit prefixes
+        entry: bash scripts/enforce-commit.sh
+        language: system
+        stages: [commit-msg]

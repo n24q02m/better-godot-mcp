@@ -36,6 +36,11 @@ jobs:
       version: ${{ steps.release.outputs.version }}
       is_prerelease: ${{ steps.release.outputs.is_prerelease }}
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
       - uses: actions/checkout@v6
         with:
           token: ${{ secrets.GH_PAT }}
@@ -64,6 +69,11 @@ jobs:
     if: needs.release.outputs.released == 'true'
     runs-on: ubuntu-latest
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
       - uses: actions/checkout@v6
         with:
           ref: ${{ needs.release.outputs.tag }}
@@ -102,6 +112,11 @@ jobs:
             artifact: linux-arm64
     runs-on: ${{ matrix.runner }}
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
       - uses: actions/checkout@v6
         with:
           ref: ${{ needs.release.outputs.tag }}
@@ -145,6 +160,11 @@ jobs:
     needs: [release, build-docker]
     runs-on: ubuntu-latest
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
       - uses: actions/download-artifact@v4
         with:
           pattern: digest-*

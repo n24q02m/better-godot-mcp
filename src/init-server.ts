@@ -15,7 +15,7 @@ import type { GodotConfig } from './godot/types.js'
 import { registerTools } from './tools/registry.js'
 
 const SERVER_NAME = 'better-godot-mcp'
-const SERVER_VERSION = '0.1.0'
+const SERVER_VERSION = '1.1.0'
 
 export async function initServer(): Promise<void> {
   // Detect Godot binary
@@ -58,14 +58,4 @@ export async function initServer(): Promise<void> {
   await server.connect(transport)
 
   console.error(`[${SERVER_NAME}] Server started (v${SERVER_VERSION})`)
-}
-
-// Auto-start when run directly (not when imported as a module)
-const isDirectRun = process.argv[1]?.endsWith('init-server.js') || process.argv[1]?.endsWith('cli.mjs')
-
-if (isDirectRun) {
-  initServer().catch((error) => {
-    console.error('Failed to start Better Godot MCP Server:', error)
-    process.exit(1)
-  })
 }

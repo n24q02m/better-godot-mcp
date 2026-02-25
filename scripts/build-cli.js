@@ -1,4 +1,4 @@
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { chmodSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { build } from 'esbuild'
 
@@ -24,7 +24,7 @@ function copyDir(src, dest) {
 async function buildCli() {
   // Bundle src into single CLI file
   await build({
-    entryPoints: ['src/init-server.ts'],
+    entryPoints: ['scripts/start-server.ts'],
     bundle: true,
     platform: 'node',
     target: 'node24',
@@ -42,6 +42,9 @@ async function buildCli() {
     minify: false,
     sourcemap: false,
   })
+
+  // Make the output file executable
+  chmodSync('bin/cli.mjs', 0o755)
 
   // Copy documentation files for help tool
   copyDir('src/docs', 'build/src/docs')

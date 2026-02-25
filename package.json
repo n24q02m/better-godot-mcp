@@ -27,7 +27,7 @@
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.21.1",
+    "@modelcontextprotocol/sdk": "^1.27.1",
     "zod": "^4.1.0"
   },
   "devDependencies": {

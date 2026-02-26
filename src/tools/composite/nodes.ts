@@ -145,7 +145,6 @@ export async function handleNodes(action: string, args: Record<string, unknown>,
 
       const fullPath = resolveScenePath(projectPath, scenePath)
 
-
       const content = await readSceneFile(fullPath, scenePath)
       const nodes = parseNodes(content)
 

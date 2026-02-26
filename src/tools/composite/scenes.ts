@@ -17,53 +17,49 @@ import { basename, dirname, extname, join, relative, resolve } from 'node:path'
 import type { GodotConfig, SceneInfo, SceneNode } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
 import { setSettingInContent } from '../helpers/project-settings.js'
+import { parseScene } from '../helpers/scene-parser.js'
 
 /**
  * Parse a .tscn file to extract scene information
  */
 function parseTscnFile(filePath: string): SceneInfo {
-  const content = readFileSync(filePath, 'utf-8')
-  const lines = content.split('\n')
-
+  const parsed = parseScene(filePath)
   const nodes: SceneNode[] = []
   const resources: string[] = []
   let rootNode = ''
   let rootType = ''
 
-  for (const line of lines) {
-    const trimmed = line.trim()
+  for (const nodeInfo of parsed.nodes) {
+    if (!nodeInfo.type) continue
 
-    const nodeMatch = trimmed.match(/^\[node\s+name="([^"]+)"\s+type="([^"]+)"(?:\s+parent="([^"]*)")?/)
-    if (nodeMatch) {
-      const node: SceneNode = {
-        name: nodeMatch[1],
-        type: nodeMatch[2],
-        parent: nodeMatch[3] ?? null,
-        properties: {},
-        script: null,
-      }
-
-      if (!node.parent && nodes.length === 0) {
-        rootNode = node.name
-        rootType = node.type
-      }
-
-      nodes.push(node)
-      continue
+    const node: SceneNode = {
+      name: nodeInfo.name,
+      type: nodeInfo.type,
+      parent: nodeInfo.parent ?? null,
+      properties: nodeInfo.properties,
+      script: nodeInfo.properties.script ?? null,
     }
 
-    const resMatch = trimmed.match(/^\[(ext_resource|sub_resource)\s+(.+)\]$/)
-    if (resMatch) {
-      resources.push(trimmed)
-      continue
+    if (!node.parent && nodes.length === 0) {
+      rootNode = node.name
+      rootType = node.type
     }
 
-    if (trimmed.startsWith('script') && nodes.length > 0) {
-      const scriptMatch = trimmed.match(/^script\s*=\s*(.+)$/)
-      if (scriptMatch) {
-        nodes[nodes.length - 1].script = scriptMatch[1]
-      }
-    }
+    nodes.push(node)
+  }
+
+  for (const res of parsed.extResources) {
+    const parts = [`type="${res.type}"`]
+    if (res.uid) parts.push(`uid="${res.uid}"`)
+    parts.push(`path="${res.path}"`)
+    parts.push(`id="${res.id}"`)
+    resources.push(`[ext_resource ${parts.join(' ')}]`)
+  }
+
+  for (const res of parsed.subResources) {
+    const parts = [`type="${res.type}"`]
+    parts.push(`id="${res.id}"`)
+    resources.push(`[sub_resource ${parts.join(' ')}]`)
   }
 
   return { path: filePath, rootNode, rootType, nodeCount: nodes.length, nodes, resources }

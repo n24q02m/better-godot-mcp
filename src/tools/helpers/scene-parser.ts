@@ -237,19 +237,28 @@ export function removeNodeFromContent(content: string, nodeName: string): string
 }
 
 /**
+ * Escape special characters in a string for use in a regular expression
+ */
+function escapeRegExp(string: string): string {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/**
  * Rename a node in scene content
  */
 export function renameNodeInContent(content: string, oldName: string, newName: string): string {
+  const escapedOldName = escapeRegExp(oldName)
+
   // Replace in node declarations
-  let result = content.replace(new RegExp(`name="${oldName}"`, 'g'), `name="${newName}"`)
+  let result = content.replace(new RegExp(`name="${escapedOldName}"`, 'g'), `name="${newName}"`)
   // Replace in parent references
-  result = result.replace(new RegExp(`parent="${oldName}"`, 'g'), `parent="${newName}"`)
+  result = result.replace(new RegExp(`parent="${escapedOldName}"`, 'g'), `parent="${newName}"`)
   // Replace in parent paths containing the old name
-  result = result.replace(new RegExp(`parent="([^"]*/)${oldName}(/[^"]*)"`, 'g'), `parent="$1${newName}$2"`)
-  result = result.replace(new RegExp(`parent="([^"]*/)${oldName}"`, 'g'), `parent="$1${newName}"`)
+  result = result.replace(new RegExp(`parent="([^"]*/)${escapedOldName}(/[^"]*)"`, 'g'), `parent="$1${newName}$2"`)
+  result = result.replace(new RegExp(`parent="([^"]*/)${escapedOldName}"`, 'g'), `parent="$1${newName}"`)
   // Replace in connection references
-  result = result.replace(new RegExp(`from="${oldName}"`, 'g'), `from="${newName}"`)
-  result = result.replace(new RegExp(`to="${oldName}"`, 'g'), `to="${newName}"`)
+  result = result.replace(new RegExp(`from="${escapedOldName}"`, 'g'), `from="${newName}"`)
+  result = result.replace(new RegExp(`to="${escapedOldName}"`, 'g'), `to="${newName}"`)
   return result
 }
 

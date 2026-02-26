@@ -9,7 +9,7 @@ describe('security', () => {
     it('should NOT wrap result for untracked tool', () => {
       const toolName = 'list_files'
       const result = {
-        content: [{ type: 'text', text: 'some content' }]
+        content: [{ type: 'text', text: 'some content' }],
       }
       const wrapped = wrapToolResult(toolName, result)
       expect(wrapped).toBe(result)
@@ -19,7 +19,7 @@ describe('security', () => {
     it('should wrap result for tracked tool', () => {
       const toolName = 'scripts'
       const result = {
-        content: [{ type: 'text', text: 'extends Node' }]
+        content: [{ type: 'text', text: 'extends Node' }],
       }
       const wrapped = wrapToolResult(toolName, result)
       expect(wrapped).not.toBe(result)
@@ -31,7 +31,7 @@ describe('security', () => {
     it('should wrap result for shader tool', () => {
       const toolName = 'shader'
       const result = {
-        content: [{ type: 'text', text: 'shader_type canvas_item;' }]
+        content: [{ type: 'text', text: 'shader_type canvas_item;' }],
       }
       const wrapped = wrapToolResult(toolName, result)
       expect(wrapped.content[0].text).toContain('<untrusted_godot_content>')
@@ -40,7 +40,7 @@ describe('security', () => {
     it('should wrap result for scenes tool', () => {
       const toolName = 'scenes'
       const result = {
-        content: [{ type: 'text', text: '[node name="Node" type="Node"]' }]
+        content: [{ type: 'text', text: '[node name="Node" type="Node"]' }],
       }
       const wrapped = wrapToolResult(toolName, result)
       expect(wrapped.content[0].text).toContain('<untrusted_godot_content>')
@@ -49,7 +49,7 @@ describe('security', () => {
     it('should wrap result for resources tool', () => {
       const toolName = 'resources'
       const result = {
-        content: [{ type: 'text', text: '[resource]' }]
+        content: [{ type: 'text', text: '[resource]' }],
       }
       const wrapped = wrapToolResult(toolName, result)
       expect(wrapped.content[0].text).toContain('<untrusted_godot_content>')
@@ -59,9 +59,9 @@ describe('security', () => {
       const toolName = 'scripts'
       const result = {
         isError: true,
-        content: [{ type: 'text', text: 'File not found' }]
+        content: [{ type: 'text', text: 'File not found' }],
       }
-      // @ts-ignore - isError is not in the type definition but is handled in runtime
+      // @ts-expect-error - isError is not in the type definition but is handled in runtime
       const wrapped = wrapToolResult(toolName, result)
       expect(wrapped).toBe(result)
       expect(wrapped.content[0].text).toBe('File not found')
@@ -73,8 +73,8 @@ describe('security', () => {
       const result = {
         content: [
           { type: 'text', text: 'script1' },
-          { type: 'text', text: 'script2' }
-        ]
+          { type: 'text', text: 'script2' },
+        ],
       }
       const wrapped = wrapToolResult(toolName, result)
       expect(wrapped.content).toHaveLength(2)

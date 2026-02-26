@@ -1,0 +1,7 @@
+--- /dev/null
++++ /dev/null
+@@ -21,3 +21,4 @@
+   | 'AUDIO_ERROR'
+   | 'NAVIGATION_ERROR'
+   | 'UI_ERROR'
++  | 'ACCESS_DENIED'

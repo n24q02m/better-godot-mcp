@@ -1,19 +1,20 @@
-/**
- * Input Map tool - Input action management via project.godot
- * Actions: list | add_action | remove_action | add_event
- */
-
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
+import {
+  getInputActions,
+  getSetting,
+  parseProjectSettingsContent,
+  removeSettingInContent,
+  setSettingInContent,
+} from '../helpers/project-settings.js'
 
 /**
- * Godot 4.x Key enum numeric values (@GlobalScope.Key)
- * Letters are ASCII codes, special keys use 4194xxx range
+ * Godot 4.x KeyCode enum numeric values (partial list)
  */
 const GODOT_KEY_CODES: Record<string, number> = {
-  // Letters (ASCII)
+  // Letters
   KEY_A: 65,
   KEY_B: 66,
   KEY_C: 67,
@@ -142,69 +143,16 @@ function getProjectGodotPath(projectPath: string | null | undefined): string {
 }
 
 /**
- * Parse input actions from project.godot
+ * Extract event strings from a Godot input action value string
  */
-function parseInputActions(content: string): Map<string, string[]> {
-  const actions = new Map<string, string[]>()
-  let inInputSection = false
-
-  for (const line of content.split('\n')) {
-    const trimmed = line.trim()
-
-    if (trimmed === '[input]') {
-      inInputSection = true
-      continue
-    }
-    if (trimmed.startsWith('[') && inInputSection) {
-      break
-    }
-
-    if (inInputSection) {
-      // Single-line format: action_name={...}
-      const match = trimmed.match(/^(\w+)=\{(.+)\}$/)
-      if (match) {
-        const actionName = match[1]
-        const eventsMatch = match[2].match(/"events":\s*\[([^\]]*)\]/)
-        const events = eventsMatch
-          ? eventsMatch[1]
-              .split(',')
-              .map((e) => e.trim())
-              .filter(Boolean)
-          : []
-        actions.set(actionName, events)
-      } else {
-        // Multi-line format: action_name={
-        //   "deadzone": 0.2,
-        //   "events": [...]
-        // }
-        const startMatch = trimmed.match(/^(\w+)=\{(.*)$/)
-        if (startMatch) {
-          const actionName = startMatch[1]
-          let accumulated = startMatch[2]
-          // Read subsequent lines until closing }
-          const lines = content.split('\n')
-          const currentIdx = lines.findIndex((l) => l.trim() === trimmed)
-          if (currentIdx >= 0) {
-            for (let j = currentIdx + 1; j < lines.length; j++) {
-              const nextLine = lines[j].trim()
-              accumulated += nextLine
-              if (nextLine.endsWith('}')) break
-            }
-          }
-          const eventsMatch = accumulated.match(/"events":\s*\[([^\]]*)\]/)
-          const events = eventsMatch
-            ? eventsMatch[1]
-                .split(',')
-                .map((e) => e.trim())
-                .filter(Boolean)
-            : []
-          actions.set(actionName, events)
-        }
-      }
-    }
-  }
-
-  return actions
+function extractEventsFromValue(value: string): string[] {
+  const eventsMatch = value.match(/"events":\s*\[([^\]]*)\]/)
+  return eventsMatch
+    ? eventsMatch[1]
+        .split(',')
+        .map((e) => e.trim())
+        .filter(Boolean)
+    : []
 }
 
 export async function handleInputMap(action: string, args: Record<string, unknown>, config: GodotConfig) {
@@ -214,11 +162,12 @@ export async function handleInputMap(action: string, args: Record<string, unknow
     case 'list': {
       const configPath = getProjectGodotPath(projectPath)
       const content = readFileSync(configPath, 'utf-8')
-      const actions = parseInputActions(content)
+      const settings = parseProjectSettingsContent(content)
+      const actionsMap = getInputActions(settings)
 
-      const actionList = Array.from(actions.entries()).map(([name, events]) => ({
+      const actionList = Array.from(actionsMap.entries()).map(([name, value]) => ({
         name,
-        eventCount: events.length,
+        eventCount: extractEventsFromValue(value).length,
       }))
 
       return formatJSON({ count: actionList.length, actions: actionList })
@@ -230,23 +179,18 @@ export async function handleInputMap(action: string, args: Record<string, unknow
       if (!actionName) throw new GodotMCPError('No action_name specified', 'INVALID_ARGS', 'Provide action_name.')
       const deadzone = (args.deadzone as number) || 0.5
 
-      let content = readFileSync(configPath, 'utf-8')
-
-      // Check if [input] section exists
-      if (!content.includes('[input]')) {
-        content += `\n[input]\n`
-      }
+      const content = readFileSync(configPath, 'utf-8')
+      const settings = parseProjectSettingsContent(content)
 
       // Check if action already exists
-      if (content.includes(`${actionName}={`)) {
+      if (getSetting(settings, `input/${actionName}`)) {
         throw new GodotMCPError(`Action "${actionName}" already exists`, 'INPUT_ERROR', 'Remove it first to recreate.')
       }
 
-      // Add action after [input] section header
-      const actionLine = `${actionName}={\n"deadzone": ${deadzone},\n"events": []\n}`
-      content = content.replace('[input]', `[input]\n${actionLine}`)
+      const actionValue = `{\n"deadzone": ${deadzone},\n"events": []\n}`
+      const updated = setSettingInContent(content, `input/${actionName}`, actionValue)
 
-      writeFileSync(configPath, content, 'utf-8')
+      writeFileSync(configPath, updated, 'utf-8')
       return formatSuccess(`Added input action: ${actionName} (deadzone: ${deadzone})`)
     }
 
@@ -256,14 +200,13 @@ export async function handleInputMap(action: string, args: Record<string, unknow
       if (!actionName) throw new GodotMCPError('No action_name specified', 'INVALID_ARGS', 'Provide action_name.')
 
       const content = readFileSync(configPath, 'utf-8')
-      // Remove the action line(s) - handles multi-line format
-      const pattern = new RegExp(`${actionName}=\\{[^}]*\\}\\n?`, 'g')
-      const updated = content.replace(pattern, '')
+      const settings = parseProjectSettingsContent(content)
 
-      if (updated === content) {
+      if (!getSetting(settings, `input/${actionName}`)) {
         throw new GodotMCPError(`Action "${actionName}" not found`, 'INPUT_ERROR', 'Check action name with list.')
       }
 
+      const updated = removeSettingInContent(content, `input/${actionName}`)
       writeFileSync(configPath, updated, 'utf-8')
       return formatSuccess(`Removed input action: ${actionName}`)
     }
@@ -282,6 +225,16 @@ export async function handleInputMap(action: string, args: Record<string, unknow
       }
 
       const content = readFileSync(configPath, 'utf-8')
+      const settings = parseProjectSettingsContent(content)
+      const currentValue = getSetting(settings, `input/${actionName}`)
+
+      if (!currentValue) {
+        throw new GodotMCPError(
+          `Action "${actionName}" not found`,
+          'INPUT_ERROR',
+          'Add the action first with add_action.',
+        )
+      }
 
       // Build event object based on type
       let eventObj: string
@@ -308,20 +261,17 @@ export async function handleInputMap(action: string, args: Record<string, unknow
       }
 
       // Find existing events array and append
-      const actionRegex = new RegExp(`(${actionName}=\\{[^}]*"events":\\s*\\[)([^\\]]*)\\]`)
-      const match = content.match(actionRegex)
-      if (!match) {
-        throw new GodotMCPError(
-          `Action "${actionName}" not found`,
-          'INPUT_ERROR',
-          'Add the action first with add_action.',
-        )
+      const eventsMatch = currentValue.match(/"events":\s*\[([^\]]*)\]/)
+      if (!eventsMatch) {
+        // Should usually not happen for valid action
+        throw new GodotMCPError(`Action "${actionName}" has invalid format`, 'INPUT_ERROR', 'Events array not found.')
       }
 
-      const existingEvents = match[2].trim()
+      const existingEvents = eventsMatch[1].trim()
       const newEvents = existingEvents ? `${existingEvents}, ${eventObj}` : eventObj
-      const updated = content.replace(actionRegex, `$1${newEvents}]`)
+      const updatedValue = currentValue.replace(/"events":\s*\[[^\]]*\]/, `"events": [${newEvents}]`)
 
+      const updated = setSettingInContent(content, `input/${actionName}`, updatedValue)
       writeFileSync(configPath, updated, 'utf-8')
       return formatSuccess(`Added ${eventType} event to action: ${actionName}`)
     }

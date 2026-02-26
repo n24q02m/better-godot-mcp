@@ -7,9 +7,21 @@ import {
   getInputActions,
   getSetting,
   parseProjectSettingsContent,
+  removeSettingInContent,
   setSettingInContent,
 } from '../../src/tools/helpers/project-settings.js'
 import { SAMPLE_PROJECT_GODOT } from '../fixtures.js'
+
+const MULTILINE_PROJECT = `; Engine configuration file.
+
+[input]
+
+jump={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"keycode":32)]
+}
+move_left={ "deadzone": 0.5, "events": [] }
+`
 
 describe('project-settings', () => {
   // ==========================================
@@ -59,6 +71,18 @@ describe('project-settings', () => {
     it('should preserve raw content', () => {
       const settings = parseProjectSettingsContent(SAMPLE_PROJECT_GODOT)
       expect(settings.raw).toBe(SAMPLE_PROJECT_GODOT)
+    })
+
+    it('should parse multi-line input action', () => {
+      const settings = parseProjectSettingsContent(MULTILINE_PROJECT)
+      const input = settings.sections.get('input')
+
+      expect(input?.has('jump')).toBe(true)
+      const jumpValue = input?.get('jump')
+      expect(jumpValue).toContain('"deadzone": 0.5')
+      expect(jumpValue).toContain('InputEventKey')
+      // It should capture the full value including newlines
+      expect(jumpValue).toContain('\n')
     })
   })
 
@@ -125,6 +149,47 @@ describe('project-settings', () => {
       const result = setSettingInContent(original, 'noslash', 'value')
       expect(result).toBe(original)
     })
+
+    it('should replace multi-line input action', () => {
+      const newValue = '{ "deadzone": 0.2, "events": [] }'
+      const updated = setSettingInContent(MULTILINE_PROJECT, 'input/jump', newValue)
+
+      expect(updated).toContain(`jump=${newValue}`)
+      // Should remove the old multi-line value
+      expect(updated).not.toContain('InputEventKey')
+      // Should preserve other keys
+      expect(updated).toContain('move_left={ "deadzone": 0.5, "events": [] }')
+    })
+  })
+
+  // ==========================================
+  // removeSettingInContent
+  // ==========================================
+  describe('removeSettingInContent', () => {
+    it('should remove existing setting', () => {
+      const result = removeSettingInContent(SAMPLE_PROJECT_GODOT, 'display/window/size/viewport_width')
+      expect(result).not.toContain('window/size/viewport_width')
+      // Should keep other settings
+      expect(result).toContain('window/size/viewport_height')
+    })
+
+    it('should remove multi-line setting', () => {
+      const result = removeSettingInContent(MULTILINE_PROJECT, 'input/jump')
+      expect(result).not.toContain('jump={')
+      expect(result).not.toContain('InputEventKey')
+      // Should keep other settings
+      expect(result).toContain('move_left')
+    })
+
+    it('should do nothing if setting not found', () => {
+      const result = removeSettingInContent(SAMPLE_PROJECT_GODOT, 'input/nonexistent')
+      expect(result).toBe(SAMPLE_PROJECT_GODOT)
+    })
+
+    it('should do nothing if section not found', () => {
+      const result = removeSettingInContent(SAMPLE_PROJECT_GODOT, 'nonexistent/key')
+      expect(result).toBe(SAMPLE_PROJECT_GODOT)
+    })
   })
 
   // ==========================================
@@ -144,3 +209,17 @@ describe('project-settings', () => {
     })
   })
 })
+
+  describe('setSettingInContent extra', () => {
+    it('should add key to middle section', () => {
+      // display is between application and input
+      const result = setSettingInContent(SAMPLE_PROJECT_GODOT, 'display/window/vsync/vsync_mode', '1')
+      expect(result).toContain('window/vsync/vsync_mode=1')
+      // Ensure it's in the right place (after [display] and before [input])
+      const displayIdx = result.indexOf('[display]')
+      const inputIdx = result.indexOf('[input]')
+      const keyIdx = result.indexOf('window/vsync/vsync_mode=1')
+      expect(keyIdx).toBeGreaterThan(displayIdx)
+      expect(keyIdx).toBeLessThan(inputIdx)
+    })
+  })

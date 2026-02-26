@@ -7,6 +7,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
+import { parseScene } from '../helpers/scene-parser.js'
 
 const CONTROL_TEMPLATES: Record<string, Record<string, string>> = {
   Button: { text: '"Click"' },
@@ -166,7 +167,7 @@ export async function handleUI(action: string, args: Record<string, unknown>, co
       if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
 
       const fullPath = resolveScene(projectPath, scenePath)
-      const content = readFileSync(fullPath, 'utf-8')
+      const scene = parseScene(fullPath)
 
       const controlTypes = new Set([
         'Control',
@@ -204,10 +205,10 @@ export async function handleUI(action: string, args: Record<string, unknown>, co
       ])
 
       const controls: { name: string; type: string; parent: string }[] = []
-      const nodeRegex = /\[node name="([^"]+)" type="([^"]+)"(?:\s+parent="([^"]*)")?/g
-      for (const match of content.matchAll(nodeRegex)) {
-        if (controlTypes.has(match[2])) {
-          controls.push({ name: match[1], type: match[2], parent: match[3] || '(root)' })
+
+      for (const node of scene.nodes) {
+        if (node.type && controlTypes.has(node.type)) {
+          controls.push({ name: node.name, type: node.type, parent: node.parent || '(root)' })
         }
       }
 

@@ -38,22 +38,35 @@ describe('project-settings', () => {
       expect(display?.get('window/size/viewport_height')).toBe('720')
     })
 
+    it('should parse global keys', () => {
+      const content = `config_version=5
+[application]
+config/name="Test"`
+      const settings = parseProjectSettingsContent(content)
+      const global = settings.sections.get('')
+      expect(global).toBeDefined()
+      expect(global?.get('config_version')).toBe('5')
+    })
+
     it('should skip comments', () => {
       const settings = parseProjectSettingsContent(SAMPLE_PROJECT_GODOT)
       // No section should be named starting with ";"
       for (const key of settings.sections.keys()) {
-        expect(key.startsWith(';')).toBe(false)
+        if (key !== '') { // Ignore global section
+          expect(key.startsWith(';')).toBe(false)
+        }
       }
     })
 
     it('should handle empty content', () => {
       const settings = parseProjectSettingsContent('')
-      expect(settings.sections.size).toBe(0)
+      expect(settings.sections.size).toBe(1) // Should contain empty global section
+      expect(settings.sections.has('')).toBe(true)
     })
 
     it('should handle content with only comments', () => {
       const settings = parseProjectSettingsContent('; just a comment\n; another one\n')
-      expect(settings.sections.size).toBe(0)
+      expect(settings.sections.size).toBe(1)
     })
 
     it('should preserve raw content', () => {
@@ -76,6 +89,11 @@ describe('project-settings', () => {
       expect(getSetting(settings, 'display/window/size/viewport_width')).toBe('1280')
     })
 
+    it('should get global setting', () => {
+      const settings = parseProjectSettingsContent('config_version=5\n[application]')
+      expect(getSetting(settings, 'config_version')).toBe('5')
+    })
+
     it('should return undefined for missing section', () => {
       const settings = parseProjectSettingsContent(SAMPLE_PROJECT_GODOT)
       expect(getSetting(settings, 'nonexistent/key')).toBeUndefined()
@@ -86,7 +104,7 @@ describe('project-settings', () => {
       expect(getSetting(settings, 'application/nonexistent')).toBeUndefined()
     })
 
-    it('should return undefined for single-segment path', () => {
+    it('should return undefined for single-segment path if not in global', () => {
       const settings = parseProjectSettingsContent(SAMPLE_PROJECT_GODOT)
       expect(getSetting(settings, 'application')).toBeUndefined()
     })
@@ -120,10 +138,19 @@ describe('project-settings', () => {
       expect(result).toContain('custom_key=value')
     })
 
-    it('should reject single-segment path (no-op)', () => {
-      const original = SAMPLE_PROJECT_GODOT
-      const result = setSettingInContent(original, 'noslash', 'value')
-      expect(result).toBe(original)
+    it('should set global key', () => {
+      const content = `[application]
+config/name="Test"`
+      const result = setSettingInContent(content, 'config_version', '5')
+      expect(result).toMatch(/^config_version=5/)
+    })
+
+    it('should replace global key', () => {
+      const content = `config_version=4
+[application]`
+      const result = setSettingInContent(content, 'config_version', '5')
+      expect(result).toContain('config_version=5')
+      expect(result).not.toContain('config_version=4')
     })
   })
 

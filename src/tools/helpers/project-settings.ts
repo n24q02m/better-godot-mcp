@@ -29,6 +29,9 @@ export function parseProjectSettingsContent(content: string): ProjectSettings {
   const sections = new Map<string, Map<string, string>>()
   let currentSection = ''
 
+  // Initialize global section
+  sections.set('', new Map())
+
   for (const rawLine of content.split('\n')) {
     const line = rawLine.trim()
     if (!line || line.startsWith(';')) continue
@@ -45,7 +48,7 @@ export function parseProjectSettingsContent(content: string): ProjectSettings {
 
     // Key=value
     const kvMatch = line.match(/^([^=]+)=(.*)$/)
-    if (kvMatch && currentSection) {
+    if (kvMatch) {
       const key = kvMatch[1].trim()
       const value = kvMatch[2].trim()
       sections.get(currentSection)?.set(key, value)
@@ -60,13 +63,20 @@ export function parseProjectSettingsContent(content: string): ProjectSettings {
  * Example: getSetting(settings, "application/config/name")
  */
 export function getSetting(settings: ProjectSettings, path: string): string | undefined {
-  // Try direct section/key lookup
   const parts = path.split('/')
+
+  // Handle global keys (e.g. "config_version")
+  if (parts.length === 1) {
+    return settings.sections.get('')?.get(path)
+  }
+
+  // Handle section/key lookup
   if (parts.length >= 2) {
     const section = parts[0]
     const key = parts.slice(1).join('/')
     return settings.sections.get(section)?.get(key)
   }
+
   return undefined
 }
 
@@ -75,6 +85,42 @@ export function getSetting(settings: ProjectSettings, path: string): string | un
  */
 export function setSettingInContent(content: string, path: string, value: string): string {
   const parts = path.split('/')
+
+  // Handle global keys
+  if (parts.length === 1) {
+    const key = parts[0]
+    const lines = content.split('\n')
+    let keySet = false
+    const result: string[] = []
+
+    // Global keys usually appear at the top, before any section
+    let firstSectionIndex = -1
+
+    for (let i = 0; i < lines.length; i++) {
+      const trimmed = lines[i].trim()
+
+      if (firstSectionIndex === -1 && trimmed.startsWith('[') && trimmed.endsWith(']')) {
+        firstSectionIndex = i
+      }
+
+      // Replace existing global key (before any section)
+      if (firstSectionIndex === -1 && trimmed.startsWith(`${key}=`)) {
+        result.push(`${key}=${value}`)
+        keySet = true
+        continue
+      }
+
+      result.push(lines[i])
+    }
+
+    if (!keySet) {
+      // Insert at top if not found
+      result.unshift(`${key}=${value}`)
+    }
+
+    return result.join('\n')
+  }
+
   if (parts.length < 2) return content
 
   const section = parts[0]

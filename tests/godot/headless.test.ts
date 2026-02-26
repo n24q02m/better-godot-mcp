@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { execGodotSync } from '../../src/godot/headless.js'
 import * as child_process from 'node:child_process'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { execGodotSync } from '../../src/godot/headless.js'
 
 // Mock execFileSync
 vi.mock('node:child_process', () => {
@@ -34,7 +34,7 @@ describe('execGodotSync', () => {
         timeout: options.timeout,
         cwd: options.cwd,
         encoding: 'utf-8',
-      })
+      }),
     )
   })
 
@@ -43,10 +43,13 @@ describe('execGodotSync', () => {
     const args = ['--invalid']
 
     // Mock execution error
-    const error = new Error('Command failed') as any
-    error.status = 1
-    error.stdout = ''
-    error.stderr = 'Unknown argument'
+    const error = new Error('Command failed')
+    Object.assign(error, {
+      status: 1,
+      stdout: '',
+      stderr: 'Unknown argument',
+    })
+
     vi.mocked(child_process.execFileSync).mockImplementation(() => {
       throw error
     })

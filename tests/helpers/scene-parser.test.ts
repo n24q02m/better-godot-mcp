@@ -278,3 +278,26 @@ describe('scene-parser', () => {
     })
   })
 })
+
+// ==========================================
+// BUG REPRODUCTION
+// ==========================================
+describe('renameNodeInContent bug reproduction', () => {
+  it('should rename node in parent path when it is a prefix', () => {
+    const content = '[node name="Child" parent="OldName/SubChild"]'
+    const result = renameNodeInContent(content, 'OldName', 'NewName')
+    expect(result).toBe('[node name="Child" parent="NewName/SubChild"]')
+  })
+
+  it('should rename node in parent path when it is in the middle', () => {
+    const content = '[node name="Child" parent="Grand/OldName/SubChild"]'
+    const result = renameNodeInContent(content, 'OldName', 'NewName')
+    expect(result).toBe('[node name="Child" parent="Grand/NewName/SubChild"]')
+  })
+
+  it('should not rename partial matches in parent path', () => {
+    const content = '[node name="Child" parent="OldNameSuffix/SubChild"]'
+    const result = renameNodeInContent(content, 'OldName', 'NewName')
+    expect(result).toBe('[node name="Child" parent="OldNameSuffix/SubChild"]')
+  })
+})

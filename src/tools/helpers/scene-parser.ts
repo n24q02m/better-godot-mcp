@@ -237,19 +237,44 @@ export function removeNodeFromContent(content: string, nodeName: string): string
 }
 
 /**
+ * Escape string for use in RegExp
+ */
+function escapeRegExp(string: string): string {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/**
  * Rename a node in scene content
  */
 export function renameNodeInContent(content: string, oldName: string, newName: string): string {
-  // Replace in node declarations
-  let result = content.replace(new RegExp(`name="${oldName}"`, 'g'), `name="${newName}"`)
-  // Replace in parent references
-  result = result.replace(new RegExp(`parent="${oldName}"`, 'g'), `parent="${newName}"`)
-  // Replace in parent paths containing the old name
-  result = result.replace(new RegExp(`parent="([^"]*/)${oldName}(/[^"]*)"`, 'g'), `parent="$1${newName}$2"`)
-  result = result.replace(new RegExp(`parent="([^"]*/)${oldName}"`, 'g'), `parent="$1${newName}"`)
-  // Replace in connection references
-  result = result.replace(new RegExp(`from="${oldName}"`, 'g'), `from="${newName}"`)
-  result = result.replace(new RegExp(`to="${oldName}"`, 'g'), `to="${newName}"`)
+  const escapedOld = escapeRegExp(oldName)
+
+  // 1. Fast replacement for name, from, to attributes
+  let result = content.replace(new RegExp(`(name|from|to)="${escapedOld}"`, 'g'), `$1="${newName}"`)
+
+  // 2. Handle parent paths (only match parent attributes containing oldName)
+  // This avoids processing parents that don't need changes
+  const parentRegex = new RegExp(`parent="([^"]*${escapedOld}[^"]*)"`, 'g')
+
+  result = result.replace(parentRegex, (match, parentValue) => {
+    // Split by '/' to handle path segments correctly
+    const parts = parentValue.split('/')
+    let changed = false
+    const newParts = parts.map((part: string) => {
+      if (part === oldName) {
+        changed = true
+        return newName
+      }
+      return part
+    })
+
+    if (changed) {
+      return `parent="${newParts.join('/')}"`
+    }
+
+    return match
+  })
+
   return result
 }
 

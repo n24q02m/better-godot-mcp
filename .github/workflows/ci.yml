@@ -41,7 +41,7 @@ jobs:
         run: pnpm check
 
       - name: Run tests with coverage
-        run: pnpm test -- --coverage
+        run: pnpm exec vitest run --coverage
 
       - name: Upload coverage to Codecov
         if: github.event_name == 'push'

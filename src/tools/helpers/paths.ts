@@ -19,7 +19,7 @@ export function safeResolve(base: string, target: string): string {
     throw new GodotMCPError(
       `Access denied: Path '${target}' resolves to '${resolvedTarget}' which is outside the project root '${resolvedBase}'`,
       'ACCESS_DENIED',
-      'Ensure all paths are within the project directory.'
+      'Ensure all paths are within the project directory.',
     )
   }
 

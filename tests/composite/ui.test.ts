@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { GodotConfig } from '../../src/godot/types.js'
 import { handleUI } from '../../src/tools/composite/ui.js'
-import { createTmpProject, createTmpScene, makeConfig, MINIMAL_TSCN } from '../fixtures.js'
+import { createTmpProject, createTmpScene, MINIMAL_TSCN, makeConfig } from '../fixtures.js'
 
 describe('ui', () => {
   let projectPath: string
@@ -47,7 +47,7 @@ describe('ui', () => {
     it('should create a control with custom properties', async () => {
       createTmpScene(projectPath, 'ui.tscn', MINIMAL_TSCN)
 
-      const result = await handleUI(
+      await handleUI(
         'create_control',
         {
           project_path: projectPath,
@@ -252,10 +252,12 @@ describe('ui', () => {
       const data = JSON.parse(result.content[0].text)
       expect(data.count).toBe(2) // Root (Control) and Button
       expect(data.controls).toHaveLength(2)
-      expect(data.controls.map((c: any) => c.name)).toContain('Root')
-      expect(data.controls.map((c: any) => c.name)).toContain('Button')
-      expect(data.controls.map((c: any) => c.name)).not.toContain('Timer')
-      expect(data.controls.map((c: any) => c.name)).not.toContain('Sprite')
+
+      const controlNames = data.controls.map((c: { name: string }) => c.name)
+      expect(controlNames).toContain('Root')
+      expect(controlNames).toContain('Button')
+      expect(controlNames).not.toContain('Timer')
+      expect(controlNames).not.toContain('Sprite')
     })
 
     it('should throw if scene_path is missing', async () => {

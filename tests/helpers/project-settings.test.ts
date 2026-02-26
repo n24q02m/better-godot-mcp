@@ -210,16 +210,16 @@ describe('project-settings', () => {
   })
 })
 
-  describe('setSettingInContent extra', () => {
-    it('should add key to middle section', () => {
-      // display is between application and input
-      const result = setSettingInContent(SAMPLE_PROJECT_GODOT, 'display/window/vsync/vsync_mode', '1')
-      expect(result).toContain('window/vsync/vsync_mode=1')
-      // Ensure it's in the right place (after [display] and before [input])
-      const displayIdx = result.indexOf('[display]')
-      const inputIdx = result.indexOf('[input]')
-      const keyIdx = result.indexOf('window/vsync/vsync_mode=1')
-      expect(keyIdx).toBeGreaterThan(displayIdx)
-      expect(keyIdx).toBeLessThan(inputIdx)
-    })
+describe('setSettingInContent extra', () => {
+  it('should add key to middle section', () => {
+    // display is between application and input
+    const result = setSettingInContent(SAMPLE_PROJECT_GODOT, 'display/window/vsync/vsync_mode', '1')
+    expect(result).toContain('window/vsync/vsync_mode=1')
+    // Ensure it's in the right place (after [display] and before [input])
+    const displayIdx = result.indexOf('[display]')
+    const inputIdx = result.indexOf('[input]')
+    const keyIdx = result.indexOf('window/vsync/vsync_mode=1')
+    expect(keyIdx).toBeGreaterThan(displayIdx)
+    expect(keyIdx).toBeLessThan(inputIdx)
   })
+})

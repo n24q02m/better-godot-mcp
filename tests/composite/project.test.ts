@@ -2,7 +2,7 @@
  * Integration tests for Project tool
  */
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { GodotConfig } from '../../src/godot/types.js'
@@ -78,8 +78,7 @@ window/size/viewport_height=1080
 
     it('should throw if project.godot not found', async () => {
       const emptyDir = join(projectPath, 'empty')
-      const fs = await import('node:fs')
-      if (!fs.existsSync(emptyDir)) fs.mkdirSync(emptyDir)
+      if (!existsSync(emptyDir)) mkdirSync(emptyDir)
 
       await expect(
         handleProject(

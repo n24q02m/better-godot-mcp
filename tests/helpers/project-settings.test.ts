@@ -52,7 +52,8 @@ config/name="Test"`
       const settings = parseProjectSettingsContent(SAMPLE_PROJECT_GODOT)
       // No section should be named starting with ";"
       for (const key of settings.sections.keys()) {
-        if (key !== '') { // Ignore global section
+        if (key !== '') {
+          // Ignore global section
           expect(key.startsWith(';')).toBe(false)
         }
       }

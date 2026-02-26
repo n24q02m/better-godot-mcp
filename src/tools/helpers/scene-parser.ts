@@ -76,12 +76,22 @@ export function parseSceneContent(content: string): ParsedScene {
   const nodes: SceneNodeInfo[] = []
   const connections: SignalConnection[] = []
 
-  const lines = content.split('\n')
   let currentSection: 'header' | 'ext_resource' | 'sub_resource' | 'node' | 'connection' | null = null
   let currentNode: SceneNodeInfo | null = null
   let currentSubResource: SubResource | null = null
 
-  for (const rawLine of lines) {
+  let startIndex = 0
+  const len = content.length
+
+  while (startIndex < len) {
+    let endIndex = content.indexOf('\n', startIndex)
+    if (endIndex === -1) {
+      endIndex = len
+    }
+
+    const rawLine = content.slice(startIndex, endIndex)
+    startIndex = endIndex + 1
+
     const line = rawLine.trim()
     if (!line || line.startsWith(';')) continue
 

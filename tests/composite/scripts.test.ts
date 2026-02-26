@@ -246,6 +246,25 @@ describe('scripts', () => {
   })
 
   // ==========================================
+  // security
+  // ==========================================
+  describe('security', () => {
+    it('should prevent path traversal', async () => {
+      await expect(
+        handleScripts(
+          'write',
+          {
+            project_path: projectPath,
+            script_path: '../outside.gd',
+            content: 'extends Node',
+          },
+          config,
+        ),
+      ).rejects.toThrow('Access denied')
+    })
+  })
+
+  // ==========================================
   // invalid action
   // ==========================================
   it('should throw for unknown action', async () => {

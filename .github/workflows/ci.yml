@@ -65,7 +65,7 @@ jobs:
     if: github.event_name != 'issue_comment'
   dependency-review:
     name: Dependency Review
-    if: (github.event_name == 'pull_request') && github.event_name !=
+    if: (github.event_name == 'pull_request') && github.event_name != 
       'issue_comment'
     runs-on: ubuntu-latest
 
@@ -86,7 +86,7 @@ jobs:
   ai_pr_review:
     name: Qodo AI Code Review
     runs-on: ubuntu-latest
-    if: github.event_name == 'issue_comment' || github.event_name ==
+    if: github.event_name == 'issue_comment' || github.event_name == 
       'pull_request'
     permissions:
       issues: write
@@ -101,8 +101,13 @@ jobs:
         uses: qodo-ai/pr-agent@main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GOOGLE_AI_STUDIO.GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          config.model: gemini/gemini-3.0-flash
-          github_action_config.auto_review: 'true'
-          github_action_config.auto_describe: 'true'
-          github_action_config.auto_improve: 'true'
+          GOOGLE_AI_STUDIO__GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          CONFIG__MODEL: gemini/gemini-3.0-flash
+          PR_REVIEWER__EXTRA_INSTRUCTIONS: ${{ env.CUSTOM_INSTRUCTIONS }}
+          PR_CODE_SUGGESTIONS__EXTRA_INSTRUCTIONS: ${{ env.CUSTOM_INSTRUCTIONS 
+            }}
+          PR_DESCRIPTION__EXTRA_INSTRUCTIONS: ${{ env.CUSTOM_INSTRUCTIONS }}
+          GITHUB_ACTION_CONFIG__AUTO_REVIEW: 'true'
+          GITHUB_ACTION_CONFIG__AUTO_DESCRIBE: 'true'
+          GITHUB_ACTION_CONFIG__AUTO_IMPROVE: 'true'

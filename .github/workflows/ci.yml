@@ -109,8 +109,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          PR_AGENT_CONFIG__MODEL: "gemini/gemini-3-flash"
-          PR_AGENT_CONFIG__FALLBACK_MODELS: '["gemini/gemini-1.5-flash"]'
           PR_REVIEWER__EXTRA_INSTRUCTIONS: ${{ env.CUSTOM_INSTRUCTIONS }}
           PR_CODE_SUGGESTIONS__EXTRA_INSTRUCTIONS: ${{ env.CUSTOM_INSTRUCTIONS }}
           PR_DESCRIPTION__EXTRA_INSTRUCTIONS: ${{ env.CUSTOM_INSTRUCTIONS }}

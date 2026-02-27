@@ -62,11 +62,9 @@ jobs:
       - name: Build project
         run: pnpm build
 
-    if: github.event_name != 'issue_comment'
   dependency-review:
     name: Dependency Review
-    if: (github.event_name == 'pull_request') && github.event_name != 
-      'issue_comment'
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
 
     steps:
@@ -83,31 +81,39 @@ jobs:
         with:
           fail-on-severity: moderate
           comment-summary-in-pr: always
+
   ai_pr_review:
     name: Qodo AI Code Review
+    if: github.event_name == 'issue_comment' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    if: github.event_name == 'issue_comment' || github.event_name == 
-      'pull_request'
     permissions:
       issues: write
       pull-requests: write
-      contents: write
+      contents: read
     steps:
-      - name: Harden Runner
-        uses: step-security/harden-runner@v2
-        with:
-          egress-policy: audit
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Load custom instructions
+        run: |
+          if [ -f ".github/best_practices.md" ]; then
+            INSTRUCTIONS=$(cat .github/best_practices.md)
+            RANDOM_EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+            echo "CUSTOM_INSTRUCTIONS<<$RANDOM_EOF" >> "$GITHUB_ENV"
+            echo "$INSTRUCTIONS" >> "$GITHUB_ENV"
+            echo "$RANDOM_EOF" >> "$GITHUB_ENV"
+          fi
+
       - name: PR Agent action step
         uses: qodo-ai/pr-agent@main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GOOGLE_AI_STUDIO__GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          CONFIG__MODEL: gemini/gemini-3.0-flash
+          PR_AGENT_CONFIG__MODEL: "gemini/gemini-3-flash"
+          PR_AGENT_CONFIG__FALLBACK_MODELS: '["gemini/gemini-1.5-flash"]'
           PR_REVIEWER__EXTRA_INSTRUCTIONS: ${{ env.CUSTOM_INSTRUCTIONS }}
-          PR_CODE_SUGGESTIONS__EXTRA_INSTRUCTIONS: ${{ env.CUSTOM_INSTRUCTIONS 
-            }}
+          PR_CODE_SUGGESTIONS__EXTRA_INSTRUCTIONS: ${{ env.CUSTOM_INSTRUCTIONS }}
           PR_DESCRIPTION__EXTRA_INSTRUCTIONS: ${{ env.CUSTOM_INSTRUCTIONS }}
-          GITHUB_ACTION_CONFIG__AUTO_REVIEW: 'true'
-          GITHUB_ACTION_CONFIG__AUTO_DESCRIBE: 'true'
-          GITHUB_ACTION_CONFIG__AUTO_IMPROVE: 'true'
+          GITHUB_ACTION_CONFIG__AUTO_REVIEW: "true"
+          GITHUB_ACTION_CONFIG__AUTO_DESCRIBE: "true"
+          GITHUB_ACTION_CONFIG__AUTO_IMPROVE: "true"

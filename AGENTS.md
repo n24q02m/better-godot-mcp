@@ -14,10 +14,10 @@ bun run test:watch          # vitest in watch mode
 bun run dev                 # tsx watch dev server
 
 # Run a single test file
-bunx vitest run tests/helpers/errors.test.ts
+bun x vitest run tests/helpers/errors.test.ts
 
 # Run a single test by name
-bunx vitest run -t "test name pattern"
+bun x vitest run -t "test name pattern"
 
 # Mise shortcuts
 mise run setup              # Full dev environment setup

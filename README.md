@@ -40,8 +40,8 @@
 {
   "mcpServers": {
     "better-godot": {
-      "command": "bunx",
-      "args": ["@n24q02m/better-godot-mcp@latest"]
+      "command": "bun",
+      "args": ["x", "@n24q02m/better-godot-mcp@latest"]
     }
   }
 }

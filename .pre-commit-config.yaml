@@ -17,14 +17,14 @@ repos:
     hooks:
       - id: biome-check
         name: biome check
-        entry: bunx biome check --write
+        entry: bun x biome check --write
         language: system
         types_or: [javascript, ts, tsx, jsx, json, css]
         pass_filenames: true
 
       - id: typescript-check
         name: typescript type check
-        entry: bunx tsc --noEmit
+        entry: bun x tsc --noEmit
         language: system
         types: [ts]
         pass_filenames: false

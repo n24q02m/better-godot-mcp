@@ -1,6 +1,6 @@
 [tools]
 node = "24"
-pnpm = "latest"
+bun = "latest"
 uv = "latest"
 python = "3.13"
 
@@ -14,7 +14,7 @@ UV_LINK_MODE = "copy"
 description = "Setup development environment"
 run = [
   "mise install",
-  "pnpm install",
+  "bun install",
   "node scripts/clean-venv.mjs",
   "uv pip install pre-commit",
   "uv run pre-commit install",
@@ -24,16 +24,16 @@ run = [
 
 [tasks.lint]
 description = "Run all quality checks (biome + tsc)"
-run = "pnpm check"
+run = "bun run check"
 
 [tasks.test]
 description = "Run tests"
-run = "pnpm test"
+run = "bun test"
 
 [tasks.fix]
 description = "Auto-fix formatting and linting issues"
-run = "pnpm check:fix"
+run = "bun run check:fix"
 
 [tasks.dev]
 description = "Run MCP server locally"
-run = "pnpm dev"
+run = "bun run dev"

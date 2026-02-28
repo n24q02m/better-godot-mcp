@@ -13,6 +13,5 @@ logs_*/
 .DS_Store
 .env
 .cache
-.eslintcache
 Dockerfile
 .dockerignore

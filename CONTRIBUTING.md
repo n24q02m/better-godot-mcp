@@ -5,7 +5,7 @@ Thank you for your interest in contributing! This guide will help you get starte
 ## Prerequisites
 
 - [Node.js](https://nodejs.org/) 24+
-- [pnpm](https://pnpm.io/) 10+
+- [bun](https://bun.sh/) latest
 - [mise](https://mise.jdx.dev/) (recommended)
 
 ## Setup
@@ -13,7 +13,7 @@ Thank you for your interest in contributing! This guide will help you get starte
 ```bash
 git clone https://github.com/n24q02m/better-godot-mcp.git
 cd better-godot-mcp
-mise run setup    # or: pnpm install
+mise run setup    # or: bun install
 ```
 
 ## Development Workflow
@@ -25,9 +25,9 @@ mise run setup    # or: pnpm install
 
 2. Make your changes and test:
    ```bash
-   pnpm test          # Run tests
-   pnpm check         # Lint + type check
-   pnpm dev           # Dev server with watch
+   bun test           # Run tests
+   bun run check      # Lint + type check
+   bun run dev        # Dev server with watch
    ```
 
 3. Commit using [Conventional Commits](https://www.conventionalcommits.org/):
@@ -70,8 +70,8 @@ tests/
 - Use factory functions from `tests/fixtures.ts`
 
 ```bash
-pnpm test             # Run all tests
-pnpm test:watch       # Watch mode
+bun test              # Run all tests
+bun run test:watch    # Watch mode
 ```
 
 ## Pull Request Guidelines

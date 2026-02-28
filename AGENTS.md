@@ -1,29 +1,29 @@
 # AGENTS.md - better-godot-mcp
 
-Composite MCP Server for Godot Engine. TypeScript, Node.js >= 24, pnpm, ESM.
+Composite MCP Server for Godot Engine. TypeScript, Node.js >= 24, bun, ESM.
 
 ## Build / Lint / Test Commands
 
 ```bash
-pnpm install                # Install dependencies
-pnpm build                  # tsc --build && esbuild CLI bundle
-pnpm check                  # Biome check + tsc --noEmit (CI command)
-pnpm check:fix              # Auto-fix Biome issues
-pnpm test                   # vitest run (all tests)
-pnpm test:watch             # vitest in watch mode
-pnpm dev                    # tsx watch dev server
+bun install                 # Install dependencies
+bun run build               # tsc --build && esbuild CLI bundle
+bun run check               # Biome check + tsc --noEmit (CI command)
+bun run check:fix           # Auto-fix Biome issues
+bun test                    # vitest run (all tests)
+bun run test:watch          # vitest in watch mode
+bun run dev                 # tsx watch dev server
 
 # Run a single test file
-pnpm exec vitest run tests/helpers/errors.test.ts
+bunx vitest run tests/helpers/errors.test.ts
 
 # Run a single test by name
-pnpm exec vitest run -t "test name pattern"
+bunx vitest run -t "test name pattern"
 
 # Mise shortcuts
 mise run setup              # Full dev environment setup
-mise run lint               # pnpm check
-mise run test               # pnpm test
-mise run fix                # pnpm check:fix
+mise run lint               # bun run check
+mise run test               # bun test
+mise run fix                # bun run check:fix
 ```
 
 ## Code Style
@@ -117,4 +117,4 @@ Conventional Commits: `type(scope): message` (e.g., `feat:`, `fix:`, `docs:`, `c
 
 1. Biome check (`--diagnostic-level=error`)
 2. TypeScript check (`tsc --noEmit`)
-3. Tests on pre-push (`pnpm test`)
+3. Tests on pre-push (`bun test`)

@@ -21,10 +21,12 @@
     "dev": "tsx watch scripts/start-server.ts",
     "test": "vitest run",
     "test:watch": "vitest",
+    "lint": "biome check .",
+    "format": "biome format --write .",
     "check": "biome check . && tsc --noEmit",
     "check:fix": "biome check --fix .",
     "clean": "rm -rf build bin",
-    "prepublishOnly": "pnpm run build"
+    "prepublishOnly": "bun run build"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.1",
@@ -39,11 +41,12 @@
     "typescript": "^5.9.0",
     "vitest": "^3.2.0"
   },
+  "trustedDependencies": [
+    "esbuild"
+  ],
   "engines": {
-    "node": ">=24.0.0",
-    "pnpm": ">=10.0.0"
+    "node": ">=24.0.0"
   },
-  "packageManager": "pnpm@10.12.1",
   "keywords": [
     "mcp",
     "godot",

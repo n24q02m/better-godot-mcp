@@ -2,17 +2,15 @@
 # syntax=docker/dockerfile:1
 
 # Build stage
-FROM node:24-alpine AS builder
-
-RUN corepack enable && corepack prepare pnpm@latest --activate
+FROM oven/bun:latest AS builder
 
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml ./
-RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile
 
 COPY . .
-RUN pnpm build
+RUN bun run build
 
 # Production stage
 FROM node:24-alpine

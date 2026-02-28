@@ -17,21 +17,21 @@ repos:
     hooks:
       - id: biome-check
         name: biome check
-        entry: pnpm exec biome check --write
+        entry: bunx biome check --write
         language: system
         types_or: [javascript, ts, tsx, jsx, json, css]
         pass_filenames: true
 
       - id: typescript-check
         name: typescript type check
-        entry: pnpm exec tsc --noEmit
+        entry: bunx tsc --noEmit
         language: system
         types: [ts]
         pass_filenames: false
 
       - id: test
         name: test (TypeScript)
-        entry: pnpm test
+        entry: bun test
         language: system
         types: [ts]
         pass_filenames: false

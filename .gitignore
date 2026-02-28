@@ -5,7 +5,6 @@ bin/
 
 .cache
 .yarn/cache
-.eslintcache
 
 .cursor
 

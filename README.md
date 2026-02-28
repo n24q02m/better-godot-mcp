@@ -34,18 +34,26 @@
 
 ## Quick Start
 
-### Option 1: npx (Recommended)
+### Option 1: Package Manager (Recommended)
 
 ```jsonc
 {
   "mcpServers": {
     "better-godot": {
-      "command": "npx",
-      "args": ["-y", "@n24q02m/better-godot-mcp@latest"]
+      "command": "bunx",
+      "args": ["@n24q02m/better-godot-mcp@latest"]
     }
   }
 }
 ```
+
+Alternatively, you can use `npx`, `pnpm dlx`, or `yarn dlx`:
+
+| Runner | `command` | `args` |
+|--------|-----------|--------|
+| npx | `npx` | `["-y", "@n24q02m/better-godot-mcp@latest"]` |
+| pnpm | `pnpm` | `["dlx", "@n24q02m/better-godot-mcp@latest"]` |
+| yarn | `yarn` | `["dlx", "@n24q02m/better-godot-mcp@latest"]` |
 
 ### Option 2: Docker
 
@@ -132,10 +140,10 @@
 git clone https://github.com/n24q02m/better-godot-mcp
 cd better-godot-mcp
 mise run setup
-pnpm build
+bun run build
 ```
 
-**Requirements:** Node.js 24+, pnpm 10+
+**Requirements:** Node.js 24+, [bun](https://bun.sh/) latest
 
 ## Contributing
 

@@ -13,6 +13,23 @@
 
 import { readFileSync, writeFileSync } from 'node:fs'
 
+// Pre-compiled regular expressions for parsing scene sections
+const rxGdSceneFormat = /format=(\d+)/
+const rxGdSceneSteps = /load_steps=(\d+)/
+const rxUid = /uid="([^"]*)"/
+const rxType = /type="([^"]*)"/
+const rxPath = /path="([^"]*)"/
+const rxId = / id="([^"]*)"/
+const rxName = /name="([^"]*)"/
+const rxParent = /parent="([^"]*)"/
+const rxInstance = /instance=ExtResource\("([^"]*)"\)/
+const rxGroups = /groups=\[([^\]]*)\]/
+const rxSignal = /signal="([^"]*)"/
+const rxFrom = /from="([^"]*)"/
+const rxTo = /to="([^"]*)"/
+const rxMethod = /method="([^"]*)"/
+const rxFlags = /flags=(\d+)/
+
 export interface TscnHeader {
   format: number
   loadSteps: number
@@ -76,104 +93,139 @@ export function parseSceneContent(content: string): ParsedScene {
   const nodes: SceneNodeInfo[] = []
   const connections: SignalConnection[] = []
 
-  const lines = content.split('\n')
   let currentSection: 'header' | 'ext_resource' | 'sub_resource' | 'node' | 'connection' | null = null
   let currentNode: SceneNodeInfo | null = null
   let currentSubResource: SubResource | null = null
 
-  for (const rawLine of lines) {
-    const line = rawLine.trim()
-    if (!line || line.startsWith(';')) continue
+  let startIndex = 0
+  const len = content.length
 
-    // Section headers
-    if (line.startsWith('[')) {
-      // Save previous node/sub_resource
-      if (currentNode) nodes.push(currentNode)
-      if (currentSubResource) subResources.push(currentSubResource)
-      currentNode = null
-      currentSubResource = null
+  while (startIndex < len) {
+    let endIndex = content.indexOf('\n', startIndex)
+    if (endIndex === -1) endIndex = len
 
-      if (line.startsWith('[gd_scene')) {
-        currentSection = 'header'
-        const formatMatch = line.match(/format=(\d+)/)
-        const stepsMatch = line.match(/load_steps=(\d+)/)
-        const uidMatch = line.match(/uid="([^"]*)"/)
-        if (formatMatch) header.format = Number.parseInt(formatMatch[1], 10)
-        if (stepsMatch) header.loadSteps = Number.parseInt(stepsMatch[1], 10)
-        if (uidMatch) header.uid = uidMatch[1]
-      } else if (line.startsWith('[ext_resource')) {
-        currentSection = 'ext_resource'
-        const typeMatch = line.match(/type="([^"]*)"/)
-        const uidMatch = line.match(/uid="([^"]*)"/)
-        const pathMatch = line.match(/path="([^"]*)"/)
-        const idMatch = line.match(/ id="([^"]*)"/)
-        if (typeMatch && pathMatch && idMatch) {
-          extResources.push({
-            type: typeMatch[1],
-            uid: uidMatch?.[1],
-            path: pathMatch[1],
-            id: idMatch[1],
-          })
-        }
-      } else if (line.startsWith('[sub_resource')) {
-        currentSection = 'sub_resource'
-        const typeMatch = line.match(/type="([^"]*)"/)
-        const idMatch = line.match(/ id="([^"]*)"/)
-        if (typeMatch && idMatch) {
-          currentSubResource = { type: typeMatch[1], id: idMatch[1], properties: {} }
-        }
-      } else if (line.startsWith('[node')) {
-        currentSection = 'node'
-        const nameMatch = line.match(/name="([^"]*)"/)
-        const typeMatch = line.match(/type="([^"]*)"/)
-        const parentMatch = line.match(/parent="([^"]*)"/)
-        const instanceMatch = line.match(/instance=ExtResource\("([^"]*)"\)/)
-        const groupsMatch = line.match(/groups=\[([^\]]*)\]/)
-        if (nameMatch) {
-          currentNode = {
-            name: nameMatch[1],
-            type: typeMatch?.[1],
-            parent: parentMatch?.[1],
-            instance: instanceMatch?.[1],
-            properties: {},
-            groups: groupsMatch
-              ? groupsMatch[1]
-                  .split(',')
-                  .map((g) => g.trim().replace(/"/g, ''))
-                  .filter(Boolean)
-              : undefined,
+    let start = startIndex
+    // Skip leading whitespace manually
+    while (start < endIndex && content.charCodeAt(start) <= 32) {
+      start++
+    }
+
+    let end = endIndex
+    // Skip trailing whitespace manually
+    while (end > start && content.charCodeAt(end - 1) <= 32) {
+      end--
+    }
+
+    if (start < end) {
+      const firstChar = content.charCodeAt(start)
+      // Skip comments starting with ';'
+      if (firstChar !== 59) {
+        if (firstChar === 91) {
+          // '[' character indicates a new section
+          // Save previous node/sub_resource
+          if (currentNode) nodes.push(currentNode)
+          if (currentSubResource) subResources.push(currentSubResource)
+          currentNode = null
+          currentSubResource = null
+
+          const line = content.slice(start, end)
+          if (line.startsWith('[gd_scene')) {
+            currentSection = 'header'
+            const formatMatch = line.match(rxGdSceneFormat)
+            const stepsMatch = line.match(rxGdSceneSteps)
+            const uidMatch = line.match(rxUid)
+            if (formatMatch) header.format = Number.parseInt(formatMatch[1], 10)
+            if (stepsMatch) header.loadSteps = Number.parseInt(stepsMatch[1], 10)
+            if (uidMatch) header.uid = uidMatch[1]
+          } else if (line.startsWith('[ext_resource')) {
+            currentSection = 'ext_resource'
+            const typeMatch = line.match(rxType)
+            const uidMatch = line.match(rxUid)
+            const pathMatch = line.match(rxPath)
+            const idMatch = line.match(rxId)
+            if (typeMatch && pathMatch && idMatch) {
+              extResources.push({
+                type: typeMatch[1],
+                uid: uidMatch?.[1],
+                path: pathMatch[1],
+                id: idMatch[1],
+              })
+            }
+          } else if (line.startsWith('[sub_resource')) {
+            currentSection = 'sub_resource'
+            const typeMatch = line.match(rxType)
+            const idMatch = line.match(rxId)
+            if (typeMatch && idMatch) {
+              currentSubResource = { type: typeMatch[1], id: idMatch[1], properties: {} }
+            }
+          } else if (line.startsWith('[node')) {
+            currentSection = 'node'
+            const nameMatch = line.match(rxName)
+            const typeMatch = line.match(rxType)
+            const parentMatch = line.match(rxParent)
+            const instanceMatch = line.match(rxInstance)
+            const groupsMatch = line.match(rxGroups)
+            if (nameMatch) {
+              currentNode = {
+                name: nameMatch[1],
+                type: typeMatch?.[1],
+                parent: parentMatch?.[1],
+                instance: instanceMatch?.[1],
+                properties: {},
+                groups: groupsMatch
+                  ? groupsMatch[1]
+                      .split(',')
+                      .map((g) => g.trim().replace(/"/g, ''))
+                      .filter(Boolean)
+                  : undefined,
+              }
+            }
+          } else if (line.startsWith('[connection')) {
+            currentSection = 'connection'
+            const signalMatch = line.match(rxSignal)
+            const fromMatch = line.match(rxFrom)
+            const toMatch = line.match(rxTo)
+            const methodMatch = line.match(rxMethod)
+            const flagsMatch = line.match(rxFlags)
+            if (signalMatch && fromMatch && toMatch && methodMatch) {
+              connections.push({
+                signal: signalMatch[1],
+                from: fromMatch[1],
+                to: toMatch[1],
+                method: methodMatch[1],
+                flags: flagsMatch ? Number.parseInt(flagsMatch[1], 10) : undefined,
+              })
+            }
+          }
+        } else if (currentSection === 'node' || currentSection === 'sub_resource') {
+          // Fast parsing of key-value properties without regex
+          const eqIdx = content.indexOf('=', start)
+          if (eqIdx !== -1 && eqIdx < end) {
+            // Trim key
+            let kEnd = eqIdx
+            while (kEnd > start && content.charCodeAt(kEnd - 1) <= 32) {
+              kEnd--
+            }
+            const key = content.slice(start, kEnd)
+
+            // Trim value
+            let vStart = eqIdx + 1
+            while (vStart < end && content.charCodeAt(vStart) <= 32) {
+              vStart++
+            }
+            const value = content.slice(vStart, end)
+
+            if (currentSection === 'node' && currentNode) {
+              currentNode.properties[key] = value
+            } else if (currentSection === 'sub_resource' && currentSubResource) {
+              currentSubResource.properties[key] = value
+            }
           }
         }
-      } else if (line.startsWith('[connection')) {
-        currentSection = 'connection'
-        const signalMatch = line.match(/signal="([^"]*)"/)
-        const fromMatch = line.match(/from="([^"]*)"/)
-        const toMatch = line.match(/to="([^"]*)"/)
-        const methodMatch = line.match(/method="([^"]*)"/)
-        const flagsMatch = line.match(/flags=(\d+)/)
-        if (signalMatch && fromMatch && toMatch && methodMatch) {
-          connections.push({
-            signal: signalMatch[1],
-            from: fromMatch[1],
-            to: toMatch[1],
-            method: methodMatch[1],
-            flags: flagsMatch ? Number.parseInt(flagsMatch[1], 10) : undefined,
-          })
-        }
       }
-      continue
     }
 
-    // Properties within sections
-    const propMatch = line.match(/^(\w+)\s*=\s*(.+)$/)
-    if (propMatch) {
-      const [, key, value] = propMatch
-      if (currentSection === 'node' && currentNode) {
-        currentNode.properties[key] = value
-      } else if (currentSection === 'sub_resource' && currentSubResource) {
-        currentSubResource.properties[key] = value
-      }
-    }
+    startIndex = endIndex + 1
   }
 
   // Save last pending section

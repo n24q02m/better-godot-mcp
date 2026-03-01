@@ -31,7 +31,7 @@ repos:
 
       - id: test
         name: test (TypeScript)
-        entry: bun test
+        entry: bun run test
         language: system
         types: [ts]
         pass_filenames: false

@@ -206,8 +206,7 @@ describe('detector', () => {
       vi.mocked(existsSync).mockImplementation((path) => path === '/Applications/Godot.app/Contents/MacOS/Godot')
 
       vi.mocked(execFileSync).mockImplementation((cmd) => {
-        if (cmd === '/Applications/Godot.app/Contents/MacOS/Godot')
-          return 'Godot Engine v4.3.stable.official'
+        if (cmd === '/Applications/Godot.app/Contents/MacOS/Godot') return 'Godot Engine v4.3.stable.official'
         throw new Error('cmd not found')
       })
 

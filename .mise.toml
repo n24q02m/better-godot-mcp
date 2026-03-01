@@ -28,7 +28,7 @@ run = "bun run check"
 
 [tasks.test]
 description = "Run tests"
-run = "bun test"
+run = "bun run test"
 
 [tasks.fix]
 description = "Auto-fix formatting and linting issues"

@@ -9,7 +9,7 @@ bun install                 # Install dependencies
 bun run build               # tsc --build && esbuild CLI bundle
 bun run check               # Biome check + tsc --noEmit (CI command)
 bun run check:fix           # Auto-fix Biome issues
-bun test                    # vitest run (all tests)
+bun run test                # vitest run (all tests)
 bun run test:watch          # vitest in watch mode
 bun run dev                 # tsx watch dev server
 
@@ -22,7 +22,7 @@ bun x vitest run -t "test name pattern"
 # Mise shortcuts
 mise run setup              # Full dev environment setup
 mise run lint               # bun run check
-mise run test               # bun test
+mise run test               # bun run test (vitest)
 mise run fix                # bun run check:fix
 ```
 

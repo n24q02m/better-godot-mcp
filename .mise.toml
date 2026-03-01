@@ -1,8 +1,8 @@
 [tools]
-node = "24"
+node = "24.14.0"
 bun = "latest"
 uv = "latest"
-python = "3.13"
+python = "3.14.3"
 
 [settings]
 trusted_config_paths = ["."]

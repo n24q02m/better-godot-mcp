@@ -13,7 +13,7 @@ COPY . .
 RUN bun run build
 
 # Production stage
-FROM node:24-alpine
+FROM node:24.14.0-alpine
 
 COPY --from=builder /app/build /usr/local/lib/node_modules/@n24q02m/better-godot-mcp/build
 COPY --from=builder /app/bin /usr/local/lib/node_modules/@n24q02m/better-godot-mcp/bin

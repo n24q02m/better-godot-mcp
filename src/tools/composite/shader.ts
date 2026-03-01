@@ -161,7 +161,7 @@ export async function handleShader(action: string, args: Record<string, unknown>
           params,
         })
       } catch (error: any) {
-         if (error.code === 'ENOENT') {
+        if (error.code === 'ENOENT') {
           throw new GodotMCPError(`Shader not found: ${shaderPath}`, 'SHADER_ERROR', 'Check the file path.')
         }
         throw error

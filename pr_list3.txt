@@ -1,0 +1,62 @@
+91 sentinel-fix-command-injection-12458729894941408886 🛡️ Sentinel: [CRITICAL] Fix command injection in Godot headless runner
+88 bolt/optimize-scene-parsing-4616391018278055744 ⚡ Bolt: optimize scene parsing memory usage
+85 perf/optimize-scene-parser-12662556120899464268 ⚡ Optimize scene parser to reduce memory usage and improve performance
+84 perf-optimize-findfiles-8771342123883481526 ⚡ Optimize script finding with async parallel traversal
+82 fix/command-injection-godotpath-15543787496768450249 🔒 Fix command injection vulnerability in godotPath
+81 refactor-input-map-project-settings-5389674163579900646 🧹 Refactor input-map to use enhanced project-settings
+79 chore/refactor-scenes-parser-14827986294061891362 chore(scenes): refactor scene parsing to use shared parser
+78 fix/scripts-path-traversal-956375917638310888 🔒 Fix path traversal vulnerability in scripts tool
+77 refactor-project-parser-12790796517402904640 Refactor project tool to use shared project-settings parser
+75 test/headless-error-handling-1666909184375851033 🧪 Improve test coverage for execGodotSync error handling
+72 fix/resources-path-traversal-13525186338439930623 Fix path traversal in resources tool
+71 enhance-project-settings-parser-11844681106123706510 Enhance project-settings parser for multiline values
+70 perf/optimize-nodes-io-178004378238273154 ⚡ Optimize nodes tool to use async file I/O
+69 perf/optimize-scenes-listing-1334821011167201100 ⚡ Optimize scene listing performance
+64 perf/rename-node-optimization-11182314302049380376 ⚡ Optimize renameNodeInContent and fix parent path bug
+60 jules-6982768382478669039-b8a1a2f9 🧪 Add tests for editor tool
+58 add-ui-tool-tests-6875681298970317853 Add tests for handleUI tool
+52 sentinel-fix-command-injection-9329971233062019221 🛡️ Sentinel: [CRITICAL] Fix command injection in Godot execution
+51 bolt-async-files-traversal-9514401663620283714 ⚡ Bolt: Optimize file traversal with async I/O
+50 bolt-async-io-project-physics-275499578555995943 ⚡ Bolt: Async I/O for project/physics tools
+49 sentinel/fix-path-traversal-15121839978522703311 🛡️ Sentinel: Fix path traversal vulnerability in composite tools
+47 sentinel/fix-path-traversal-11891366382224641503 🛡️ Sentinel: [CRITICAL] Fix Path Traversal Vulnerability
+46 bolt/optimize-file-listing-4233892569768176967 ⚡ Bolt: Optimize file listing with async I/O
+45 sentinel/fix-path-traversal-16939490840128499413 🛡️ Sentinel: [CRITICAL] Fix Path Traversal
+44 bolt/optimize-file-search-16883020193908722516 ⚡ Bolt: Optimize file search with readdir types
+43 sentinel/fix-path-traversal-3843208836668181715 🛡️ Sentinel: Fix path traversal vulnerability
+42 bolt-async-nodes-13401515738840297592 ⚡ Bolt: Optimize nodes tool with async I/O
+41 sentinel-path-traversal-fix-7648353887661406171 🛡️ Sentinel: [CRITICAL] Fix path traversal in file access
+39 sentinel/fix-path-traversal-1732808882096208555 🛡️ Sentinel: [CRITICAL] Fix path traversal vulnerability
+38 bolt/performance/async-file-traversal-12381265513015712423 ⚡ Bolt: Optimize file system traversal with concurrent async I/O
+36 refactor-file-finding-14952252853735132471 🧹 Refactor file finding logic into shared helper
+35 code-health/refactor-registry-17805616806035303572 Refactor tool registry definitions into separate files
+34 test-headless-godot-wrapper-12801242024798374529 🧪 Add tests for headless Godot execution wrapper
+32 optimize/editor-status-async-15151230642144742160 ⚡ Optimize editor status check to be non-blocking
+31 perf-scripts-traversal-10100614107939522353 ⚡ Optimize findScriptFiles with async directory traversal
+30 security-fix-path-traversal-scripts-11376110165630531130 🔒 Fix path traversal vulnerability in scripts tool
+29 refactor-parse-project-godot-16391255378681553708 🧹 Refactor parseProjectGodot to use parseProjectSettings
+28 refactor-nodes-parsing-884788634177227060 Refactor nodes parsing to use centralized scene parser
+27 optimize-scene-parser-async-5830643632693163370 ⚡ Optimize scene parsing with async I/O
+26 fix-path-traversal-scripts-6586860851152599703 🔒 Fix path traversal vulnerability in scripts tool
+25 refactor-scripts-templates-746306143297511947 Refactor script templates to separate file
+24 fix-path-traversal-scenes-15267978387485022709 🔒 Security: Fix path traversal in scene management
+23 fix/resource-path-traversal-vuln-6570053392763251726 🔒 Fix path traversal in resource deletion
+22 perf-optimize-scripts-async-8021455658485875 ⚡ Optimize scripts.ts to use non-blocking async I/O
+21 perf-scenes-find-files-async-1694953822078937451 ⚡ Optimize findSceneFiles with async parallel traversal
+20 perf/async-scripts-tool-112106257372671638 ⚡ Refactor scripts tool to use asynchronous I/O
+19 jules-5612381295285558862-01f5ca9d test: Add comprehensive tests for project tool
+18 fix-path-traversal-scenes-2572052680376665549 🔒 Fix path traversal in scenes tool using safeResolve
+17 fix/scene-tool-path-traversal-2256849461239301115 🔒 Fix path traversal vulnerability in scenes tool
+16 perf/optimize-resources-tool-3963684611374316339 ⚡ Optimize resources tool with async I/O
+15 perf-shader-tool-async-13833088128065023203 ⚡ Improve shader tool performance with async parallel directory traversal
+14 perf/optimize-detect-godot-caching-8161589624416479074 ⚡ Optimize setup tool by caching Godot detection result
+13 perf/optimize-scenes-io-5951859344820716726 ⚡ Perf: Async file operations in scenes tool
+12 refactor-script-templates-10185908049668147935 🧹 Refactor script templates to separate file
+11 perf-async-project-io-10360626360757044436 ⚡ Make project tool file I/O asynchronous
+10 fix/resource-path-traversal-4257057668730693315 🔒 Fix Path Traversal Vulnerability in Resources Tool
+9 jules-code-health-headless-exec-2547401071154274454 Code Health: Replace execSync with execFileSync in headless.ts
+8 perf/optimize-parse-tscn-file-12422316327316446107 ⚡ Optimize parseTscnFile with async I/O
+7 perf/async-project-settings-14719736920957407420 ⚡ Optimize project settings update to be non-blocking
+6 fix/path-traversal-scripts-256468542306495489 🔒 Fix Path Traversal in Script Creation
+5 add-ui-tool-tests-8698552670285035914 🧪 Add tests for UI tool
+3 perf-optimization-async-project-settings-9579899790684432458 ⚡ Async project settings parsing

@@ -12,50 +12,29 @@ import {
   parseSceneContent,
   removeNodeFromContent,
   renameNodeInContent,
+  type SceneNodeInfo,
   setNodePropertyInContent,
 } from '../helpers/scene-parser.js'
 
 /**
- * Parse nodes from .tscn content
+ * Map scene-parser's SceneNodeInfo to internal SceneNode format
  */
-function parseNodes(content: string): SceneNode[] {
-  const nodes: SceneNode[] = []
-  const lines = content.split('\n')
-  let currentNode: SceneNode | null = null
+function mapToSceneNode(node: SceneNodeInfo): SceneNode {
+  const properties = { ...node.properties }
+  let script: string | null = null
 
-  for (const line of lines) {
-    const trimmed = line.trim()
-
-    const nodeMatch = trimmed.match(/^\[node\s+name="([^"]+)"\s+type="([^"]+)"(?:\s+parent="([^"]*)")?/)
-    if (nodeMatch) {
-      currentNode = {
-        name: nodeMatch[1],
-        type: nodeMatch[2],
-        parent: nodeMatch[3] ?? null,
-        properties: {},
-        script: null,
-      }
-      nodes.push(currentNode)
-      continue
-    }
-
-    if (currentNode && !trimmed.startsWith('[')) {
-      const propMatch = trimmed.match(/^(\w+)\s*=\s*(.+)$/)
-      if (propMatch) {
-        if (propMatch[1] === 'script') {
-          currentNode.script = propMatch[2]
-        } else {
-          currentNode.properties[propMatch[1]] = propMatch[2]
-        }
-      }
-    }
-
-    if (trimmed.startsWith('[') && !trimmed.startsWith('[node')) {
-      currentNode = null
-    }
+  if (properties.script) {
+    script = properties.script
+    delete properties.script
   }
 
-  return nodes
+  return {
+    name: node.name,
+    type: node.type || 'Node',
+    parent: node.parent || null,
+    properties,
+    script,
+  }
 }
 
 function resolveScenePath(projectPath: string | null | undefined, scenePath: string): string {
@@ -79,8 +58,8 @@ export async function handleNodes(action: string, args: Record<string, unknown>,
         throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Create the scene first.')
 
       const content = readFileSync(fullPath, 'utf-8')
-      const existingNodes = parseNodes(content)
-      const duplicate = existingNodes.find((n) => n.name === nodeName && (n.parent || '.') === parent)
+      const scene = parseSceneContent(content)
+      const duplicate = scene.nodes.find((n) => n.name === nodeName && (n.parent || '.') === parent)
       if (duplicate) {
         throw new GodotMCPError(
           `Node "${nodeName}" already exists under parent "${parent}"`,
@@ -143,7 +122,8 @@ export async function handleNodes(action: string, args: Record<string, unknown>,
         throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
 
       const content = readFileSync(fullPath, 'utf-8')
-      const nodes = parseNodes(content)
+      const scene = parseSceneContent(content)
+      const nodes = scene.nodes.map(mapToSceneNode)
 
       return formatJSON({
         scene: scenePath,

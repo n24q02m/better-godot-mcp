@@ -97,8 +97,7 @@ function getTemplate(extendsType: string): string {
   return SCRIPT_TEMPLATES[extendsType] || `extends ${extendsType}\n\n\nfunc _ready() -> void:\n\tpass\n`
 }
 
-function findScriptFiles(dir: string): string[] {
-  const results: string[] = []
+function findScriptFiles(dir: string, results: string[] = []): string[] {
   try {
     const entries = readdirSync(dir)
     for (const entry of entries) {
@@ -106,7 +105,7 @@ function findScriptFiles(dir: string): string[] {
       const fullPath = join(dir, entry)
       const stat = statSync(fullPath)
       if (stat.isDirectory()) {
-        results.push(...findScriptFiles(fullPath))
+        findScriptFiles(fullPath, results)
       } else if (extname(entry) === '.gd') {
         results.push(fullPath)
       }

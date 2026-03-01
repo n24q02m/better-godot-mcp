@@ -19,8 +19,8 @@ export async function handleSignals(action: string, args: Record<string, unknown
   async function readScene() {
     try {
       return await readFile(fullPath, 'utf-8')
-    } catch (error: any) {
-      if (error.code === 'ENOENT') {
+    } catch (error: unknown) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
       }
       throw error

@@ -95,8 +95,8 @@ export async function handleShader(action: string, args: Record<string, unknown>
       try {
         // 'wx' flag fails if path exists
         await writeFile(fullPath, content, { encoding: 'utf-8', flag: 'wx' })
-      } catch (error: any) {
-        if (error.code === 'EEXIST') {
+      } catch (error: unknown) {
+        if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
           throw new GodotMCPError(`Shader already exists: ${shaderPath}`, 'SHADER_ERROR', 'Use write action to modify.')
         }
         throw error
@@ -114,8 +114,8 @@ export async function handleShader(action: string, args: Record<string, unknown>
       try {
         const content = await readFile(fullPath, 'utf-8')
         return formatSuccess(`File: ${shaderPath}\n\n${content}`)
-      } catch (error: any) {
-        if (error.code === 'ENOENT') {
+      } catch (error: unknown) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
           throw new GodotMCPError(`Shader not found: ${shaderPath}`, 'SHADER_ERROR', 'Check the file path.')
         }
         throw error
@@ -160,8 +160,8 @@ export async function handleShader(action: string, args: Record<string, unknown>
           shaderType: typeMatch?.[1] || 'unknown',
           params,
         })
-      } catch (error: any) {
-        if (error.code === 'ENOENT') {
+      } catch (error: unknown) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
           throw new GodotMCPError(`Shader not found: ${shaderPath}`, 'SHADER_ERROR', 'Check the file path.')
         }
         throw error

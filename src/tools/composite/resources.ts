@@ -28,9 +28,14 @@ const RESOURCE_EXTENSIONS = new Set([
   '.import',
 ])
 
-function findResourceFiles(dir: string, extensions?: Set<string>): string[] {
+interface ResourceEntry {
+  path: string
+  size: number
+}
+
+function findResourceFiles(dir: string, extensions?: Set<string>): ResourceEntry[] {
   const exts = extensions || RESOURCE_EXTENSIONS
-  const results: string[] = []
+  const results: ResourceEntry[] = []
   try {
     const entries = readdirSync(dir)
     for (const entry of entries) {
@@ -40,7 +45,7 @@ function findResourceFiles(dir: string, extensions?: Set<string>): string[] {
       if (stat.isDirectory()) {
         results.push(...findResourceFiles(fullPath, exts))
       } else if (exts.has(extname(entry).toLowerCase())) {
-        results.push(fullPath)
+        results.push({ path: fullPath, size: stat.size })
       }
     }
   } catch {
@@ -72,9 +77,9 @@ export async function handleResources(action: string, args: Record<string, unkno
 
       const resources = findResourceFiles(resolvedPath, exts)
       const relativePaths = resources.map((r) => ({
-        path: relative(resolvedPath, r).replace(/\\/g, '/'),
-        ext: extname(r),
-        size: statSync(r).size,
+        path: relative(resolvedPath, r.path).replace(/\\/g, '/'),
+        ext: extname(r.path),
+        size: r.size,
       }))
 
       return formatJSON({ project: resolvedPath, count: relativePaths.length, resources: relativePaths })

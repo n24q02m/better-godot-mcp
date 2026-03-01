@@ -147,15 +147,39 @@ function getProjectGodotPath(projectPath: string | null | undefined): string {
 function parseInputActions(content: string): Map<string, string[]> {
   const actions = new Map<string, string[]>()
   let inInputSection = false
+  let currentActionName: string | null = null
+  let currentActionAccumulator = ''
 
   for (const line of content.split('\n')) {
     const trimmed = line.trim()
+
+    // Handle multi-line continuation
+    if (currentActionName !== null) {
+      currentActionAccumulator += trimmed
+      if (trimmed.endsWith('}')) {
+        // End of multi-line action
+        const eventsMatch = currentActionAccumulator.match(/"events":\s*\[([^\]]*)\]/)
+        const events = eventsMatch
+          ? eventsMatch[1]
+              .split(',')
+              .map((e) => e.trim())
+              .filter(Boolean)
+          : []
+        actions.set(currentActionName, events)
+        currentActionName = null
+        currentActionAccumulator = ''
+      }
+      continue
+    }
 
     if (trimmed === '[input]') {
       inInputSection = true
       continue
     }
+
+    // Stop if we hit another section
     if (trimmed.startsWith('[') && inInputSection) {
+      inInputSection = false
       break
     }
 
@@ -173,32 +197,14 @@ function parseInputActions(content: string): Map<string, string[]> {
           : []
         actions.set(actionName, events)
       } else {
-        // Multi-line format: action_name={
+        // Multi-line format start: action_name={
         //   "deadzone": 0.2,
         //   "events": [...]
         // }
         const startMatch = trimmed.match(/^(\w+)=\{(.*)$/)
         if (startMatch) {
-          const actionName = startMatch[1]
-          let accumulated = startMatch[2]
-          // Read subsequent lines until closing }
-          const lines = content.split('\n')
-          const currentIdx = lines.findIndex((l) => l.trim() === trimmed)
-          if (currentIdx >= 0) {
-            for (let j = currentIdx + 1; j < lines.length; j++) {
-              const nextLine = lines[j].trim()
-              accumulated += nextLine
-              if (nextLine.endsWith('}')) break
-            }
-          }
-          const eventsMatch = accumulated.match(/"events":\s*\[([^\]]*)\]/)
-          const events = eventsMatch
-            ? eventsMatch[1]
-                .split(',')
-                .map((e) => e.trim())
-                .filter(Boolean)
-            : []
-          actions.set(actionName, events)
+          currentActionName = startMatch[1]
+          currentActionAccumulator = startMatch[2]
         }
       }
     }

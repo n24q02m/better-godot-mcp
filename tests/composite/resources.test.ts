@@ -104,6 +104,19 @@ describe('resources', () => {
         ),
       ).rejects.toThrow('not found')
     })
+
+    it('should prevent path traversal', async () => {
+      await expect(
+        handleResources(
+          'info',
+          {
+            project_path: projectPath,
+            resource_path: '../outside.tres',
+          },
+          config,
+        ),
+      ).rejects.toThrow('outside the project root')
+    })
   })
 
   // ==========================================
@@ -139,6 +152,19 @@ describe('resources', () => {
           config,
         ),
       ).rejects.toThrow('not found')
+    })
+
+    it('should prevent path traversal', async () => {
+      await expect(
+        handleResources(
+          'delete',
+          {
+            project_path: projectPath,
+            resource_path: '../outside.png',
+          },
+          config,
+        ),
+      ).rejects.toThrow('outside the project root')
     })
   })
 
@@ -176,6 +202,19 @@ describe('resources', () => {
 
       const data = JSON.parse(result.content[0].text)
       expect(data.imported).toBe(false)
+    })
+
+    it('should prevent path traversal', async () => {
+      await expect(
+        handleResources(
+          'import_config',
+          {
+            project_path: projectPath,
+            resource_path: '../outside.png',
+          },
+          config,
+        ),
+      ).rejects.toThrow('outside the project root')
     })
   })
 

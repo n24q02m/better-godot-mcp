@@ -3,17 +3,8 @@
  * Actions: create | list | info | delete | duplicate | set_main
  */
 
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  statSync,
-  unlinkSync,
-  writeFileSync,
-} from 'node:fs'
-import { readFile } from 'node:fs/promises'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
+import { readdir, readFile } from 'node:fs/promises'
 import { basename, dirname, extname, join, relative, resolve } from 'node:path'
 import type { GodotConfig, SceneInfo, SceneNode } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
@@ -73,22 +64,26 @@ async function parseTscnFile(filePath: string): Promise<SceneInfo> {
 /**
  * Recursively find all .tscn files in a directory
  */
-function findSceneFiles(dir: string): string[] {
-  const results: string[] = []
-
+async function findSceneFilesAsync(dir: string, results: string[] = []): Promise<string[]> {
   try {
-    const entries = readdirSync(dir)
+    const entries = await readdir(dir, { withFileTypes: true })
+    const promises: Promise<void>[] = []
+
     for (const entry of entries) {
-      if (entry.startsWith('.') || entry === 'node_modules' || entry === 'build') continue
+      const name = entry.name
+      if (name.startsWith('.') || name === 'node_modules' || name === 'build') continue
 
-      const fullPath = join(dir, entry)
-      const stat = statSync(fullPath)
+      const fullPath = join(dir, name)
 
-      if (stat.isDirectory()) {
-        results.push(...findSceneFiles(fullPath))
-      } else if (extname(entry) === '.tscn') {
+      if (entry.isDirectory()) {
+        promises.push(findSceneFilesAsync(fullPath, results).then(() => {}))
+      } else if (entry.isFile() && extname(name) === '.tscn') {
         results.push(fullPath)
       }
+    }
+
+    if (promises.length > 0) {
+      await Promise.all(promises)
     }
   } catch {
     // Skip inaccessible directories
@@ -168,7 +163,7 @@ export async function handleScenes(action: string, args: Record<string, unknown>
     case 'list': {
       // projectPath is guaranteed
       const resolvedPath = resolve(projectPath as string)
-      const scenes = findSceneFiles(resolvedPath)
+      const scenes = await findSceneFilesAsync(resolvedPath)
       const relativePaths = scenes.map((s) => relative(resolvedPath, s).replace(/\\/g, '/'))
 
       return formatJSON({

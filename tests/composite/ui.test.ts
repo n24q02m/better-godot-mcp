@@ -113,6 +113,12 @@ describe('ui', () => {
       expect(root).toBeDefined()
       expect(root?.parent).toBe('(root)')
     })
+
+    it('should throw if no scene_path provided', async () => {
+      await expect(handleUI('list_controls', { project_path: projectPath }, config)).rejects.toThrow(
+        'No scene_path specified',
+      )
+    })
   })
 
   // ==========================================
@@ -192,6 +198,15 @@ describe('ui', () => {
         'Scene not found',
       )
     })
+
+    it('should default to Control type if not specified', async () => {
+      createTmpScene(projectPath, 'test.tscn', MINIMAL_TSCN)
+
+      await handleUI('create_control', { scene_path: 'test.tscn', name: 'MyControl' }, config)
+
+      const fileContent = readFileSync(join(projectPath, 'test.tscn'), 'utf-8')
+      expect(fileContent).toContain('[node name="MyControl" type="Control"')
+    })
   })
 
   // ==========================================
@@ -214,6 +229,23 @@ describe('ui', () => {
 
     it('should throw if no theme_path provided', async () => {
       await expect(handleUI('set_theme', {}, config)).rejects.toThrow('No theme_path specified')
+    })
+
+    it('should handle optional font_color and bg_color without crashing', async () => {
+      await handleUI(
+        'set_theme',
+        { theme_path: 'themes/colors.tres', font_color: 'Color(1, 0, 0, 1)', bg_color: 'Color(0, 0, 0, 1)' },
+        config,
+      )
+
+      const fileContent = readFileSync(join(projectPath, 'themes/colors.tres'), 'utf-8')
+      expect(fileContent).toContain('default_font_size = 16')
+    })
+
+    it('should create nested directories if they do not exist', async () => {
+      await handleUI('set_theme', { theme_path: 'deep/nested/path/to/theme.tres' }, config)
+
+      expect(existsSync(join(projectPath, 'deep/nested/path/to/theme.tres'))).toBe(true)
     })
   })
 
@@ -246,6 +278,47 @@ describe('ui', () => {
 
       const content = readFileSync(join(projectPath, 'ctrl.tscn'), 'utf-8')
       expect(content).toContain('anchors_preset = 10')
+    })
+
+    it('should apply bottom_wide preset anchors_preset=12', async () => {
+      createTmpScene(projectPath, 'ctrl.tscn', CONTROL_SCENE)
+
+      await handleUI('layout', { scene_path: 'ctrl.tscn', name: 'Root', preset: 'bottom_wide' }, config)
+
+      const fileContent = readFileSync(join(projectPath, 'ctrl.tscn'), 'utf-8')
+      expect(fileContent).toContain('anchors_preset = 12')
+    })
+
+    it('should apply left_wide preset anchors_preset=9', async () => {
+      createTmpScene(projectPath, 'ctrl.tscn', CONTROL_SCENE)
+
+      await handleUI('layout', { scene_path: 'ctrl.tscn', name: 'Root', preset: 'left_wide' }, config)
+
+      const fileContent = readFileSync(join(projectPath, 'ctrl.tscn'), 'utf-8')
+      expect(fileContent).toContain('anchors_preset = 9')
+    })
+
+    it('should apply right_wide preset anchors_preset=11', async () => {
+      createTmpScene(projectPath, 'ctrl.tscn', CONTROL_SCENE)
+
+      await handleUI('layout', { scene_path: 'ctrl.tscn', name: 'Root', preset: 'right_wide' }, config)
+
+      const fileContent = readFileSync(join(projectPath, 'ctrl.tscn'), 'utf-8')
+      expect(fileContent).toContain('anchors_preset = 11')
+    })
+
+    it('should throw if no scene_path provided', async () => {
+      await expect(handleUI('layout', { name: 'Root', preset: 'full_rect' }, config)).rejects.toThrow(
+        'No scene_path specified',
+      )
+    })
+
+    it('should throw if no name provided', async () => {
+      createTmpScene(projectPath, 'ctrl.tscn', CONTROL_SCENE)
+
+      await expect(handleUI('layout', { scene_path: 'ctrl.tscn', preset: 'full_rect' }, config)).rejects.toThrow(
+        'No name specified',
+      )
     })
 
     it('should throw for unknown preset', async () => {

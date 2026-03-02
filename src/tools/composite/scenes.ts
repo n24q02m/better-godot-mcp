@@ -22,6 +22,11 @@ import { setSettingInContent } from '../helpers/project-settings.js'
 /**
  * Parse a .tscn file to extract scene information
  */
+
+const NODE_REGEX = /^\[node\s+name="([^"]+)"\s+type="([^"]+)"(?:\s+parent="([^"]*)")?/
+const RES_REGEX = /^\[(ext_resource|sub_resource)\s+(.+)\]$/
+const SCRIPT_REGEX = /^script\s*=\s*(.+)$/
+
 async function parseTscnFile(filePath: string): Promise<SceneInfo> {
   const content = await readFile(filePath, 'utf-8')
   const lines = content.split('\n')
@@ -34,7 +39,7 @@ async function parseTscnFile(filePath: string): Promise<SceneInfo> {
   for (const line of lines) {
     const trimmed = line.trim()
 
-    const nodeMatch = trimmed.match(/^\[node\s+name="([^"]+)"\s+type="([^"]+)"(?:\s+parent="([^"]*)")?/)
+    const nodeMatch = trimmed.match(NODE_REGEX)
     if (nodeMatch) {
       const node: SceneNode = {
         name: nodeMatch[1],
@@ -53,14 +58,14 @@ async function parseTscnFile(filePath: string): Promise<SceneInfo> {
       continue
     }
 
-    const resMatch = trimmed.match(/^\[(ext_resource|sub_resource)\s+(.+)\]$/)
+    const resMatch = trimmed.match(RES_REGEX)
     if (resMatch) {
       resources.push(trimmed)
       continue
     }
 
     if (trimmed.startsWith('script') && nodes.length > 0) {
-      const scriptMatch = trimmed.match(/^script\s*=\s*(.+)$/)
+      const scriptMatch = trimmed.match(SCRIPT_REGEX)
       if (scriptMatch) {
         nodes[nodes.length - 1].script = scriptMatch[1]
       }

@@ -150,7 +150,19 @@ function parseInputActions(content: string): Map<string, string[]> {
   let currentActionName: string | null = null
   let currentActionAccumulator = ''
 
-  for (const line of content.split('\n')) {
+  let pos = 0
+  const length = content.length
+
+  while (pos < length) {
+    let nextNewline = content.indexOf('\n', pos)
+    if (nextNewline === -1) {
+      nextNewline = length
+    }
+
+    // Extract current line
+    const line = content.slice(pos, nextNewline)
+    pos = nextNewline + 1
+
     const trimmed = line.trim()
 
     // Handle multi-line continuation

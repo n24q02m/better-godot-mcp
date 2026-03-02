@@ -28,6 +28,16 @@ describe('config', () => {
       expect(data).toHaveProperty('runtime_overrides')
     })
 
+    it('should return godot_version when present', async () => {
+      config = makeConfig({
+        godotVersion: { major: 4, minor: 2, patch: 1, label: 'stable', raw: '4.2.1-stable.official' },
+      })
+      const result = await handleConfig('status', {}, config)
+      const data = JSON.parse(result.content[0].text)
+
+      expect(data.godot_version).toBe('4.2.1-stable.official')
+    })
+
     it('should show not detected when godotPath is null', async () => {
       config = makeConfig({ projectPath: '/tmp/proj' })
       const result = await handleConfig('status', {}, config)
@@ -97,6 +107,12 @@ describe('config', () => {
 
     it('should throw when key is missing', async () => {
       await expect(handleConfig('set', { value: 'bar' }, config)).rejects.toThrow('No key specified')
+    })
+
+    it('should throw when value is null', async () => {
+      await expect(handleConfig('set', { key: 'project_path', value: null }, config)).rejects.toThrow(
+        'No value specified',
+      )
     })
 
     it('should throw when value is undefined', async () => {

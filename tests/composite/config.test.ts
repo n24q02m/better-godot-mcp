@@ -58,6 +58,32 @@ describe('config', () => {
 
       expect(typeof data.runtime_overrides).toBe('object')
     })
+
+    it('should show unknown when godotVersion is not present', async () => {
+      config = makeConfig({ projectPath: '/tmp/proj' })
+      delete config.godotVersion
+
+      const result = await handleConfig('status', {}, config)
+      const data = JSON.parse(result.content[0].text)
+
+      expect(data.godot_version).toBe('unknown')
+    })
+
+    it('should show raw version when godotVersion is present', async () => {
+      config = makeConfig({ projectPath: '/tmp/proj' })
+      config.godotVersion = {
+        raw: '4.3.stable.official.77dcf97d8',
+        major: 4,
+        minor: 3,
+        patch: 0,
+        status: 'stable',
+      }
+
+      const result = await handleConfig('status', {}, config)
+      const data = JSON.parse(result.content[0].text)
+
+      expect(data.godot_version).toBe('4.3.stable.official.77dcf97d8')
+    })
   })
 
   // ==========================================
@@ -101,6 +127,12 @@ describe('config', () => {
 
     it('should throw when value is undefined', async () => {
       await expect(handleConfig('set', { key: 'project_path' }, config)).rejects.toThrow('No value specified')
+    })
+
+    it('should throw when value is null', async () => {
+      await expect(handleConfig('set', { key: 'project_path', value: null }, config)).rejects.toThrow(
+        'No value specified',
+      )
     })
   })
 

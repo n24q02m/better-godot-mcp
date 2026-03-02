@@ -43,6 +43,14 @@ describe('tilemap', () => {
       expect(existsSync(join(projectPath, 'tilesets/main.tres'))).toBe(true)
     })
 
+
+    it('should create .tres file at given path without project_path', async () => {
+      const result = await handleTilemap('create_tileset', { tileset_path: join(projectPath, 'tilesets/no_proj.tres') }, { projectPath: '' } as GodotConfig)
+
+      expect(result.content[0].text).toContain('Created TileSet')
+      expect(existsSync(join(projectPath, 'tilesets/no_proj.tres'))).toBe(true)
+    })
+
     it('should use default tile_size of 16', async () => {
       await handleTilemap('create_tileset', { tileset_path: 'tilesets/tiles16.tres' }, config)
 
@@ -87,6 +95,26 @@ describe('tilemap', () => {
       const content = readFileSync(join(projectPath, 'tilesets/main.tres'), 'utf-8')
       expect(content).toContain('ext_resource')
       expect(content).toContain('tiles.png')
+    })
+
+
+    it('should increment source ID when adding multiple sources', async () => {
+      await handleTilemap('create_tileset', { tileset_path: 'tilesets/main.tres' }, config)
+      await handleTilemap('add_source', { tileset_path: 'tilesets/main.tres', texture_path: 'textures/tiles1.png' }, config)
+      const result = await handleTilemap('add_source', { tileset_path: 'tilesets/main.tres', texture_path: 'textures/tiles2.png' }, config)
+
+      expect(result.content[0].text).toContain('id: source_1')
+      const content = readFileSync(join(projectPath, 'tilesets/main.tres'), 'utf-8')
+      expect(content).toContain('id="source_0"')
+      expect(content).toContain('id="source_1"')
+    })
+
+    it('should convert backslashes in texture_path to forward slashes', async () => {
+      await handleTilemap('create_tileset', { tileset_path: 'tilesets/main.tres' }, config)
+      await handleTilemap('add_source', { tileset_path: 'tilesets/main.tres', texture_path: 'textures\\win_tiles.png' }, config)
+
+      const content = readFileSync(join(projectPath, 'tilesets/main.tres'), 'utf-8')
+      expect(content).toContain('res://textures/win_tiles.png')
     })
 
     it('should throw if tileset not found', async () => {

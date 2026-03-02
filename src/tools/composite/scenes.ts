@@ -73,9 +73,7 @@ async function parseTscnFile(filePath: string): Promise<SceneInfo> {
 /**
  * Recursively find all .tscn files in a directory
  */
-function findSceneFiles(dir: string): string[] {
-  const results: string[] = []
-
+function findSceneFiles(dir: string, results: string[] = []): string[] {
   try {
     const entries = readdirSync(dir)
     for (const entry of entries) {
@@ -85,7 +83,7 @@ function findSceneFiles(dir: string): string[] {
       const stat = statSync(fullPath)
 
       if (stat.isDirectory()) {
-        results.push(...findSceneFiles(fullPath))
+        findSceneFiles(fullPath, results)
       } else if (extname(entry) === '.tscn') {
         results.push(fullPath)
       }

@@ -33,9 +33,9 @@ interface ResourceEntry {
   size: number
 }
 
-function findResourceFiles(dir: string, extensions?: Set<string>): ResourceEntry[] {
+function findResourceFiles(dir: string, extensions?: Set<string>, results: ResourceEntry[] = []): ResourceEntry[] {
   const exts = extensions || RESOURCE_EXTENSIONS
-  const results: ResourceEntry[] = []
+
   try {
     const entries = readdirSync(dir)
     for (const entry of entries) {
@@ -43,7 +43,7 @@ function findResourceFiles(dir: string, extensions?: Set<string>): ResourceEntry
       const fullPath = join(dir, entry)
       const stat = statSync(fullPath)
       if (stat.isDirectory()) {
-        results.push(...findResourceFiles(fullPath, exts))
+        findResourceFiles(fullPath, exts, results)
       } else if (exts.has(extname(entry).toLowerCase())) {
         results.push({ path: fullPath, size: stat.size })
       }

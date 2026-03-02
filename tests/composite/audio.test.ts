@@ -145,6 +145,29 @@ describe('audio', () => {
       expect(result.content[0].text).toContain('Added AudioEffectEQ to bus "Music"')
     })
 
+    it('should append effect when [resource] section is missing in layout', async () => {
+      // Create a layout missing the [resource] tag
+      const layoutPath = join(projectPath, 'default_bus_layout.tres')
+      const content = 'bus/0/name = "Master"\n'
+      const { writeFileSync } = await import('node:fs')
+      writeFileSync(layoutPath, content, 'utf-8')
+
+      const result = await handleAudio(
+        'add_effect',
+        {
+          project_path: projectPath,
+          bus_name: 'Master',
+          effect_type: 'Reverb',
+        },
+        config,
+      )
+
+      expect(result.content[0].text).toContain('Added AudioEffectReverb to bus "Master"')
+
+      const newContent = readFileSync(layoutPath, 'utf-8')
+      expect(newContent).toContain('[sub_resource type="AudioEffectReverb"')
+    })
+
     it('should throw if bus not found', async () => {
       await expect(
         handleAudio(

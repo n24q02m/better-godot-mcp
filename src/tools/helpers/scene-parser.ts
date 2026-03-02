@@ -299,19 +299,46 @@ function escapeRegExp(string: string): string {
  * Rename a node in scene content
  */
 export function renameNodeInContent(content: string, oldName: string, newName: string): string {
-  const escapedOldName = escapeRegExp(oldName)
+  // Fast string search check before doing regular expression replaces
+  if (!content.includes(oldName)) {
+    return content
+  }
 
-  // Replace in node declarations
-  let result = content.replace(new RegExp(`name="${escapedOldName}"`, 'g'), `name="${newName}"`)
-  // Replace in parent references
-  result = result.replace(new RegExp(`parent="${escapedOldName}"`, 'g'), `parent="${newName}"`)
-  // Replace in parent paths containing the old name
-  result = result.replace(new RegExp(`parent="([^"]*/)${escapedOldName}(/[^"]*)"`, 'g'), `parent="$1${newName}$2"`)
-  result = result.replace(new RegExp(`parent="([^"]*/)${escapedOldName}"`, 'g'), `parent="$1${newName}"`)
-  // Replace in connection references
-  result = result.replace(new RegExp(`from="${escapedOldName}"`, 'g'), `from="${newName}"`)
-  result = result.replace(new RegExp(`to="${escapedOldName}"`, 'g'), `to="${newName}"`)
-  return result
+  // Avoid multiple string allocations by doing one pass
+  // This combines the 6 regular expressions into 1, using a callback
+  // Avoid multiple string allocations by doing one pass
+  // This combines the 6 regular expressions into 1, using a callback
+  const regex = /(name|parent|from|to)="([^"]*)"/g
+
+  return content.replace(regex, (match, attr, val) => {
+    // Exact matches: name="oldName", parent="oldName", from="oldName", to="oldName"
+    if (val === oldName) {
+      return `${attr}="${newName}"`
+    }
+
+    // Parent paths
+    if (attr === 'parent') {
+      let newVal = val
+
+      // Match `.../oldName/...`
+      // Greedy match means we want the LAST occurrence of `/${oldName}/`
+      const lastSlashMiddle = newVal.lastIndexOf(`/${oldName}/`)
+      if (lastSlashMiddle !== -1) {
+        newVal = `${newVal.substring(0, lastSlashMiddle)}/${newName}/${newVal.substring(lastSlashMiddle + oldName.length + 2)}`
+      }
+
+      // Match `.../oldName` at the end
+      if (newVal.endsWith(`/${oldName}`)) {
+        newVal = newVal.substring(0, newVal.length - oldName.length) + newName
+      }
+
+      if (newVal !== val) {
+        return `parent="${newVal}"`
+      }
+    }
+
+    return match
+  })
 }
 
 /**

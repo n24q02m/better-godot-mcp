@@ -5,37 +5,16 @@
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import type { GodotConfig, SceneNode } from '../../godot/types.js'
+import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
 import {
   getNodeProperty,
+  mapToSceneNode,
   parseSceneContent,
   removeNodeFromContent,
   renameNodeInContent,
-  type SceneNodeInfo,
   setNodePropertyInContent,
 } from '../helpers/scene-parser.js'
-
-/**
- * Map scene-parser's SceneNodeInfo to internal SceneNode format
- */
-function mapToSceneNode(node: SceneNodeInfo): SceneNode {
-  const properties = { ...node.properties }
-  let script: string | null = null
-
-  if (properties.script) {
-    script = properties.script
-    delete properties.script
-  }
-
-  return {
-    name: node.name,
-    type: node.type || 'Node',
-    parent: node.parent || null,
-    properties,
-    script,
-  }
-}
 
 function resolveScenePath(projectPath: string | null | undefined, scenePath: string): string {
   return projectPath ? resolve(projectPath, scenePath) : resolve(scenePath)

@@ -12,6 +12,7 @@
  */
 
 import { readFileSync, writeFileSync } from 'node:fs'
+import type { SceneNode } from '../../godot/types.js'
 
 // Pre-compiled regular expressions for parsing scene sections
 const rxGdSceneFormat = /format=(\d+)/
@@ -372,4 +373,25 @@ export function getNodeProperty(scene: ParsedScene, nodeName: string, property: 
  */
 export function writeScene(filePath: string, content: string): void {
   writeFileSync(filePath, content, 'utf-8')
+}
+
+/**
+ * Map scene-parser's SceneNodeInfo to internal SceneNode format
+ */
+export function mapToSceneNode(node: SceneNodeInfo): SceneNode {
+  const properties = { ...node.properties }
+  let script: string | null = null
+
+  if (properties.script) {
+    script = properties.script
+    delete properties.script
+  }
+
+  return {
+    name: node.name,
+    type: node.type || 'Node',
+    parent: node.parent || null,
+    properties,
+    script,
+  }
 }

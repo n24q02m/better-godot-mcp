@@ -15,57 +15,30 @@ import {
 } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { basename, dirname, extname, join, relative, resolve } from 'node:path'
-import type { GodotConfig, SceneInfo, SceneNode } from '../../godot/types.js'
+import type { GodotConfig, SceneInfo } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
 import { setSettingInContent } from '../helpers/project-settings.js'
+import { mapToSceneNode, parseSceneContent } from '../helpers/scene-parser.js'
 
 /**
  * Parse a .tscn file to extract scene information
  */
 async function parseTscnFile(filePath: string): Promise<SceneInfo> {
   const content = await readFile(filePath, 'utf-8')
-  const lines = content.split('\n')
+  const scene = parseSceneContent(content)
 
-  const nodes: SceneNode[] = []
-  const resources: string[] = []
-  let rootNode = ''
-  let rootType = ''
+  const nodes = scene.nodes.map(mapToSceneNode)
 
-  for (const line of lines) {
-    const trimmed = line.trim()
+  const rootNodeInfo = scene.nodes.find((n) => !n.parent || n.parent === '.') || scene.nodes[0]
+  const rootNode = rootNodeInfo?.name || ''
+  const rootType = rootNodeInfo?.type || ''
 
-    const nodeMatch = trimmed.match(/^\[node\s+name="([^"]+)"\s+type="([^"]+)"(?:\s+parent="([^"]*)")?/)
-    if (nodeMatch) {
-      const node: SceneNode = {
-        name: nodeMatch[1],
-        type: nodeMatch[2],
-        parent: nodeMatch[3] ?? null,
-        properties: {},
-        script: null,
-      }
-
-      if (!node.parent && nodes.length === 0) {
-        rootNode = node.name
-        rootType = node.type
-      }
-
-      nodes.push(node)
-      continue
-    }
-
-    const resMatch = trimmed.match(/^\[(ext_resource|sub_resource)\s+(.+)\]$/)
-    if (resMatch) {
-      resources.push(trimmed)
-      continue
-    }
-
-    if (trimmed.startsWith('script') && nodes.length > 0) {
-      const scriptMatch = trimmed.match(/^script\s*=\s*(.+)$/)
-      if (scriptMatch) {
-        nodes[nodes.length - 1].script = scriptMatch[1]
-      }
-    }
-  }
+  const resources: string[] = [
+    ...scene.extResources.map(
+      (r) => `[ext_resource type="${r.type}"${r.uid ? ` uid="${r.uid}"` : ''} path="${r.path}" id="${r.id}"]`,
+    ),
+    ...scene.subResources.map((r) => `[sub_resource type="${r.type}" id="${r.id}"]`),
+  ]
 
   return { path: filePath, rootNode, rootType, nodeCount: nodes.length, nodes, resources }
 }

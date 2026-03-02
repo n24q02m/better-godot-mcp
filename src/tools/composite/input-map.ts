@@ -150,21 +150,49 @@ function parseInputActions(content: string): Map<string, string[]> {
   let currentActionName: string | null = null
   let currentActionAccumulator = ''
 
-  for (const line of content.split('\n')) {
-    const trimmed = line.trim()
+  let pos = 0
+  const len = content.length
+
+  while (pos < len) {
+    let nextNewline = content.indexOf('\n', pos)
+    if (nextNewline === -1) {
+      nextNewline = len
+    }
+
+    const rawLine = content.slice(pos, nextNewline)
+    pos = nextNewline + 1
+
+    const trimmed = rawLine.trim()
+    if (trimmed.length === 0) {
+      continue
+    }
 
     // Handle multi-line continuation
     if (currentActionName !== null) {
       currentActionAccumulator += trimmed
       if (trimmed.endsWith('}')) {
         // End of multi-line action
-        const eventsMatch = currentActionAccumulator.match(/"events":\s*\[([^\]]*)\]/)
-        const events = eventsMatch
-          ? eventsMatch[1]
-              .split(',')
-              .map((e) => e.trim())
-              .filter(Boolean)
-          : []
+
+        let events: string[] = []
+        const startIdx = currentActionAccumulator.indexOf('"events": [')
+        if (startIdx !== -1) {
+          const arrStart = startIdx + 11
+          const arrEnd = currentActionAccumulator.indexOf(']', arrStart)
+          if (arrEnd !== -1 && arrEnd > arrStart) {
+            const arrStr = currentActionAccumulator.slice(arrStart, arrEnd)
+
+            // We still need to split by comma, but we've avoided the match overhead.
+            // It is possible to avoid split here, but it only happens once per action definition
+            // so the split overhead is very small compared to the line-by-line split.
+            if (arrStr.trim().length > 0) {
+              events = arrStr
+                .split(',')
+                .map((e) => e.trim())
+                .filter(Boolean)
+            }
+          }
+        }
+
         actions.set(currentActionName, events)
         currentActionName = null
         currentActionAccumulator = ''
@@ -184,27 +212,35 @@ function parseInputActions(content: string): Map<string, string[]> {
     }
 
     if (inInputSection) {
-      // Single-line format: action_name={...}
-      const match = trimmed.match(/^(\w+)=\{(.+)\}$/)
-      if (match) {
-        const actionName = match[1]
-        const eventsMatch = match[2].match(/"events":\s*\[([^\]]*)\]/)
-        const events = eventsMatch
-          ? eventsMatch[1]
-              .split(',')
-              .map((e) => e.trim())
-              .filter(Boolean)
-          : []
-        actions.set(actionName, events)
-      } else {
-        // Multi-line format start: action_name={
-        //   "deadzone": 0.2,
-        //   "events": [...]
-        // }
-        const startMatch = trimmed.match(/^(\w+)=\{(.*)$/)
-        if (startMatch) {
-          currentActionName = startMatch[1]
-          currentActionAccumulator = startMatch[2]
+      const eqIdx = trimmed.indexOf('=')
+      if (eqIdx !== -1) {
+        const actionName = trimmed.slice(0, eqIdx)
+        const rest = trimmed.slice(eqIdx + 1)
+
+        if (rest.startsWith('{')) {
+          if (rest.endsWith('}')) {
+            // Single-line format: action_name={...}
+            let events: string[] = []
+            const startIdx = rest.indexOf('"events": [')
+            if (startIdx !== -1) {
+              const arrStart = startIdx + 11
+              const arrEnd = rest.indexOf(']', arrStart)
+              if (arrEnd !== -1 && arrEnd > arrStart) {
+                const arrStr = rest.slice(arrStart, arrEnd)
+                if (arrStr.trim().length > 0) {
+                  events = arrStr
+                    .split(',')
+                    .map((e) => e.trim())
+                    .filter(Boolean)
+                }
+              }
+            }
+            actions.set(actionName, events)
+          } else {
+            // Multi-line format start: action_name={
+            currentActionName = actionName
+            currentActionAccumulator = rest
+          }
         }
       }
     }

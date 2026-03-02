@@ -3,7 +3,7 @@
  */
 
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { GodotConfig } from '../../src/godot/types.js'
@@ -58,6 +58,13 @@ describe('project', () => {
       const result = await handleProject('info', {}, config)
       const data = JSON.parse(result.content[0].text)
       expect(data.name).toBe('TestProject')
+    })
+
+    it('should throw PROJECT_NOT_FOUND if project.godot is missing', async () => {
+      rmSync(join(projectPath, 'project.godot'))
+      await expect(handleProject('info', { project_path: projectPath }, config)).rejects.toThrow(
+        'No project.godot found at',
+      )
     })
 
     it('should throw if no project path', async () => {

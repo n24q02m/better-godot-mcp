@@ -18,6 +18,7 @@ import { basename, dirname, extname, join, relative, resolve } from 'node:path'
 import type { GodotConfig, SceneInfo, SceneNode } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
 import { setSettingInContent } from '../helpers/project-settings.js'
+import { validateSceneArgs } from '../helpers/scene-parser.js'
 
 /**
  * Parse a .tscn file to extract scene information
@@ -99,41 +100,6 @@ function findSceneFiles(dir: string): string[] {
 
 function generateTscnContent(rootName: string, rootType: string): string {
   return [`[gd_scene format=3]`, '', `[node name="${rootName}" type="${rootType}"]`, ''].join('\n')
-}
-
-function validateSceneArgs(action: string, args: Record<string, unknown>, config: GodotConfig) {
-  const projectPath = (args.project_path as string) || config.projectPath || undefined
-  const scenePath = args.scene_path as string
-  const newPath = args.new_path as string
-
-  // project_path required
-  if (['create', 'list', 'set_main'].includes(action) && !projectPath) {
-    throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path argument.')
-  }
-
-  // scene_path required
-  if (['create', 'info', 'delete', 'set_main'].includes(action) && !scenePath) {
-    const suggestion =
-      action === 'set_main'
-        ? 'Provide scene_path to set as main.'
-        : action === 'info'
-          ? 'Provide scene_path to parse.'
-          : action === 'delete'
-            ? 'Provide scene_path to delete.'
-            : 'Provide scene_path (e.g., "scenes/main.tscn").'
-    throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', suggestion)
-  }
-
-  // duplicate specifically requires both
-  if (action === 'duplicate' && (!scenePath || !newPath)) {
-    throw new GodotMCPError(
-      'Both scene_path and new_path required',
-      'INVALID_ARGS',
-      'Provide source and destination paths.',
-    )
-  }
-
-  return { projectPath, scenePath, newPath }
 }
 
 function resolvePath(base: string | undefined, relative: string): string {

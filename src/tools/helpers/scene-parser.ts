@@ -12,6 +12,8 @@
  */
 
 import { readFileSync, writeFileSync } from 'node:fs'
+import type { GodotConfig } from '../../godot/types.js'
+import { GodotMCPError } from './errors.js'
 
 // Pre-compiled regular expressions for parsing scene sections
 const rxGdSceneFormat = /format=(\d+)/
@@ -372,4 +374,42 @@ export function getNodeProperty(scene: ParsedScene, nodeName: string, property: 
  */
 export function writeScene(filePath: string, content: string): void {
   writeFileSync(filePath, content, 'utf-8')
+}
+
+/**
+ * Validates common scene-related arguments and throws GodotMCPError if invalid
+ */
+export function validateSceneArgs(action: string, args: Record<string, unknown>, config: GodotConfig) {
+  const projectPath = (args.project_path as string) || config.projectPath || undefined
+  const scenePath = args.scene_path as string
+  const newPath = args.new_path as string
+
+  // project_path required
+  if (['create', 'list', 'set_main'].includes(action) && !projectPath) {
+    throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path argument.')
+  }
+
+  // scene_path required
+  if (['create', 'info', 'delete', 'set_main'].includes(action) && !scenePath) {
+    const suggestion =
+      action === 'set_main'
+        ? 'Provide scene_path to set as main.'
+        : action === 'info'
+          ? 'Provide scene_path to parse.'
+          : action === 'delete'
+            ? 'Provide scene_path to delete.'
+            : 'Provide scene_path (e.g., "scenes/main.tscn").'
+    throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', suggestion)
+  }
+
+  // duplicate specifically requires both
+  if (action === 'duplicate' && (!scenePath || !newPath)) {
+    throw new GodotMCPError(
+      'Both scene_path and new_path required',
+      'INVALID_ARGS',
+      'Provide source and destination paths.',
+    )
+  }
+
+  return { projectPath, scenePath, newPath }
 }

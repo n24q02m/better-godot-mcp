@@ -3,12 +3,31 @@
  */
 
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import * as fsNative from 'node:fs'
+import { mkdirSync, readFileSync } from 'node:fs'
+import * as fsp from 'node:fs/promises'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { GodotConfig } from '../../src/godot/types.js'
 import { handleProject } from '../../src/tools/composite/project.js'
 import { createTmpProject, makeConfig } from '../fixtures.js'
+
+// We need to mock fs to spy on readFile since it's imported as a module in project.ts
+vi.mock('node:fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs')>()
+  return {
+    ...actual,
+    existsSync: vi.fn(actual.existsSync),
+  }
+})
+
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>()
+  return {
+    ...actual,
+    readFile: vi.fn(actual.readFile),
+  }
+})
 
 // Mock headless execution
 vi.mock('../../src/godot/headless.js', () => ({
@@ -64,6 +83,33 @@ describe('project', () => {
       const badConfig = makeConfig()
       await expect(handleProject('info', {}, badConfig)).rejects.toThrow('No project path specified')
     })
+
+    it('should return project info using mocked readFile', async () => {
+      vi.spyOn(fsNative, 'existsSync').mockReturnValue(true)
+      vi.spyOn(fsp, 'readFile').mockResolvedValue(
+        '[application]\nconfig/name="MockedProject"\nrun/main_scene="res://main.tscn"\nconfig/features=PackedStringArray("4.4", "Forward Plus")\nconfig_version=5',
+      )
+
+      const result = await handleProject('info', { project_path: '/fake/path' }, config)
+      const data = JSON.parse(result.content[0].text)
+
+      expect(data.name).toBe('MockedProject')
+      expect(data.mainScene).toBe('res://main.tscn')
+      expect(data.features).toContain('4.4')
+      expect(data.configVersion).toBe(5)
+
+      vi.restoreAllMocks()
+    })
+
+    it('should throw if project.godot not found', async () => {
+      const tmpPath = join(projectPath, 'empty_dir')
+      mkdirSync(tmpPath)
+      const badConfig = makeConfig({ projectPath: tmpPath })
+
+      await expect(handleProject('info', { project_path: tmpPath }, badConfig)).rejects.toThrow(
+        'No project.godot found at',
+      )
+    })
   })
 
   // ==========================================
@@ -88,6 +134,17 @@ describe('project', () => {
   // run
   // ==========================================
   describe('run', () => {
+    it('should start godot project using explicitly mocked runGodotProject', async () => {
+      const myConfig = makeConfig({ projectPath: '/fake/my_game_dir', godotPath: '/bin/godot4' })
+      vi.mocked(runGodotProject).mockReturnValue({ pid: 99999 })
+
+      const result = await handleProject('run', { project_path: '/fake/my_game_dir' }, myConfig)
+
+      expect(result.content[0].text).toContain('PID: 99999')
+      expect(runGodotProject).toHaveBeenCalledWith('/bin/godot4', expect.stringContaining('/fake/my_game_dir'))
+      vi.mocked(runGodotProject).mockClear()
+    })
+
     it('should start godot project', async () => {
       vi.mocked(runGodotProject).mockReturnValue({ pid: 12345 })
 
@@ -119,6 +176,21 @@ describe('project', () => {
 
       const result = await handleProject('stop', {}, config)
       expect(result.content[0].text).toContain('No running Godot processes found')
+    })
+
+    it('should use taskkill on windows', async () => {
+      const originalPlatform = process.platform
+      Object.defineProperty(process, 'platform', {
+        value: 'win32',
+      })
+
+      const result = await handleProject('stop', {}, config)
+      expect(result.content[0].text).toContain('Godot processes stopped')
+      expect(execFileSync).toHaveBeenCalledWith('taskkill', ['/F', '/IM', 'godot.exe', '/T'], { stdio: 'pipe' })
+
+      Object.defineProperty(process, 'platform', {
+        value: originalPlatform,
+      })
     })
   })
 

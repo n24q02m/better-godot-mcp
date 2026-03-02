@@ -7,7 +7,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
-import { parseScene } from '../helpers/scene-parser.js'
+import { findNode, parseScene, parseSceneContent, setNodePropertyInContent } from '../helpers/scene-parser.js'
 
 const CONTROL_TEMPLATES: Record<string, Record<string, string>> = {
   Button: { text: '"Click"' },
@@ -117,33 +117,65 @@ export async function handleUI(action: string, args: Record<string, unknown>, co
       const fullPath = resolveScene(projectPath, scenePath)
       let content = readFileSync(fullPath, 'utf-8')
 
-      const nodeRegex = new RegExp(`(\\[node name="${nodeName}"[^\\]]*\\])`)
-      const match = content.match(nodeRegex)
-      if (!match) throw new GodotMCPError(`Node "${nodeName}" not found`, 'NODE_ERROR', 'Check node name.')
+      const scene = parseSceneContent(content)
+      const nodeInfo = findNode(scene, nodeName)
+      if (!nodeInfo) throw new GodotMCPError(`Node "${nodeName}" not found`, 'NODE_ERROR', 'Check node name.')
 
-      let layoutProps = ''
+      let layoutProps: Record<string, string>
       switch (preset) {
         case 'full_rect':
-          layoutProps =
-            '\nanchors_preset = 15\nanchor_right = 1.0\nanchor_bottom = 1.0\ngrow_horizontal = 2\ngrow_vertical = 2'
+          layoutProps = {
+            anchors_preset: '15',
+            anchor_right: '1.0',
+            anchor_bottom: '1.0',
+            grow_horizontal: '2',
+            grow_vertical: '2',
+          }
           break
         case 'center':
-          layoutProps =
-            '\nanchors_preset = 8\nanchor_left = 0.5\nanchor_top = 0.5\nanchor_right = 0.5\nanchor_bottom = 0.5\ngrow_horizontal = 2\ngrow_vertical = 2'
+          layoutProps = {
+            anchors_preset: '8',
+            anchor_left: '0.5',
+            anchor_top: '0.5',
+            anchor_right: '0.5',
+            anchor_bottom: '0.5',
+            grow_horizontal: '2',
+            grow_vertical: '2',
+          }
           break
         case 'top_wide':
-          layoutProps = '\nanchors_preset = 10\nanchor_right = 1.0\ngrow_horizontal = 2'
+          layoutProps = {
+            anchors_preset: '10',
+            anchor_right: '1.0',
+            grow_horizontal: '2',
+          }
           break
         case 'bottom_wide':
-          layoutProps =
-            '\nanchors_preset = 12\nanchor_top = 1.0\nanchor_right = 1.0\nanchor_bottom = 1.0\ngrow_horizontal = 2\ngrow_vertical = 0'
+          layoutProps = {
+            anchors_preset: '12',
+            anchor_top: '1.0',
+            anchor_right: '1.0',
+            anchor_bottom: '1.0',
+            grow_horizontal: '2',
+            grow_vertical: '0',
+          }
           break
         case 'left_wide':
-          layoutProps = '\nanchors_preset = 9\nanchor_bottom = 1.0\ngrow_vertical = 2'
+          layoutProps = {
+            anchors_preset: '9',
+            anchor_bottom: '1.0',
+            grow_vertical: '2',
+          }
           break
         case 'right_wide':
-          layoutProps =
-            '\nanchors_preset = 11\nanchor_left = 1.0\nanchor_right = 1.0\nanchor_bottom = 1.0\ngrow_horizontal = 0\ngrow_vertical = 2'
+          layoutProps = {
+            anchors_preset: '11',
+            anchor_left: '1.0',
+            anchor_right: '1.0',
+            anchor_bottom: '1.0',
+            grow_horizontal: '0',
+            grow_vertical: '2',
+          }
           break
         default:
           throw new GodotMCPError(
@@ -153,10 +185,9 @@ export async function handleUI(action: string, args: Record<string, unknown>, co
           )
       }
 
-      if (match.index === undefined)
-        throw new GodotMCPError(`Node "${nodeName}" not found`, 'NODE_ERROR', 'Check node name.')
-      const insertPoint = match.index + match[0].length
-      content = `${content.slice(0, insertPoint)}${layoutProps}${content.slice(insertPoint)}`
+      for (const [key, value] of Object.entries(layoutProps)) {
+        content = setNodePropertyInContent(content, nodeName, key, value)
+      }
       writeFileSync(fullPath, content, 'utf-8')
 
       return formatSuccess(`Set layout preset "${preset}" on ${nodeName}`)

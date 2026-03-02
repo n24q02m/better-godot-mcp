@@ -36,6 +36,15 @@ export async function handleConfig(action: string, args: Record<string, unknown>
         throw new GodotMCPError(`Invalid config key: ${key}`, 'INVALID_ARGS', `Valid keys: ${validKeys.join(', ')}`)
       }
 
+      // Security: Validate paths to prevent command injection
+      if ((key === 'project_path' || key === 'godot_path') && /[;"'|`$&<>\0\n\r]/.test(value)) {
+        throw new GodotMCPError(
+          `Invalid characters in ${key}`,
+          'INVALID_ARGS',
+          'Paths cannot contain shell metacharacters for security reasons.',
+        )
+      }
+
       runtimeConfig[key] = value
 
       // Apply to active config

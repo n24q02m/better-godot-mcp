@@ -102,6 +102,27 @@ describe('config', () => {
     it('should throw when value is undefined', async () => {
       await expect(handleConfig('set', { key: 'project_path' }, config)).rejects.toThrow('No value specified')
     })
+
+    it('should throw when godot_path contains shell metacharacters', async () => {
+      await expect(handleConfig('set', { key: 'godot_path', value: '/bin/godot; rm -rf /' }, config)).rejects.toThrow(
+        'Invalid characters',
+      )
+      await expect(
+        handleConfig('set', { key: 'godot_path', value: '/bin/godot & echo pwned' }, config),
+      ).rejects.toThrow('Invalid characters')
+      await expect(handleConfig('set', { key: 'godot_path', value: '/bin/godot|grep secret' }, config)).rejects.toThrow(
+        'Invalid characters',
+      )
+      await expect(handleConfig('set', { key: 'godot_path', value: '`/bin/sh`' }, config)).rejects.toThrow(
+        'Invalid characters',
+      )
+    })
+
+    it('should throw when project_path contains shell metacharacters', async () => {
+      await expect(handleConfig('set', { key: 'project_path', value: '/tmp/proj; rm -rf /' }, config)).rejects.toThrow(
+        'Invalid characters',
+      )
+    })
   })
 
   // ==========================================

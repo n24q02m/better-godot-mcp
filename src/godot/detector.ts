@@ -98,7 +98,11 @@ function findInPath(): string | null {
 function findWinGetGodotBinaries(localAppData: string): string[] {
   const results: string[] = []
   const packagesDir = join(localAppData, 'Microsoft', 'WinGet', 'Packages')
-  if (!existsSync(packagesDir)) return results
+  try {
+    if (!existsSync(packagesDir)) return results
+  } catch {
+    return results
+  }
 
   try {
     const dirs = readdirSync(packagesDir, { withFileTypes: true })

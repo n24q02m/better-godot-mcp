@@ -1,0 +1,86 @@
+--- tests/godot/detector.test.ts
++++ tests/godot/detector.test.ts
+@@ -282,5 +282,62 @@
+
+       expect(detectGodot()).toBeNull()
+     })
++
++    it('should handle existsSync throwing an error (e.g. permission denied)', () => {
++      delete process.env.GODOT_PATH
++      Object.defineProperty(process, 'platform', { value: 'win32' })
++
++      vi.mocked(execFileSync).mockImplementation(() => {
++        throw new Error('not found')
++      })
++
++      vi.mocked(existsSync).mockImplementation(() => {
++        throw new Error('EACCES: permission denied')
++      })
++
++      expect(detectGodot()).toBeNull()
++    })
++
++    it('should handle WinGet Packages directory being unreadable', () => {
++      delete process.env.GODOT_PATH
++      Object.defineProperty(process, 'platform', { value: 'win32' })
++      process.env.LOCALAPPDATA = 'C:\\Users\\Test\\AppData\\Local'
++
++      const packagesDir = 'C:\\Users\\Test\\AppData\\Local\\Microsoft\\WinGet\\Packages'
++
++      vi.mocked(execFileSync).mockImplementation(() => {
++        throw new Error('not found')
++      })
++
++      vi.mocked(existsSync).mockImplementation((path) => {
++        if (path === packagesDir) return true
++        return false
++      })
++
++      // biome-ignore lint/suspicious/noExplicitAny: mock overload
++      vi.mocked(readdirSync).mockImplementation(((path: PathLike) => {
++        if (path === packagesDir) {
++          throw new Error('EACCES: permission denied')
++        }
++        return []
++      }) as any)
++
++      expect(detectGodot()).toBeNull()
++    })
++
++    it('should handle individual WinGet package directory being unreadable', () => {
++      delete process.env.GODOT_PATH
++      Object.defineProperty(process, 'platform', { value: 'win32' })
++      process.env.LOCALAPPDATA = 'C:\\Users\\Test\\AppData\\Local'
++
++      const packagesDir = 'C:\\Users\\Test\\AppData\\Local\\Microsoft\\WinGet\\Packages'
++      const pkgDir = 'C:\\Users\\Test\\AppData\\Local\\Microsoft\\WinGet\\Packages\\GodotEngine.GodotEngine_xyz'
++
++      vi.mocked(execFileSync).mockImplementation(() => {
++        throw new Error('not found')
++      })
++
++      vi.mocked(existsSync).mockImplementation((path) => {
++        if (path === packagesDir) return true
++        return false
++      })
++
++      // biome-ignore lint/suspicious/noExplicitAny: mock overload
++      vi.mocked(readdirSync).mockImplementation(((path: PathLike) => {
++        if (path === packagesDir) {
++          return [
++            {
++              isDirectory: () => true,
++              name: 'GodotEngine.GodotEngine_xyz',
++            },
++          ] as unknown as ReturnType<typeof readdirSync>
++        }
++        if (path === pkgDir) {
++          throw new Error('EACCES: permission denied')
++        }
++        return [] as unknown as ReturnType<typeof readdirSync>
++      }) as any)
++
++      expect(detectGodot()).toBeNull()
++    })
+   })
+ })

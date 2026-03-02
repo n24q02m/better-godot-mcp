@@ -275,8 +275,7 @@ describe('detector', () => {
           >
         }
         return [] as unknown as ReturnType<typeof readdirSync>
-        // biome-ignore lint/suspicious/noExplicitAny: mock overload
-      }) as any)
+      }) as unknown as ReturnType<typeof readdirSync>)
 
       vi.mocked(execFileSync).mockImplementation((cmd) => {
         if (typeof cmd === 'string' && cmd.includes('Godot_v4.3-stable_win64.exe'))
@@ -297,8 +296,7 @@ describe('detector', () => {
         throw new Error('not found')
       })
       vi.mocked(existsSync).mockReturnValue(false)
-      // biome-ignore lint/suspicious/noExplicitAny: mock overload
-      vi.mocked(readdirSync).mockImplementation(((_path: PathLike) => []) as any)
+      vi.mocked(readdirSync).mockImplementation(((_path: PathLike) => []) as unknown as ReturnType<typeof readdirSync>)
 
       expect(detectGodot()).toBeNull()
     })
@@ -309,6 +307,177 @@ describe('detector', () => {
       vi.mocked(execFileSync).mockReturnValue('Godot Engine v3.5.stable.official')
 
       expect(detectGodot()).toBeNull()
+    })
+
+    it('should handle existsSync throwing an error (e.g. permission denied)', () => {
+      delete process.env.GODOT_PATH
+      Object.defineProperty(process, 'platform', { value: 'win32' })
+
+      vi.mocked(execFileSync).mockImplementation(() => {
+        throw new Error('not found')
+      })
+
+      vi.mocked(existsSync).mockImplementation(() => {
+        throw new Error('EACCES: permission denied')
+      })
+
+      expect(detectGodot()).toBeNull()
+    })
+
+    it('should handle WinGet Packages directory being unreadable', () => {
+      delete process.env.GODOT_PATH
+      Object.defineProperty(process, 'platform', { value: 'win32' })
+      process.env.LOCALAPPDATA = 'C:\\Users\\Test\\AppData\\Local'
+
+      const packagesDir = 'C:\\Users\\Test\\AppData\\Local\\Microsoft\\WinGet\\Packages'
+
+      vi.mocked(execFileSync).mockImplementation(() => {
+        throw new Error('not found')
+      })
+
+      vi.mocked(existsSync).mockImplementation((path) => {
+        if (path === packagesDir) return true
+        return false
+      })
+      vi.mocked(readdirSync).mockImplementation(((path: PathLike) => {
+        if (path === packagesDir) {
+          throw new Error('EACCES: permission denied')
+        }
+        return []
+      }) as unknown as ReturnType<typeof readdirSync>)
+
+      expect(detectGodot()).toBeNull()
+    })
+
+    it('should handle individual WinGet package directory being unreadable', () => {
+      delete process.env.GODOT_PATH
+      Object.defineProperty(process, 'platform', { value: 'win32' })
+      process.env.LOCALAPPDATA = 'C:\\Users\\Test\\AppData\\Local'
+
+      const packagesDir = 'C:\\Users\\Test\\AppData\\Local\\Microsoft\\WinGet\\Packages'
+      const pkgDir = 'C:\\Users\\Test\\AppData\\Local\\Microsoft\\WinGet\\Packages\\GodotEngine.GodotEngine_xyz'
+
+      vi.mocked(execFileSync).mockImplementation(() => {
+        throw new Error('not found')
+      })
+
+      vi.mocked(existsSync).mockImplementation((path) => {
+        if (path === packagesDir) return true
+        return false
+      })
+      vi.mocked(readdirSync).mockImplementation(((path: PathLike) => {
+        if (path === packagesDir) {
+          return [
+            {
+              isDirectory: () => true,
+              name: 'GodotEngine.GodotEngine_xyz',
+            },
+          ] as unknown as ReturnType<typeof readdirSync>
+        }
+        if (path === pkgDir) {
+          throw new Error('EACCES: permission denied')
+        }
+        return [] as unknown as ReturnType<typeof readdirSync>
+      }) as unknown as ReturnType<typeof readdirSync>)
+
+      expect(detectGodot()).toBeNull()
+    })
+
+    it('should return null if godot binary throws error (tryGetVersion)', () => {
+      process.env.GODOT_PATH = '/custom/path/godot'
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(execFileSync).mockImplementation(() => {
+        throw new Error('Some execution error')
+      })
+
+      const result = detectGodot()
+
+      expect(result).toBeNull()
+    })
+
+    it('should ignore non-directories in WinGet Packages directory', () => {
+      delete process.env.GODOT_PATH
+      Object.defineProperty(process, 'platform', { value: 'win32' })
+      process.env.LOCALAPPDATA = 'C:\\Users\\Test\\AppData\\Local'
+
+      const packagesDir = 'C:\\Users\\Test\\AppData\\Local\\Microsoft\\WinGet\\Packages'
+
+      vi.mocked(execFileSync).mockImplementation(() => {
+        throw new Error('not found')
+      })
+
+      vi.mocked(existsSync).mockImplementation((path) => {
+        if (path === packagesDir) return true
+        return false
+      })
+      vi.mocked(readdirSync).mockImplementation(((path: PathLike) => {
+        if (path === packagesDir) {
+          return [
+            {
+              isDirectory: () => false,
+              name: 'GodotEngine.GodotEngine_file',
+            },
+            {
+              isDirectory: () => true,
+              name: 'NotGodotEngine',
+            },
+          ] as unknown as ReturnType<typeof readdirSync>
+        }
+        return [] as unknown as ReturnType<typeof readdirSync>
+      }) as unknown as ReturnType<typeof readdirSync>)
+
+      expect(detectGodot()).toBeNull()
+    })
+
+    it('should check AppImage paths in HOME directory on linux', () => {
+      delete process.env.GODOT_PATH
+      Object.defineProperty(process, 'platform', { value: 'linux' })
+      process.env.HOME = '/home/testuser'
+
+      const appImagePath = '/home/testuser/Applications/Godot.AppImage'
+
+      vi.mocked(execFileSync).mockImplementation((cmd) => {
+        if (cmd === appImagePath) return 'Godot Engine v4.3.stable.official'
+        throw new Error('cmd not found')
+      })
+
+      vi.mocked(existsSync).mockImplementation((path) => path === appImagePath)
+
+      const result = detectGodot()
+
+      expect(result).not.toBeNull()
+      expect(result?.path).toBe(appImagePath)
+      expect(result?.source).toBe('system')
+    })
+
+    it('should strip trailing dot from version label', () => {
+      const v = parseGodotVersion('Godot Engine v4.6.stable.')
+      expect(v).not.toBeNull()
+      expect(v?.label).toBe('stable')
+    })
+
+    it('should ignore AppImage paths if HOME is not set on linux', () => {
+      delete process.env.GODOT_PATH
+      Object.defineProperty(process, 'platform', { value: 'linux' })
+      process.env.HOME = ''
+
+      vi.mocked(execFileSync).mockImplementation(() => {
+        throw new Error('not found')
+      })
+
+      vi.mocked(existsSync).mockImplementation(() => false)
+
+      const result = detectGodot()
+
+      expect(result).toBeNull()
+    })
+
+    it('should parse version label without capturing group 4 match', () => {
+      // Regex /v?(\d+)\.(\d+)(?:\.(\d+))?[.\s-]*(\S*)/
+      // We want to make sure match[4] is undefined, so the regex falls back to 'stable'
+      const v = parseGodotVersion('4.6')
+      expect(v).not.toBeNull()
+      expect(v?.label).toBe('stable')
     })
   })
 })

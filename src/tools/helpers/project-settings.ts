@@ -79,9 +79,39 @@ export function parseProjectSettingsContent(content: string): ProjectSettings {
         while (valStart < end && content.charCodeAt(valStart) <= 32) valStart++
 
         const key = content.slice(start, keyEnd)
-        const value = content.slice(valStart, end)
+        let value = content.slice(valStart, end)
+
+        let advancedPos = nextNewline
+
+        // Handle multi-line value if it starts with {
+        if (value.startsWith('{') && !value.endsWith('}')) {
+          let valueEnd = nextNewline === -1 ? len : nextNewline
+          let braces = 1
+
+          while (valueEnd < len && braces > 0) {
+            const nextLineStart = valueEnd + 1
+            if (nextLineStart >= len) break
+
+            const nextLineEnd = content.indexOf('\n', nextLineStart)
+            const currentLineEnd = nextLineEnd === -1 ? len : nextLineEnd
+
+            const line = content.slice(nextLineStart, currentLineEnd)
+            for (let i = 0; i < line.length; i++) {
+              if (line[i] === '{') braces++
+              else if (line[i] === '}') braces--
+            }
+
+            valueEnd = currentLineEnd
+          }
+
+          value = content.slice(valStart, valueEnd).trimEnd()
+          advancedPos = valueEnd
+        }
 
         sections.get(currentSection)?.set(key, value)
+
+        pos = advancedPos === -1 ? len : advancedPos + 1
+        continue
       }
     }
 
@@ -140,6 +170,24 @@ export function setSettingInContent(content: string, path: string, value: string
     if (inSection && trimmed.startsWith(`${key}=`)) {
       result.push(`${key}=${value}`)
       keySet = true
+
+      const valStart = trimmed.slice(`${key}=`.length).trim()
+      if (valStart.startsWith('{') && !valStart.endsWith('}')) {
+        let braces = 1
+        for (let j = 0; j < valStart.length; j++) {
+          if (valStart[j] === '{' && j > 0) braces++
+          else if (valStart[j] === '}') braces--
+        }
+
+        while (braces > 0 && i + 1 < lines.length) {
+          i++
+          const nextLine = lines[i]
+          for (let j = 0; j < nextLine.length; j++) {
+            if (nextLine[j] === '{') braces++
+            else if (nextLine[j] === '}') braces--
+          }
+        }
+      }
       continue
     }
 
@@ -188,4 +236,55 @@ export function getInputActions(settings: ProjectSettings): Map<string, string> 
     }
   }
   return actions
+}
+
+/**
+ * Remove a setting value in project.godot content
+ */
+export function removeSettingInContent(content: string, path: string): string {
+  const parts = path.split('/')
+  if (parts.length < 2) return content
+
+  const section = parts[0]
+  const key = parts.slice(1).join('/')
+  const sectionHeader = `[${section}]`
+  const lines = content.split('\n')
+  const result: string[] = []
+  let inSection = false
+
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim()
+
+    // Check for section header
+    if (trimmed.startsWith('[')) {
+      inSection = trimmed === sectionHeader
+    }
+
+    // Remove existing key in current section
+    if (inSection && trimmed.startsWith(`${key}=`)) {
+      // Skip lines if we are removing a multi-line value
+      const valStart = trimmed.slice(`${key}=`.length).trim()
+      if (valStart.startsWith('{') && !valStart.endsWith('}')) {
+        let braces = 1
+        for (let j = 0; j < valStart.length; j++) {
+          if (valStart[j] === '{' && j > 0) braces++
+          else if (valStart[j] === '}') braces--
+        }
+
+        while (braces > 0 && i + 1 < lines.length) {
+          i++
+          const nextLine = lines[i]
+          for (let j = 0; j < nextLine.length; j++) {
+            if (nextLine[j] === '{') braces++
+            else if (nextLine[j] === '}') braces--
+          }
+        }
+      }
+      continue
+    }
+
+    result.push(lines[i])
+  }
+
+  return result.join('\n')
 }

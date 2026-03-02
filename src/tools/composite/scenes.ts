@@ -19,52 +19,81 @@ import type { GodotConfig, SceneInfo, SceneNode } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
 import { setSettingInContent } from '../helpers/project-settings.js'
 
+// Pre-compiled regular expressions for parseTscnFile
+const rxNode = /^\[node\s+name="([^"]+)"\s+type="([^"]+)"(?:\s+parent="([^"]*)")?/
+const rxResource = /^\[(ext_resource|sub_resource)\s+(.+)\]$/
+const rxScript = /^script\s*=\s*(.+)$/
+
 /**
  * Parse a .tscn file to extract scene information
  */
 async function parseTscnFile(filePath: string): Promise<SceneInfo> {
   const content = await readFile(filePath, 'utf-8')
-  const lines = content.split('\n')
 
   const nodes: SceneNode[] = []
   const resources: string[] = []
   let rootNode = ''
   let rootType = ''
 
-  for (const line of lines) {
-    const trimmed = line.trim()
+  let startIndex = 0
+  const len = content.length
 
-    const nodeMatch = trimmed.match(/^\[node\s+name="([^"]+)"\s+type="([^"]+)"(?:\s+parent="([^"]*)")?/)
-    if (nodeMatch) {
-      const node: SceneNode = {
-        name: nodeMatch[1],
-        type: nodeMatch[2],
-        parent: nodeMatch[3] ?? null,
-        properties: {},
-        script: null,
+  while (startIndex < len) {
+    let endIndex = content.indexOf('\n', startIndex)
+    if (endIndex === -1) endIndex = len
+
+    let start = startIndex
+    // Skip leading whitespace manually
+    while (start < endIndex && content.charCodeAt(start) <= 32) start++
+
+    let end = endIndex
+    // Skip trailing whitespace manually
+    while (end > start && content.charCodeAt(end - 1) <= 32) end--
+
+    if (start < end) {
+      const firstChar = content.charCodeAt(start)
+
+      if (firstChar === 91) {
+        // '[' character indicates a new section
+        const line = content.slice(start, end)
+
+        if (line.startsWith('[node')) {
+          const nodeMatch = line.match(rxNode)
+          if (nodeMatch) {
+            const node: SceneNode = {
+              name: nodeMatch[1],
+              type: nodeMatch[2],
+              parent: nodeMatch[3] ?? null,
+              properties: {},
+              script: null,
+            }
+
+            if (!node.parent && nodes.length === 0) {
+              rootNode = node.name
+              rootType = node.type
+            }
+
+            nodes.push(node)
+          }
+        } else if (line.startsWith('[ext_resource') || line.startsWith('[sub_resource')) {
+          const resMatch = line.match(rxResource)
+          if (resMatch) {
+            resources.push(line)
+          }
+        }
+      } else if (firstChar === 115 && nodes.length > 0) {
+        // 's' character, could be 'script'
+        const line = content.slice(start, end)
+        if (line.startsWith('script')) {
+          const scriptMatch = line.match(rxScript)
+          if (scriptMatch) {
+            nodes[nodes.length - 1].script = scriptMatch[1]
+          }
+        }
       }
-
-      if (!node.parent && nodes.length === 0) {
-        rootNode = node.name
-        rootType = node.type
-      }
-
-      nodes.push(node)
-      continue
     }
 
-    const resMatch = trimmed.match(/^\[(ext_resource|sub_resource)\s+(.+)\]$/)
-    if (resMatch) {
-      resources.push(trimmed)
-      continue
-    }
-
-    if (trimmed.startsWith('script') && nodes.length > 0) {
-      const scriptMatch = trimmed.match(/^script\s*=\s*(.+)$/)
-      if (scriptMatch) {
-        nodes[nodes.length - 1].script = scriptMatch[1]
-      }
-    }
+    startIndex = endIndex + 1
   }
 
   return { path: filePath, rootNode, rootType, nodeCount: nodes.length, nodes, resources }

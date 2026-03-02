@@ -125,6 +125,26 @@ describe('animation', () => {
       expect(content).toContain('length = 2.5')
       expect(content).toContain('loop_mode = 0')
     })
+
+    it('should append the animation at the end if there are no [node] tags', async () => {
+      createTmpScene(projectPath, 'test_no_nodes.tscn', '[gd_scene format=3 uid="uid://test"]\n')
+
+      const result = await handleAnimation(
+        'add_animation',
+        {
+          project_path: projectPath,
+          scene_path: 'test_no_nodes.tscn',
+          anim_name: 'EmptySceneAnim',
+        },
+        config,
+      )
+
+      expect(result.content[0].text).toContain('Added animation: EmptySceneAnim')
+      const content = readFileSync(join(projectPath, 'test_no_nodes.tscn'), 'utf-8')
+      expect(content).toContain('[sub_resource type="Animation" id="Animation_EmptySceneAnim"]')
+      expect(content).toContain('resource_name = "EmptySceneAnim"')
+      expect(content.endsWith('loop_mode = 1\n')).toBe(true)
+    })
   })
 
   // ==========================================
@@ -161,6 +181,49 @@ describe('animation', () => {
       const content = readFileSync(join(projectPath, 'test.tscn'), 'utf-8')
       expect(content).toContain('tracks/value/type = "value"')
       expect(content).toContain('tracks/value/path = NodePath("Sprite:position")')
+    })
+
+    it('should throw if anim_name, node_path, or property is missing', async () => {
+      createTmpScene(projectPath, 'test.tscn', MINIMAL_TSCN)
+
+      await expect(
+        handleAnimation(
+          'add_track',
+          {
+            project_path: projectPath,
+            scene_path: 'test.tscn',
+            node_path: 'Sprite',
+            property: 'position',
+          },
+          config,
+        ),
+      ).rejects.toThrow('anim_name, node_path, and property required')
+
+      await expect(
+        handleAnimation(
+          'add_track',
+          {
+            project_path: projectPath,
+            scene_path: 'test.tscn',
+            anim_name: 'Walk',
+            property: 'position',
+          },
+          config,
+        ),
+      ).rejects.toThrow('anim_name, node_path, and property required')
+
+      await expect(
+        handleAnimation(
+          'add_track',
+          {
+            project_path: projectPath,
+            scene_path: 'test.tscn',
+            anim_name: 'Walk',
+            node_path: 'Sprite',
+          },
+          config,
+        ),
+      ).rejects.toThrow('anim_name, node_path, and property required')
     })
 
     it('should throw if animation does not exist', async () => {

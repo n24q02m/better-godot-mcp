@@ -33,18 +33,17 @@ interface ResourceEntry {
   size: number
 }
 
-function findResourceFiles(dir: string, extensions?: Set<string>): ResourceEntry[] {
+function findResourceFiles(dir: string, extensions?: Set<string>, results: ResourceEntry[] = []): ResourceEntry[] {
   const exts = extensions || RESOURCE_EXTENSIONS
-  const results: ResourceEntry[] = []
   try {
-    const entries = readdirSync(dir)
+    const entries = readdirSync(dir, { withFileTypes: true })
     for (const entry of entries) {
-      if (entry.startsWith('.') || entry === 'node_modules' || entry === 'build') continue
-      const fullPath = join(dir, entry)
-      const stat = statSync(fullPath)
-      if (stat.isDirectory()) {
-        results.push(...findResourceFiles(fullPath, exts))
-      } else if (exts.has(extname(entry).toLowerCase())) {
+      if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === 'build') continue
+      const fullPath = join(dir, entry.name)
+      if (entry.isDirectory()) {
+        findResourceFiles(fullPath, exts, results)
+      } else if (exts.has(extname(entry.name).toLowerCase())) {
+        const stat = statSync(fullPath)
         results.push({ path: fullPath, size: stat.size })
       }
     }

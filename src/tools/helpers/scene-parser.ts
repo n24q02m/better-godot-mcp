@@ -255,37 +255,57 @@ export function getNodePath(_scene: ParsedScene, node: SceneNodeInfo): string {
  * Remove a node from scene content by name
  */
 export function removeNodeFromContent(content: string, nodeName: string): string {
-  const lines = content.split('\n')
   const result: string[] = []
   let skipping = false
 
-  for (const line of lines) {
-    const trimmed = line.trim()
+  let startIndex = 0
+  const len = content.length
 
-    if (trimmed.startsWith('[node') && trimmed.includes(`name="${nodeName}"`)) {
-      skipping = true
-      continue
-    }
+  while (startIndex <= len) {
+    let endIndex = content.indexOf('\n', startIndex)
+    if (endIndex === -1) endIndex = len
 
-    if (skipping && trimmed.startsWith('[')) {
-      skipping = false
+    const line = content.slice(startIndex, endIndex)
+
+    // Manual trimStart
+    let start = 0
+    while (start < line.length && line.charCodeAt(start) <= 32) start++
+
+    if (start < line.length && line.charCodeAt(start) === 91) {
+      // '['
+      const contentFromBracket = line.slice(start)
+      if (contentFromBracket.startsWith('[node') && contentFromBracket.includes(`name="${nodeName}"`)) {
+        skipping = true
+        startIndex = endIndex + 1
+        continue
+      }
+
+      if (skipping && contentFromBracket.startsWith('[')) {
+        skipping = false
+      }
     }
 
     if (!skipping) {
+      // Inline connection filtering
+      if (start < line.length && line.charCodeAt(start) === 91) {
+        // '['
+        const contentFromBracket = line.slice(start)
+        if (
+          contentFromBracket.startsWith('[connection') &&
+          (contentFromBracket.includes(`from="${nodeName}"`) || contentFromBracket.includes(`to="${nodeName}"`))
+        ) {
+          startIndex = endIndex + 1
+          continue
+        }
+      }
       result.push(line)
     }
+
+    if (endIndex === len) break
+    startIndex = endIndex + 1
   }
 
-  // Also remove connections referencing this node
-  return result
-    .filter((line) => {
-      const trimmed = line.trim()
-      if (trimmed.startsWith('[connection')) {
-        return !trimmed.includes(`from="${nodeName}"`) && !trimmed.includes(`to="${nodeName}"`)
-      }
-      return true
-    })
-    .join('\n')
+  return result.join('\n')
 }
 
 /**
@@ -318,40 +338,60 @@ export function renameNodeInContent(content: string, oldName: string, newName: s
  * Set a property on a node in scene content
  */
 export function setNodePropertyInContent(content: string, nodeName: string, property: string, value: string): string {
-  const lines = content.split('\n')
   const result: string[] = []
   let inTargetNode = false
   let propertySet = false
 
-  for (let i = 0; i < lines.length; i++) {
-    const trimmed = lines[i].trim()
+  let startIndex = 0
+  const len = content.length
 
-    if (trimmed.startsWith('[node') && trimmed.includes(`name="${nodeName}"`)) {
-      inTargetNode = true
-      result.push(lines[i])
-      continue
+  while (startIndex <= len) {
+    let endIndex = content.indexOf('\n', startIndex)
+    if (endIndex === -1) endIndex = len
+
+    const line = content.slice(startIndex, endIndex)
+
+    // Manual trimStart
+    let start = 0
+    while (start < line.length && line.charCodeAt(start) <= 32) start++
+
+    if (start < line.length && line.charCodeAt(start) === 91) {
+      // '['
+      const contentFromBracket = line.slice(start)
+      if (contentFromBracket.startsWith('[node') && contentFromBracket.includes(`name="${nodeName}"`)) {
+        inTargetNode = true
+        result.push(line)
+        startIndex = endIndex + 1
+        if (endIndex === len) break
+        continue
+      }
+
+      if (inTargetNode && contentFromBracket.startsWith('[')) {
+        if (!propertySet) {
+          result.push(`${property} = ${value}`)
+          propertySet = true
+        }
+        inTargetNode = false
+      }
     }
 
-    if (inTargetNode && trimmed.startsWith('[')) {
-      // Entering new section - add property if not yet set
-      if (!propertySet) {
+    if (inTargetNode && start < line.length) {
+      const contentFromStart = line.slice(start)
+      if (contentFromStart.startsWith(`${property} `) || contentFromStart.startsWith(`${property}=`)) {
         result.push(`${property} = ${value}`)
         propertySet = true
+        startIndex = endIndex + 1
+        if (endIndex === len) break
+        continue
       }
-      inTargetNode = false
     }
 
-    if (inTargetNode && trimmed.startsWith(`${property} `)) {
-      // Replace existing property
-      result.push(`${property} = ${value}`)
-      propertySet = true
-      continue
-    }
+    result.push(line)
 
-    result.push(lines[i])
+    if (endIndex === len) break
+    startIndex = endIndex + 1
   }
 
-  // If node was last section and property wasn't set
   if (inTargetNode && !propertySet) {
     result.push(`${property} = ${value}`)
   }

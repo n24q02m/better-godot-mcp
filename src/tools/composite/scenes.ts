@@ -18,56 +18,67 @@ import { basename, dirname, extname, join, relative, resolve } from 'node:path'
 import type { GodotConfig, SceneInfo, SceneNode } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
 import { setSettingInContent } from '../helpers/project-settings.js'
+import { parseSceneContent, type SceneNodeInfo } from '../helpers/scene-parser.js'
+
+/**
+ * Map scene-parser's SceneNodeInfo to internal SceneNode format
+ */
+function mapToSceneNode(node: SceneNodeInfo): SceneNode {
+  const properties = { ...node.properties }
+  let script: string | null = null
+
+  if (properties.script) {
+    script = properties.script
+    delete properties.script
+  }
+
+  return {
+    name: node.name,
+    type: node.type || 'Node',
+    parent: node.parent || null,
+    properties,
+    script,
+  }
+}
 
 /**
  * Parse a .tscn file to extract scene information
  */
 async function parseTscnFile(filePath: string): Promise<SceneInfo> {
   const content = await readFile(filePath, 'utf-8')
-  const lines = content.split('\n')
+  const parsed = parseSceneContent(content)
 
-  const nodes: SceneNode[] = []
+  const nodes: SceneNode[] = parsed.nodes.map(mapToSceneNode)
+
   const resources: string[] = []
+
+  for (const ext of parsed.extResources) {
+    let str = `[ext_resource type="${ext.type}"`
+    if (ext.uid) str += ` uid="${ext.uid}"`
+    str += ` path="${ext.path}" id="${ext.id}"]`
+    resources.push(str)
+  }
+
+  for (const sub of parsed.subResources) {
+    resources.push(`[sub_resource type="${sub.type}" id="${sub.id}"]`)
+  }
+
   let rootNode = ''
   let rootType = ''
 
-  for (const line of lines) {
-    const trimmed = line.trim()
-
-    const nodeMatch = trimmed.match(/^\[node\s+name="([^"]+)"\s+type="([^"]+)"(?:\s+parent="([^"]*)")?/)
-    if (nodeMatch) {
-      const node: SceneNode = {
-        name: nodeMatch[1],
-        type: nodeMatch[2],
-        parent: nodeMatch[3] ?? null,
-        properties: {},
-        script: null,
-      }
-
-      if (!node.parent && nodes.length === 0) {
-        rootNode = node.name
-        rootType = node.type
-      }
-
-      nodes.push(node)
-      continue
-    }
-
-    const resMatch = trimmed.match(/^\[(ext_resource|sub_resource)\s+(.+)\]$/)
-    if (resMatch) {
-      resources.push(trimmed)
-      continue
-    }
-
-    if (trimmed.startsWith('script') && nodes.length > 0) {
-      const scriptMatch = trimmed.match(/^script\s*=\s*(.+)$/)
-      if (scriptMatch) {
-        nodes[nodes.length - 1].script = scriptMatch[1]
-      }
-    }
+  if (nodes.length > 0) {
+    rootNode = nodes[0].name
+    rootType = nodes[0].type
   }
 
-  return { path: filePath, rootNode, rootType, nodeCount: nodes.length, nodes, resources }
+  return {
+    path: filePath,
+    rootNode,
+    rootType,
+    nodeCount: nodes.length,
+    nodes,
+    resources,
+  }
 }
 
 /**

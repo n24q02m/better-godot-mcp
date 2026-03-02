@@ -22,40 +22,28 @@ async function parseProjectGodot(projectPath: string): Promise<ProjectInfo> {
     )
   }
 
-  const content = await readFile(configPath, 'utf-8')
-  const lines = content.split('\n')
-
+  const settingsData = await parseProjectSettingsAsync(configPath)
   const info: ProjectInfo = { name: 'Unknown', configVersion: 5, mainScene: null, features: [], settings: {} }
-  let currentSection = ''
 
-  for (const line of lines) {
-    const trimmed = line.trim()
+  for (const [section, keys] of settingsData.sections.entries()) {
+    for (const [key, rawValue] of keys.entries()) {
+      const value = rawValue.replace(/^"(.*)"$/, '$1')
+      const fullKey = section ? `${section}/${key}` : key
+      info.settings[fullKey] = value
 
-    const sectionMatch = trimmed.match(/^\[(.+)\]$/)
-    if (sectionMatch) {
-      currentSection = sectionMatch[1]
-      continue
-    }
-
-    const kvMatch = trimmed.match(/^(\S+)\s*=\s*(.+)$/)
-    if (!kvMatch) continue
-
-    const [, key, rawValue] = kvMatch
-    const value = rawValue.replace(/^"(.*)"$/, '$1')
-
-    if (currentSection === '' || currentSection === 'application') {
-      if (key === 'config/name') info.name = value
-      if (key === 'run/main_scene') info.mainScene = value
-      if (key === 'config/features') {
-        const featMatch = rawValue.match(/PackedStringArray\((.+)\)/)
-        if (featMatch) {
-          info.features = featMatch[1].split(',').map((f) => f.trim().replace(/"/g, ''))
+      if (section === '' || section === 'application') {
+        if (key === 'config/name') info.name = value
+        if (key === 'run/main_scene') info.mainScene = value
+        if (key === 'config/features') {
+          const featMatch = rawValue.match(/PackedStringArray\((.+)\)/)
+          if (featMatch) {
+            info.features = featMatch[1].split(',').map((f) => f.trim().replace(/"/g, ''))
+          }
         }
       }
-    }
 
-    if (key === 'config_version') info.configVersion = Number.parseInt(value, 10)
-    info.settings[`${currentSection ? `${currentSection}/` : ''}${key}`] = value
+      if (key === 'config_version') info.configVersion = Number.parseInt(value, 10)
+    }
   }
 
   return info

@@ -58,7 +58,10 @@ describe('handleHelp', () => {
   describe('getDocsDir path resolution', () => {
     it('should find docs in the first candidate path', async () => {
       vi.mocked(existsSync).mockImplementation((path: import('node:fs').PathLike) => {
-        return path.toString() === join(process.cwd(), 'src', 'docs') || path.toString() === join(process.cwd(), 'src', 'docs', 'project.md')
+        return (
+          path.toString() === join(process.cwd(), 'src', 'docs') ||
+          path.toString() === join(process.cwd(), 'src', 'docs', 'project.md')
+        )
       })
       vi.mocked(readFileSync).mockReturnValue('# Found Documentation')
 
@@ -68,7 +71,10 @@ describe('handleHelp', () => {
 
     it('should find docs in the bundled CLI path', async () => {
       vi.mocked(existsSync).mockImplementation((path: import('node:fs').PathLike) => {
-        return path.toString() === join(import.meta.dirname, '..', '..', 'src', 'docs') || path.toString() === join(import.meta.dirname, '..', '..', 'src', 'docs', 'project.md')
+        return (
+          path.toString() === join(import.meta.dirname, '..', '..', 'src', 'docs') ||
+          path.toString() === join(import.meta.dirname, '..', '..', 'src', 'docs', 'project.md')
+        )
       })
       vi.mocked(readFileSync).mockReturnValue('# Found Documentation')
 
@@ -78,7 +84,11 @@ describe('handleHelp', () => {
 
     it('should find docs in the cwd src/docs path', async () => {
       vi.mocked(existsSync).mockImplementation((path: import('node:fs').PathLike) => {
-        return path.toString().endsWith(join('src', 'docs', 'project.md')) && !path.toString().includes('build') && !path.toString().includes('..')
+        return (
+          path.toString().endsWith(join('src', 'docs', 'project.md')) &&
+          !path.toString().includes('build') &&
+          !path.toString().includes('..')
+        )
       })
       vi.mocked(readFileSync).mockReturnValue('# Found Documentation')
 

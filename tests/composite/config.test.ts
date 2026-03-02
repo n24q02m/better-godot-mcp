@@ -2,16 +2,28 @@
  * Integration tests for Config tool
  */
 
-import { beforeEach, describe, expect, it } from 'vitest'
+import * as childProcess from 'node:child_process'
+import * as fsModule from 'node:fs'
+import * as pathModule from 'node:path'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { GodotConfig } from '../../src/godot/types.js'
 import { handleConfig } from '../../src/tools/composite/config.js'
 import { makeConfig } from '../fixtures.js'
+
+vi.mock('node:child_process')
+vi.mock('node:fs')
+vi.mock('node:path')
 
 describe('config', () => {
   let config: GodotConfig
 
   beforeEach(() => {
     config = makeConfig({ godotPath: '/usr/bin/godot', projectPath: '/tmp/proj' })
+    vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    vi.resetAllMocks()
   })
 
   // ==========================================
@@ -64,6 +76,13 @@ describe('config', () => {
   // set
   // ==========================================
   describe('set', () => {
+    beforeEach(() => {
+      // Setup default successful mocks
+      vi.mocked(fsModule.existsSync).mockReturnValue(true)
+      vi.mocked(childProcess.execFileSync).mockReturnValue('Godot Engine v4.4.stable.official')
+      vi.mocked(pathModule.join).mockImplementation((...args) => args.join('/'))
+    })
+
     it('should update project_path in config and return success', async () => {
       const result = await handleConfig('set', { key: 'project_path', value: '/new/project' }, config)
 
@@ -72,11 +91,53 @@ describe('config', () => {
       expect(config.projectPath).toBe('/new/project')
     })
 
+    it('should throw if project directory does not exist', async () => {
+      vi.mocked(fsModule.existsSync).mockImplementation((p) => p !== '/bad/project')
+
+      await expect(handleConfig('set', { key: 'project_path', value: '/bad/project' }, config)).rejects.toThrow(
+        'Invalid project path',
+      )
+    })
+
+    it('should throw if project.godot does not exist in directory', async () => {
+      vi.mocked(fsModule.existsSync).mockImplementation((p) => !String(p).includes('project.godot'))
+
+      await expect(handleConfig('set', { key: 'project_path', value: '/no/godot/file' }, config)).rejects.toThrow(
+        'Invalid project path',
+      )
+    })
+
     it('should update godot_path in config and return success', async () => {
       const result = await handleConfig('set', { key: 'godot_path', value: '/usr/local/bin/godot4' }, config)
 
       expect(result.content[0].text).toContain('Config updated')
       expect(config.godotPath).toBe('/usr/local/bin/godot4')
+    })
+
+    it('should throw if godot_path does not exist', async () => {
+      vi.mocked(fsModule.existsSync).mockReturnValue(false)
+
+      await expect(handleConfig('set', { key: 'godot_path', value: '/bad/godot' }, config)).rejects.toThrow(
+        'Invalid Godot path',
+      )
+    })
+
+    it('should throw if godot_path is not a valid godot executable (command injection attempt)', async () => {
+      vi.mocked(childProcess.execFileSync).mockReturnValue("sh: 0: can't access tty; job control turned off")
+
+      await expect(handleConfig('set', { key: 'godot_path', value: '/bin/sh' }, config)).rejects.toThrow(
+        'Invalid Godot path',
+      )
+    })
+
+    it('should throw if godot_path exec fails (e.g. permission denied or execution error)', async () => {
+      vi.mocked(childProcess.execFileSync).mockImplementation(() => {
+        throw new Error('EACCES')
+      })
+
+      await expect(handleConfig('set', { key: 'godot_path', value: '/etc/passwd' }, config)).rejects.toThrow(
+        'Invalid Godot path',
+      )
     })
 
     it('should store timeout in runtimeConfig and succeed', async () => {

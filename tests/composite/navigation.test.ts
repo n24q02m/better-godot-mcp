@@ -45,6 +45,30 @@ describe('navigation', () => {
       expect(content).toContain('NavigationRegion2D')
     })
 
+    it('should create region with custom parent', async () => {
+      createTmpScene(projectPath, 'nav.tscn', MINIMAL_TSCN)
+      await handleNavigation('create_region', { scene_path: 'nav.tscn', parent: 'MainNode' }, config)
+      const content = readFileSync(`${projectPath}/nav.tscn`, 'utf-8')
+      expect(content).toContain('parent="MainNode"')
+    })
+
+    it('should use absolute scene_path directly when project_path is not configured', async () => {
+      createTmpScene(projectPath, 'nav.tscn', MINIMAL_TSCN)
+      const absolutePath = `${projectPath}/nav.tscn`
+      const emptyConfig = { projectPath: '' }
+      await handleNavigation('create_region', { scene_path: absolutePath }, emptyConfig)
+      const content = readFileSync(absolutePath, 'utf-8')
+      expect(content).toContain('NavigationRegion3D')
+    })
+
+    it('should handle absolute scene_path gracefully', async () => {
+      createTmpScene(projectPath, 'nav.tscn', MINIMAL_TSCN)
+      const absolutePath = `${projectPath}/nav.tscn`
+      await handleNavigation('create_region', { scene_path: absolutePath }, config)
+      const content = readFileSync(absolutePath, 'utf-8')
+      expect(content).toContain('NavigationRegion3D')
+    })
+
     it('should use custom name when provided', async () => {
       createTmpScene(projectPath, 'nav.tscn', MINIMAL_TSCN)
 
@@ -52,6 +76,18 @@ describe('navigation', () => {
 
       const content = readFileSync(`${projectPath}/nav.tscn`, 'utf-8')
       expect(content).toContain('"MyRegion"')
+    })
+
+    it('should add path_desired_distance and target_desired_distance when provided', async () => {
+      createTmpScene(projectPath, 'nav.tscn', MINIMAL_TSCN)
+      await handleNavigation(
+        'add_agent',
+        { scene_path: 'nav.tscn', path_desired_distance: 1.5, target_desired_distance: 2.5 },
+        config,
+      )
+      const content = readFileSync(`${projectPath}/nav.tscn`, 'utf-8')
+      expect(content).toContain('path_desired_distance = 1.5')
+      expect(content).toContain('target_desired_distance = 2.5')
     })
 
     it('should throw if no scene_path provided', async () => {
@@ -124,6 +160,13 @@ describe('navigation', () => {
 
       const content = readFileSync(`${projectPath}/nav.tscn`, 'utf-8')
       expect(content).toContain('NavigationObstacle2D')
+    })
+
+    it('should add radius when provided', async () => {
+      createTmpScene(projectPath, 'nav.tscn', MINIMAL_TSCN)
+      await handleNavigation('add_obstacle', { scene_path: 'nav.tscn', radius: 1.2 }, config)
+      const content = readFileSync(`${projectPath}/nav.tscn`, 'utf-8')
+      expect(content).toContain('radius = 1.2')
     })
 
     it('should add avoidance_enabled when set to true', async () => {

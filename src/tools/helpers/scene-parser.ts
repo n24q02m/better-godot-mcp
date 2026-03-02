@@ -255,37 +255,60 @@ export function getNodePath(_scene: ParsedScene, node: SceneNodeInfo): string {
  * Remove a node from scene content by name
  */
 export function removeNodeFromContent(content: string, nodeName: string): string {
-  const lines = content.split('\n')
   const result: string[] = []
   let skipping = false
 
-  for (const line of lines) {
-    const trimmed = line.trim()
+  let startIndex = 0
+  const len = content.length
 
-    if (trimmed.startsWith('[node') && trimmed.includes(`name="${nodeName}"`)) {
-      skipping = true
-      continue
+  const nodeSearchStr = `name="${nodeName}"`
+  const fromSearchStr = `from="${nodeName}"`
+  const toSearchStr = `to="${nodeName}"`
+
+  while (startIndex <= len) {
+    let endIndex = content.indexOf('\n', startIndex)
+    if (endIndex === -1) endIndex = len
+
+    let start = startIndex
+    while (start < endIndex && content.charCodeAt(start) <= 32) start++
+    let end = endIndex
+    while (end > start && content.charCodeAt(end - 1) <= 32) end--
+
+    if (start < end) {
+      if (content.charCodeAt(start) === 91) {
+        // '['
+        const lineTrimmed = content.slice(start, end)
+        if (lineTrimmed.startsWith('[node')) {
+          if (lineTrimmed.includes(nodeSearchStr)) {
+            skipping = true
+          } else {
+            skipping = false
+            result.push(content.slice(startIndex, endIndex))
+          }
+        } else if (lineTrimmed.startsWith('[connection')) {
+          skipping = false
+          if (!lineTrimmed.includes(fromSearchStr) && !lineTrimmed.includes(toSearchStr)) {
+            result.push(content.slice(startIndex, endIndex))
+          }
+        } else {
+          skipping = false
+          result.push(content.slice(startIndex, endIndex))
+        }
+      } else {
+        if (!skipping) {
+          result.push(content.slice(startIndex, endIndex))
+        }
+      }
+    } else {
+      if (!skipping) {
+        result.push(content.slice(startIndex, endIndex))
+      }
     }
 
-    if (skipping && trimmed.startsWith('[')) {
-      skipping = false
-    }
-
-    if (!skipping) {
-      result.push(line)
-    }
+    startIndex = endIndex + 1
   }
 
-  // Also remove connections referencing this node
-  return result
-    .filter((line) => {
-      const trimmed = line.trim()
-      if (trimmed.startsWith('[connection')) {
-        return !trimmed.includes(`from="${nodeName}"`) && !trimmed.includes(`to="${nodeName}"`)
-      }
-      return true
-    })
-    .join('\n')
+  return result.join('\n')
 }
 
 /**
@@ -318,40 +341,58 @@ export function renameNodeInContent(content: string, oldName: string, newName: s
  * Set a property on a node in scene content
  */
 export function setNodePropertyInContent(content: string, nodeName: string, property: string, value: string): string {
-  const lines = content.split('\n')
   const result: string[] = []
   let inTargetNode = false
   let propertySet = false
 
-  for (let i = 0; i < lines.length; i++) {
-    const trimmed = lines[i].trim()
+  let startIndex = 0
+  const len = content.length
 
-    if (trimmed.startsWith('[node') && trimmed.includes(`name="${nodeName}"`)) {
-      inTargetNode = true
-      result.push(lines[i])
-      continue
-    }
+  const nodeSearchStr = `name="${nodeName}"`
+  const propSearchStr = `${property} `
 
-    if (inTargetNode && trimmed.startsWith('[')) {
-      // Entering new section - add property if not yet set
-      if (!propertySet) {
-        result.push(`${property} = ${value}`)
-        propertySet = true
+  while (startIndex <= len) {
+    let endIndex = content.indexOf('\n', startIndex)
+    if (endIndex === -1) endIndex = len
+
+    let start = startIndex
+    while (start < endIndex && content.charCodeAt(start) <= 32) start++
+    let end = endIndex
+    while (end > start && content.charCodeAt(end - 1) <= 32) end--
+
+    if (start < end) {
+      if (content.charCodeAt(start) === 91) {
+        // '['
+        const lineTrimmed = content.slice(start, end)
+        if (inTargetNode) {
+          if (!propertySet) {
+            result.push(`${property} = ${value}`)
+            propertySet = true
+          }
+          inTargetNode = false
+        }
+
+        if (lineTrimmed.startsWith('[node') && lineTrimmed.includes(nodeSearchStr)) {
+          inTargetNode = true
+        }
+        result.push(content.slice(startIndex, endIndex))
+      } else {
+        if (inTargetNode && content.slice(start, end).startsWith(propSearchStr)) {
+          result.push(`${property} = ${value}`)
+          propertySet = true
+        } else {
+          result.push(content.slice(startIndex, endIndex))
+        }
       }
-      inTargetNode = false
+    } else {
+      // Empty line
+      // If we are at the end of the file, we shouldn't push an empty string if it's the very last line
+      result.push(content.slice(startIndex, endIndex))
     }
 
-    if (inTargetNode && trimmed.startsWith(`${property} `)) {
-      // Replace existing property
-      result.push(`${property} = ${value}`)
-      propertySet = true
-      continue
-    }
-
-    result.push(lines[i])
+    startIndex = endIndex + 1
   }
 
-  // If node was last section and property wasn't set
   if (inTargetNode && !propertySet) {
     result.push(`${property} = ${value}`)
   }

@@ -17,6 +17,7 @@ import { readFile } from 'node:fs/promises'
 import { basename, dirname, extname, join, relative, resolve } from 'node:path'
 import type { GodotConfig, SceneInfo, SceneNode } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
+import { safeResolve } from '../helpers/paths.js'
 import { setSettingInContent } from '../helpers/project-settings.js'
 
 /**
@@ -106,8 +107,8 @@ function validateSceneArgs(action: string, args: Record<string, unknown>, config
   const scenePath = args.scene_path as string
   const newPath = args.new_path as string
 
-  // project_path required
-  if (['create', 'list', 'set_main'].includes(action) && !projectPath) {
+  // project_path required for all actions to ensure path security
+  if (!projectPath) {
     throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path argument.')
   }
 
@@ -137,7 +138,14 @@ function validateSceneArgs(action: string, args: Record<string, unknown>, config
 }
 
 function resolvePath(base: string | undefined, relative: string): string {
-  return base ? resolve(base, relative) : resolve(relative)
+  if (!base) {
+    throw new GodotMCPError(
+      'No project path specified',
+      'INVALID_ARGS',
+      'Provide project_path argument to resolve paths securely.',
+    )
+  }
+  return safeResolve(base, relative)
 }
 
 export async function handleScenes(action: string, args: Record<string, unknown>, config: GodotConfig) {
@@ -149,7 +157,7 @@ export async function handleScenes(action: string, args: Record<string, unknown>
       const rootType = (args.root_type as string) || 'Node2D'
       const rootName = (args.root_name as string) || basename(scenePath, '.tscn')
 
-      const fullPath = resolve(projectPath as string, scenePath)
+      const fullPath = safeResolve(projectPath as string, scenePath)
       if (existsSync(fullPath)) {
         throw new GodotMCPError(
           `Scene already exists: ${scenePath}`,

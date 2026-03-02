@@ -151,6 +151,32 @@ describe('scenes', () => {
       expect(data.nodeCount).toBeGreaterThan(0)
     })
 
+    it('should prevent path traversal outside project root', async () => {
+      await expect(
+        handleScenes(
+          'info',
+          {
+            project_path: projectPath,
+            scene_path: '../../../etc/passwd',
+          },
+          config,
+        ),
+      ).rejects.toThrow('Access denied')
+    })
+
+    it('should prevent absolute paths outside project root', async () => {
+      await expect(
+        handleScenes(
+          'info',
+          {
+            project_path: projectPath,
+            scene_path: '/etc/passwd',
+          },
+          config,
+        ),
+      ).rejects.toThrow('Access denied')
+    })
+
     it('should throw for missing scene', async () => {
       await expect(
         handleScenes(

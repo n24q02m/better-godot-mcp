@@ -34,9 +34,9 @@ type TopicName = (typeof VALID_TOPICS)[number]
  */
 function getDocsDir(): string {
   const candidates = [
-    join(import.meta.dirname || '', '..', '..', 'docs'),
+    join(import.meta.dirname, '..', '..', 'docs'),
     // Bundled CLI at bin/cli.mjs -> ../src/docs/
-    join(import.meta.dirname || '', '..', 'src', 'docs'),
+    join(import.meta.dirname, '..', 'src', 'docs'),
     join(process.cwd(), 'src', 'docs'),
     join(process.cwd(), 'build', 'src', 'docs'),
   ]

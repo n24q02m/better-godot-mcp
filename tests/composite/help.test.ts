@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { handleHelp } from '../../src/tools/composite/help.js'
 import { GodotMCPError } from '../../src/tools/helpers/errors.js'
@@ -52,5 +53,47 @@ describe('handleHelp', () => {
     const result = await handleHelp('project', {})
 
     expect(result.content[0].text).toContain('No documentation available for: project')
+  })
+
+  describe('getDocsDir path resolution', () => {
+    it('should find docs in the first candidate path', async () => {
+      vi.mocked(existsSync).mockImplementation((path: import('node:fs').PathLike) => {
+        return path.toString() === join(process.cwd(), 'src', 'docs') || path.toString() === join(process.cwd(), 'src', 'docs', 'project.md')
+      })
+      vi.mocked(readFileSync).mockReturnValue('# Found Documentation')
+
+      const result = await handleHelp('project', {})
+      expect(result.content[0].text).toContain('# Found Documentation')
+    })
+
+    it('should find docs in the bundled CLI path', async () => {
+      vi.mocked(existsSync).mockImplementation((path: import('node:fs').PathLike) => {
+        return path.toString() === join(import.meta.dirname, '..', '..', 'src', 'docs') || path.toString() === join(import.meta.dirname, '..', '..', 'src', 'docs', 'project.md')
+      })
+      vi.mocked(readFileSync).mockReturnValue('# Found Documentation')
+
+      const result = await handleHelp('project', {})
+      expect(result.content[0].text).toContain('# Found Documentation')
+    })
+
+    it('should find docs in the cwd src/docs path', async () => {
+      vi.mocked(existsSync).mockImplementation((path: import('node:fs').PathLike) => {
+        return path.toString().endsWith(join('src', 'docs', 'project.md')) && !path.toString().includes('build') && !path.toString().includes('..')
+      })
+      vi.mocked(readFileSync).mockReturnValue('# Found Documentation')
+
+      const result = await handleHelp('project', {})
+      expect(result.content[0].text).toContain('# Found Documentation')
+    })
+
+    it('should find docs in the build/src/docs path', async () => {
+      vi.mocked(existsSync).mockImplementation((path: import('node:fs').PathLike) => {
+        return path.toString().includes(join('build', 'src', 'docs'))
+      })
+      vi.mocked(readFileSync).mockReturnValue('# Found Documentation')
+
+      const result = await handleHelp('project', {})
+      expect(result.content[0].text).toContain('# Found Documentation')
+    })
   })
 })

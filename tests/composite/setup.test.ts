@@ -97,6 +97,42 @@ describe('setup', () => {
       expect(data.project.valid).toBe(true)
     })
 
+    it('should return valid project but missing godot', async () => {
+      // Mock failure detection
+      vi.mocked(detectGodot).mockReturnValue(null)
+
+      const result = await handleSetup('check', {}, { ...config, projectPath: tmpProject.projectPath })
+      const data = JSON.parse(result.content[0].text)
+
+      expect(data.godot.found).toBe(false)
+      expect(data.project.path).toBe(tmpProject.projectPath)
+      expect(data.project.valid).toBe(true)
+    })
+
+    it('should return invalid project but found godot', async () => {
+      // Mock successful detection
+      vi.mocked(detectGodot).mockReturnValue({
+        path: '/opt/godot/godot',
+        version: {
+          major: 4,
+          minor: 3,
+          patch: 0,
+          label: 'stable',
+          raw: '4.3.stable',
+        },
+        source: 'env',
+      })
+
+      const invalidPath = join(tmpProject.projectPath, 'nonexistent')
+      const result = await handleSetup('check', {}, { ...config, projectPath: invalidPath })
+      const data = JSON.parse(result.content[0].text)
+
+      expect(data.godot.found).toBe(true)
+      expect(data.godot.path).toBe('/opt/godot/godot')
+      expect(data.project.path).toBe(invalidPath)
+      expect(data.project.valid).toBe(false)
+    })
+
     it('should return invalid project and missing godot', async () => {
       // Mock failure detection
       vi.mocked(detectGodot).mockReturnValue(null)

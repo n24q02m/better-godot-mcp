@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { GodotConfig } from '../../src/godot/types.js'
@@ -35,7 +35,6 @@ describe('audio', () => {
       const layoutPath = join(projectPath, 'default_bus_layout.tres')
       const content = SAMPLE_BUS_LAYOUT
       // Write content manually since we don't have a helper for it, or use node:fs
-      const { writeFileSync } = await import('node:fs')
       writeFileSync(layoutPath, content, 'utf-8')
 
       const result = await handleAudio('list_buses', { project_path: projectPath }, config)
@@ -170,6 +169,29 @@ describe('audio', () => {
           config,
         ),
       ).rejects.toThrow('bus_name and effect_type required')
+    })
+
+    it('should append sub_resource if [resource] tag is missing', async () => {
+      // Create a broken layout file missing the [resource] section
+      const layoutPath = join(projectPath, 'default_bus_layout.tres')
+      const brokenContent = 'bus/0/name = "Master"\nbus/0/solo = false'
+      writeFileSync(layoutPath, brokenContent, 'utf-8')
+
+      const result = await handleAudio(
+        'add_effect',
+        {
+          project_path: projectPath,
+          bus_name: 'Master',
+          effect_type: 'Reverb',
+        },
+        config,
+      )
+
+      expect(result.content[0].text).toContain('Added AudioEffectReverb to bus "Master"')
+
+      const readContent = readFileSync(layoutPath, 'utf-8')
+      expect(readContent).toContain('[sub_resource type="AudioEffectReverb"')
+      expect(readContent).toContain('effect/0/effect = SubResource(')
     })
   })
 

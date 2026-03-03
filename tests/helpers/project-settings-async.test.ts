@@ -2,10 +2,14 @@ import * as fsPromises from 'node:fs/promises'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { parseProjectSettingsAsync, writeProjectSettingsAsync } from '../../src/tools/helpers/project-settings.js'
 
-vi.mock('node:fs/promises', () => ({
-  readFile: vi.fn(),
-  writeFile: vi.fn(),
-}))
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>()
+  return {
+    ...actual,
+    readFile: vi.fn(),
+    writeFile: vi.fn(),
+  }
+})
 
 describe('project-settings async', () => {
   beforeEach(() => {

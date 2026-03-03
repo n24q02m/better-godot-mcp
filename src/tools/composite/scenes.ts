@@ -3,16 +3,7 @@
  * Actions: create | list | info | delete | duplicate | set_main
  */
 
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  statSync,
-  unlinkSync,
-  writeFileSync,
-} from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { basename, dirname, extname, join, relative, resolve } from 'node:path'
 import type { GodotConfig, SceneInfo, SceneNode } from '../../godot/types.js'
@@ -77,16 +68,15 @@ function findSceneFiles(dir: string): string[] {
   const results: string[] = []
 
   try {
-    const entries = readdirSync(dir)
+    const entries = readdirSync(dir, { withFileTypes: true })
     for (const entry of entries) {
-      if (entry.startsWith('.') || entry === 'node_modules' || entry === 'build') continue
+      if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === 'build') continue
 
-      const fullPath = join(dir, entry)
-      const stat = statSync(fullPath)
+      const fullPath = join(dir, entry.name)
 
-      if (stat.isDirectory()) {
+      if (entry.isDirectory()) {
         results.push(...findSceneFiles(fullPath))
-      } else if (extname(entry) === '.tscn') {
+      } else if (extname(entry.name) === '.tscn') {
         results.push(fullPath)
       }
     }

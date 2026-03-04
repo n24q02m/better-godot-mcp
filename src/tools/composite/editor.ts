@@ -3,14 +3,14 @@
  * Actions: launch | status
  */
 
-import { exec } from 'node:child_process'
+import { execFile } from 'node:child_process'
 import { resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { launchGodotEditor } from '../../godot/headless.js'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
 
-const execAsync = promisify(exec)
+const execAsync = promisify(execFile)
 
 /**
  * Check if any Godot processes are running
@@ -18,7 +18,7 @@ const execAsync = promisify(exec)
 async function getGodotProcessesAsync(): Promise<Array<{ pid: string; name: string }>> {
   try {
     if (process.platform === 'win32') {
-      const { stdout } = await execAsync('tasklist /FI "IMAGENAME eq godot*" /FO CSV /NH', {
+      const { stdout } = await execAsync('tasklist', ['/FI', 'IMAGENAME eq godot*', '/FO', 'CSV', '/NH'], {
         encoding: 'utf-8',
       })
       return stdout
@@ -30,7 +30,7 @@ async function getGodotProcessesAsync(): Promise<Array<{ pid: string; name: stri
         })
     }
 
-    const { stdout } = await execAsync('pgrep -la godot', {
+    const { stdout } = await execAsync('pgrep', ['-la', 'godot'], {
       encoding: 'utf-8',
     })
     return stdout

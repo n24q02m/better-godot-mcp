@@ -37,14 +37,17 @@ function findResourceFiles(dir: string, extensions?: Set<string>): ResourceEntry
   const exts = extensions || RESOURCE_EXTENSIONS
   const results: ResourceEntry[] = []
   try {
-    const entries = readdirSync(dir)
+    // Optimization: Use withFileTypes to get fs.Dirent objects, bypassing expensive statSync calls
+    // Note: We still need statSync for the file size of matching resources, but we avoid it for directories
+    // and non-matching files, which is a significant performance gain during deep traversal.
+    const entries = readdirSync(dir, { withFileTypes: true })
     for (const entry of entries) {
-      if (entry.startsWith('.') || entry === 'node_modules' || entry === 'build') continue
-      const fullPath = join(dir, entry)
-      const stat = statSync(fullPath)
-      if (stat.isDirectory()) {
+      if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === 'build') continue
+      const fullPath = join(dir, entry.name)
+      if (entry.isDirectory()) {
         results.push(...findResourceFiles(fullPath, exts))
-      } else if (exts.has(extname(entry).toLowerCase())) {
+      } else if (exts.has(extname(entry.name).toLowerCase())) {
+        const stat = statSync(fullPath)
         results.push({ path: fullPath, size: stat.size })
       }
     }

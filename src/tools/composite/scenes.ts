@@ -3,20 +3,12 @@
  * Actions: create | list | info | delete | duplicate | set_main
  */
 
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  statSync,
-  unlinkSync,
-  writeFileSync,
-} from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { basename, dirname, extname, join, relative, resolve } from 'node:path'
 import type { GodotConfig, SceneInfo, SceneNode } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
+import { safeResolve } from '../helpers/paths.js'
 import { setSettingInContent } from '../helpers/project-settings.js'
 
 /**
@@ -73,21 +65,16 @@ async function parseTscnFile(filePath: string): Promise<SceneInfo> {
 /**
  * Recursively find all .tscn files in a directory
  */
-function findSceneFiles(dir: string): string[] {
-  const results: string[] = []
-
+function findSceneFiles(dir: string, results: string[] = []): string[] {
   try {
-    const entries = readdirSync(dir)
+    const entries = readdirSync(dir, { withFileTypes: true })
     for (const entry of entries) {
-      if (entry.startsWith('.') || entry === 'node_modules' || entry === 'build') continue
+      if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === 'build') continue
 
-      const fullPath = join(dir, entry)
-      const stat = statSync(fullPath)
-
-      if (stat.isDirectory()) {
-        results.push(...findSceneFiles(fullPath))
-      } else if (extname(entry) === '.tscn') {
-        results.push(fullPath)
+      if (entry.isDirectory()) {
+        findSceneFiles(join(dir, entry.name), results)
+      } else if (extname(entry.name) === '.tscn') {
+        results.push(join(dir, entry.name))
       }
     }
   } catch {
@@ -136,8 +123,9 @@ function validateSceneArgs(action: string, args: Record<string, unknown>, config
   return { projectPath, scenePath, newPath }
 }
 
-function resolvePath(base: string | undefined, relative: string): string {
-  return base ? resolve(base, relative) : resolve(relative)
+function resolvePath(base: string | undefined, relativePath: string): string {
+  if (base) return safeResolve(base, relativePath)
+  return resolve(relativePath)
 }
 
 export async function handleScenes(action: string, args: Record<string, unknown>, config: GodotConfig) {

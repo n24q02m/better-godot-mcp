@@ -102,6 +102,29 @@ describe('config', () => {
     it('should throw when value is undefined', async () => {
       await expect(handleConfig('set', { key: 'project_path' }, config)).rejects.toThrow('No value specified')
     })
+
+    it('should reject project_path with shell metacharacters', async () => {
+      await expect(handleConfig('set', { key: 'project_path', value: '/tmp/proj; rm -rf /' }, config)).rejects.toThrow(
+        'Invalid characters',
+      )
+    })
+
+    it('should reject godot_path with shell metacharacters', async () => {
+      await expect(handleConfig('set', { key: 'godot_path', value: '/usr/bin/godot && evil' }, config)).rejects.toThrow(
+        'Invalid characters',
+      )
+    })
+
+    it('should reject paths with backtick injection', async () => {
+      await expect(handleConfig('set', { key: 'godot_path', value: '/usr/bin/`whoami`' }, config)).rejects.toThrow(
+        'Invalid characters',
+      )
+    })
+
+    it('should allow timeout with numeric value (no path validation)', async () => {
+      const result = await handleConfig('set', { key: 'timeout', value: '30000' }, config)
+      expect(result.content[0].text).toContain('Config updated')
+    })
   })
 
   // ==========================================

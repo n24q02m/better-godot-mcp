@@ -3,7 +3,7 @@
  * Actions: create | read | write | attach | list | delete
  */
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { dirname, extname, join, relative, resolve } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
@@ -99,15 +99,19 @@ function getTemplate(extendsType: string): string {
 
 function findScriptFiles(dir: string, results: string[] = []): string[] {
   try {
-    const entries = readdirSync(dir)
+    const entries = readdirSync(dir, { withFileTypes: true })
     for (const entry of entries) {
-      if (entry.startsWith('.') || entry === 'node_modules' || entry === 'build' || entry === 'addons') continue
-      const fullPath = join(dir, entry)
-      const stat = statSync(fullPath)
-      if (stat.isDirectory()) {
-        findScriptFiles(fullPath, results)
-      } else if (extname(entry) === '.gd') {
-        results.push(fullPath)
+      if (
+        entry.name.startsWith('.') ||
+        entry.name === 'node_modules' ||
+        entry.name === 'build' ||
+        entry.name === 'addons'
+      )
+        continue
+      if (entry.isDirectory()) {
+        findScriptFiles(join(dir, entry.name), results)
+      } else if (extname(entry.name) === '.gd') {
+        results.push(join(dir, entry.name))
       }
     }
   } catch {

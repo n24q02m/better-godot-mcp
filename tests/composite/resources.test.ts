@@ -179,6 +179,29 @@ describe('resources', () => {
     })
   })
 
+  // ==========================================
+  // path traversal prevention
+  // ==========================================
+  describe('path traversal', () => {
+    it('should reject info with path traversal', async () => {
+      await expect(
+        handleResources('info', { project_path: projectPath, resource_path: '../../../etc/passwd' }, config),
+      ).rejects.toThrow('Access denied')
+    })
+
+    it('should reject delete with path traversal', async () => {
+      await expect(
+        handleResources('delete', { project_path: projectPath, resource_path: '../../secret.tres' }, config),
+      ).rejects.toThrow('Access denied')
+    })
+
+    it('should reject import_config with path traversal', async () => {
+      await expect(
+        handleResources('import_config', { project_path: projectPath, resource_path: '../../../etc/passwd' }, config),
+      ).rejects.toThrow('Access denied')
+    })
+  })
+
   it('should throw for unknown action', async () => {
     await expect(handleResources('invalid', {}, config)).rejects.toThrow('Unknown action')
   })

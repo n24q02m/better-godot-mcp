@@ -263,6 +263,33 @@ describe('scenes', () => {
   })
 
   // ==========================================
+  // path traversal prevention
+  // ==========================================
+  describe('path traversal', () => {
+    it('should reject info with ../etc/passwd traversal', async () => {
+      await expect(
+        handleScenes('info', { project_path: projectPath, scene_path: '../../../etc/passwd' }, config),
+      ).rejects.toThrow('Access denied')
+    })
+
+    it('should reject delete with path traversal', async () => {
+      await expect(
+        handleScenes('delete', { project_path: projectPath, scene_path: '../../secret.tscn' }, config),
+      ).rejects.toThrow('Access denied')
+    })
+
+    it('should reject duplicate with source path traversal', async () => {
+      await expect(
+        handleScenes(
+          'duplicate',
+          { project_path: projectPath, scene_path: '../../../etc/passwd', new_path: 'copy.tscn' },
+          config,
+        ),
+      ).rejects.toThrow('Access denied')
+    })
+  })
+
+  // ==========================================
   // invalid action
   // ==========================================
   it('should throw for unknown action', async () => {

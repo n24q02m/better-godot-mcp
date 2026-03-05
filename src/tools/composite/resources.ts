@@ -7,11 +7,11 @@ import { existsSync, readdirSync, readFileSync, statSync, unlinkSync } from 'nod
 import { extname, join, relative, resolve } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
+import { safeResolve } from '../helpers/paths.js'
 
 const RESOURCE_EXTENSIONS = new Set([
   '.tres',
   '.res',
-  '.tscn',
   '.tscn',
   '.png',
   '.jpg',
@@ -33,19 +33,17 @@ interface ResourceEntry {
   size: number
 }
 
-function findResourceFiles(dir: string, extensions?: Set<string>): ResourceEntry[] {
+function findResourceFiles(dir: string, extensions?: Set<string>, results: ResourceEntry[] = []): ResourceEntry[] {
   const exts = extensions || RESOURCE_EXTENSIONS
-  const results: ResourceEntry[] = []
   try {
-    const entries = readdirSync(dir)
+    const entries = readdirSync(dir, { withFileTypes: true })
     for (const entry of entries) {
-      if (entry.startsWith('.') || entry === 'node_modules' || entry === 'build') continue
-      const fullPath = join(dir, entry)
-      const stat = statSync(fullPath)
-      if (stat.isDirectory()) {
-        results.push(...findResourceFiles(fullPath, exts))
-      } else if (exts.has(extname(entry).toLowerCase())) {
-        results.push({ path: fullPath, size: stat.size })
+      if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === 'build') continue
+      const fullPath = join(dir, entry.name)
+      if (entry.isDirectory()) {
+        findResourceFiles(fullPath, exts, results)
+      } else if (exts.has(extname(entry.name).toLowerCase())) {
+        results.push({ path: fullPath, size: statSync(fullPath).size })
       }
     }
   } catch {
@@ -88,7 +86,7 @@ export async function handleResources(action: string, args: Record<string, unkno
     case 'info': {
       const resPath = args.resource_path as string
       if (!resPath) throw new GodotMCPError('No resource_path specified', 'INVALID_ARGS', 'Provide resource_path.')
-      const fullPath = projectPath ? resolve(projectPath, resPath) : resolve(resPath)
+      const fullPath = projectPath ? safeResolve(projectPath, resPath) : resolve(resPath)
       if (!existsSync(fullPath))
         throw new GodotMCPError(`Resource not found: ${resPath}`, 'RESOURCE_ERROR', 'Check the file path.')
 
@@ -116,7 +114,7 @@ export async function handleResources(action: string, args: Record<string, unkno
     case 'delete': {
       const resPath = args.resource_path as string
       if (!resPath) throw new GodotMCPError('No resource_path specified', 'INVALID_ARGS', 'Provide resource_path.')
-      const fullPath = projectPath ? resolve(projectPath, resPath) : resolve(resPath)
+      const fullPath = projectPath ? safeResolve(projectPath, resPath) : resolve(resPath)
       if (!existsSync(fullPath))
         throw new GodotMCPError(`Resource not found: ${resPath}`, 'RESOURCE_ERROR', 'Check the file path.')
 
@@ -132,7 +130,7 @@ export async function handleResources(action: string, args: Record<string, unkno
       const resPath = args.resource_path as string
       if (!resPath) throw new GodotMCPError('No resource_path specified', 'INVALID_ARGS', 'Provide resource_path.')
 
-      const importPath = projectPath ? resolve(projectPath, `${resPath}.import`) : resolve(`${resPath}.import`)
+      const importPath = projectPath ? safeResolve(projectPath, `${resPath}.import`) : resolve(`${resPath}.import`)
 
       if (!existsSync(importPath)) {
         return formatJSON({ path: resPath, imported: false, message: 'No .import file found.' })

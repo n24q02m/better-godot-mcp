@@ -116,6 +116,7 @@ export function setSettingInContent(content: string, path: string, value: string
   const section = parts[0]
   const key = parts.slice(1).join('/')
   const sectionHeader = `[${section}]`
+
   const lines = content.split('\n')
   const result: string[] = []
   let inSection = false
@@ -123,27 +124,51 @@ export function setSettingInContent(content: string, path: string, value: string
   let sectionFound = false
 
   for (let i = 0; i < lines.length; i++) {
-    const trimmed = lines[i].trim()
+    const line = lines[i]
+    let start = 0
+    let end = line.length
+
+    if (line.charCodeAt(0) <= 32) {
+      while (start < end && line.charCodeAt(start) <= 32) start++
+    }
+    if (end > 0 && line.charCodeAt(end - 1) <= 32) {
+      while (end > start && line.charCodeAt(end - 1) <= 32) end--
+    }
+
+    if (start === end) {
+      result.push(line)
+      continue
+    }
+
+    const firstChar = line.charCodeAt(start)
 
     // Check for section header
-    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+    if (firstChar === 91 && line.charCodeAt(end - 1) === 93) {
+      // '[' and ']'
       if (inSection && !keySet) {
         // Add key before leaving section
         result.push(`${key}=${value}`)
         keySet = true
       }
-      inSection = trimmed === sectionHeader
-      if (inSection) sectionFound = true
+      // Check if this is the target section header
+      if (end - start === sectionHeader.length && line.startsWith(sectionHeader, start)) {
+        inSection = true
+        sectionFound = true
+      } else {
+        inSection = false
+      }
+      result.push(line)
+      continue
     }
 
     // Replace existing key in current section
-    if (inSection && trimmed.startsWith(`${key}=`)) {
+    if (inSection && !keySet && line.startsWith(`${key}=`, start)) {
       result.push(`${key}=${value}`)
       keySet = true
       continue
     }
 
-    result.push(lines[i])
+    result.push(line)
   }
 
   // Handle last section

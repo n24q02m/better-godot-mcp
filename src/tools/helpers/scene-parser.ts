@@ -255,84 +255,132 @@ export function getNodePath(_scene: ParsedScene, node: SceneNodeInfo): string {
  * Remove a node from scene content by name
  */
 export function removeNodeFromContent(content: string, nodeName: string): string {
+  const searchStr = `name="${nodeName}"`
+
+  if (!content.includes(searchStr)) return content
+
   const lines = content.split('\n')
   const result: string[] = []
   let skipping = false
 
-  for (const line of lines) {
-    const trimmed = line.trim()
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    let start = 0
+    let end = line.length
 
-    if (trimmed.startsWith('[node') && trimmed.includes(`name="${nodeName}"`)) {
-      skipping = true
+    if (line.charCodeAt(0) <= 32) {
+      while (start < end && line.charCodeAt(start) <= 32) start++
+    }
+    if (end > 0 && line.charCodeAt(end - 1) <= 32) {
+      while (end > start && line.charCodeAt(end - 1) <= 32) end--
+    }
+
+    if (start === end) {
+      if (!skipping) result.push(line)
       continue
     }
 
-    if (skipping && trimmed.startsWith('[')) {
-      skipping = false
+    const firstChar = line.charCodeAt(start)
+
+    if (firstChar === 91) {
+      // '['
+      if (line.startsWith('[node', start) && line.includes(searchStr, start)) {
+        skipping = true
+        continue
+      } else if (skipping) {
+        skipping = false
+      }
     }
 
     if (!skipping) {
-      result.push(line)
+      if (firstChar === 91 && line.startsWith('[connection', start)) {
+        if (!line.includes(`from="${nodeName}"`, start) && !line.includes(`to="${nodeName}"`, start)) {
+          result.push(line)
+        }
+      } else {
+        result.push(line)
+      }
     }
   }
 
-  // Also remove connections referencing this node
-  return result
-    .filter((line) => {
-      const trimmed = line.trim()
-      if (trimmed.startsWith('[connection')) {
-        return !trimmed.includes(`from="${nodeName}"`) && !trimmed.includes(`to="${nodeName}"`)
-      }
-      return true
-    })
-    .join('\n')
-}
-
-/**
- * Escape special characters in a string for use in a regular expression
- */
-function escapeRegExp(string: string): string {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return result.join('\n')
 }
 
 /**
  * Rename a node in scene content
  */
 export function renameNodeInContent(content: string, oldName: string, newName: string): string {
-  const escapedOldName = escapeRegExp(oldName)
+  // Fast path: if old name doesn't exist, return original
+  if (!content.includes(oldName)) return content
 
-  // Replace in node declarations
-  let result = content.replace(new RegExp(`name="${escapedOldName}"`, 'g'), `name="${newName}"`)
-  // Replace in parent references
-  result = result.replace(new RegExp(`parent="${escapedOldName}"`, 'g'), `parent="${newName}"`)
-  // Replace in parent paths containing the old name
-  result = result.replace(new RegExp(`parent="([^"]*/)${escapedOldName}(/[^"]*)"`, 'g'), `parent="$1${newName}$2"`)
-  result = result.replace(new RegExp(`parent="([^"]*/)${escapedOldName}"`, 'g'), `parent="$1${newName}"`)
-  // Replace in connection references
-  result = result.replace(new RegExp(`from="${escapedOldName}"`, 'g'), `from="${newName}"`)
-  result = result.replace(new RegExp(`to="${escapedOldName}"`, 'g'), `to="${newName}"`)
-  return result
+  // Combine regex replacements
+  return content.replace(/(name="|parent="|from="|to=")(.*?)"/g, (match, prefix, value) => {
+    if (prefix === 'name="' || prefix === 'from="' || prefix === 'to="') {
+      return value === oldName ? `${prefix}${newName}"` : match
+    }
+
+    if (prefix === 'parent="') {
+      if (value === oldName) return `parent="${newName}"`
+
+      if (value.includes(oldName)) {
+        const parts = value.split('/')
+        let changed = false
+        for (let i = 0; i < parts.length; i++) {
+          if (parts[i] === oldName) {
+            parts[i] = newName
+            changed = true
+          }
+        }
+        if (changed) {
+          return `parent="${parts.join('/')}"`
+        }
+      }
+    }
+
+    return match
+  })
 }
 
 /**
  * Set a property on a node in scene content
  */
 export function setNodePropertyInContent(content: string, nodeName: string, property: string, value: string): string {
+  const searchStr = `name="${nodeName}"`
+
+  if (!content.includes(searchStr)) return content
+
   const lines = content.split('\n')
   const result: string[] = []
   let inTargetNode = false
   let propertySet = false
 
   for (let i = 0; i < lines.length; i++) {
-    const trimmed = lines[i].trim()
+    const line = lines[i]
+    let start = 0
+    let end = line.length
 
-    if (trimmed.startsWith('[node') && trimmed.includes(`name="${nodeName}"`)) {
-      inTargetNode = true
-      result.push(lines[i])
+    if (line.charCodeAt(0) <= 32) {
+      while (start < end && line.charCodeAt(start) <= 32) start++
+    }
+    if (end > 0 && line.charCodeAt(end - 1) <= 32) {
+      while (end > start && line.charCodeAt(end - 1) <= 32) end--
+    }
+
+    if (start === end) {
+      result.push(line)
       continue
     }
 
-    if (inTargetNode && trimmed.startsWith('[')) {
+    const firstChar = line.charCodeAt(start)
+
+    if (firstChar === 91 && line.startsWith('[node', start) && line.includes(searchStr, start)) {
+      // '['
+      inTargetNode = true
+      result.push(line)
+      continue
+    }
+
+    if (inTargetNode && firstChar === 91) {
       // Entering new section - add property if not yet set
       if (!propertySet) {
         result.push(`${property} = ${value}`)
@@ -341,14 +389,14 @@ export function setNodePropertyInContent(content: string, nodeName: string, prop
       inTargetNode = false
     }
 
-    if (inTargetNode && trimmed.startsWith(`${property} `)) {
+    if (inTargetNode && line.startsWith(`${property} `, start)) {
       // Replace existing property
       result.push(`${property} = ${value}`)
       propertySet = true
       continue
     }
 
-    result.push(lines[i])
+    result.push(line)
   }
 
   // If node was last section and property wasn't set

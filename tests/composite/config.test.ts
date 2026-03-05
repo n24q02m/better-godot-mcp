@@ -121,6 +121,30 @@ describe('config', () => {
       )
     })
 
+    it('should reject paths with command substitution', async () => {
+      await expect(handleConfig('set', { key: 'godot_path', value: '/usr/bin/$(whoami)' }, config)).rejects.toThrow(
+        'Invalid characters',
+      )
+    })
+
+    it('should reject paths with quotes', async () => {
+      await expect(handleConfig('set', { key: 'godot_path', value: '/usr/bin/"malicious"' }, config)).rejects.toThrow(
+        'Invalid characters',
+      )
+    })
+
+    it('should reject paths with redirection', async () => {
+      await expect(handleConfig('set', { key: 'godot_path', value: '/usr/bin/godot > /tmp/out' }, config)).rejects.toThrow(
+        'Invalid characters',
+      )
+    })
+
+    it('should reject paths with newlines', async () => {
+      await expect(handleConfig('set', { key: 'godot_path', value: '/usr/bin/godot\nrm -rf /' }, config)).rejects.toThrow(
+        'Invalid characters',
+      )
+    })
+
     it('should allow timeout with numeric value (no path validation)', async () => {
       const result = await handleConfig('set', { key: 'timeout', value: '30000' }, config)
       expect(result.content[0].text).toContain('Config updated')

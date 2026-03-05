@@ -37,11 +37,11 @@ export async function handleConfig(action: string, args: Record<string, unknown>
       }
 
       // Validate paths don't contain shell metacharacters
-      if ((key === 'project_path' || key === 'godot_path') && /[;&|`$(){}]/.test(value)) {
+      if ((key === 'project_path' || key === 'godot_path') && /[;&|`$(){}<>'"\0\n\r]/.test(value)) {
         throw new GodotMCPError(
           `Invalid characters in ${key}`,
           'INVALID_ARGS',
-          'Path must not contain shell metacharacters: ; & | ` $ ( ) { }',
+          'Path must not contain shell metacharacters: ; & | ` $ ( ) { } < > \' " \\0 \\n \\r',
         )
       }
 

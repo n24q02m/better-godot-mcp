@@ -243,10 +243,8 @@ jobs:
           jq --arg v "$VERSION" '
             .version = $v |
             .packages = [.packages[] |
-              if .registryType == "oci" then
-                del(.version) | .identifier = (.identifier | sub(":[^:]+$"; ":" + $v))
-              else
-                .version = $v
+              if .registryType == "oci" then del(.version)
+              else .version = $v
               end
             ]
           ' server.json > server.json.tmp && mv server.json.tmp server.json

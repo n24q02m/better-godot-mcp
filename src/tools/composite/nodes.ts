@@ -4,7 +4,6 @@
  */
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import type { GodotConfig, SceneNode } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
@@ -39,7 +38,7 @@ function mapToSceneNode(node: SceneNodeInfo): SceneNode {
 }
 
 function resolveScenePath(projectPath: string | null | undefined, scenePath: string): string {
-  return projectPath ? safeResolve(projectPath, scenePath) : resolve(scenePath)
+  return safeResolve(projectPath || process.cwd(), scenePath)
 }
 
 export async function handleNodes(action: string, args: Record<string, unknown>, config: GodotConfig) {

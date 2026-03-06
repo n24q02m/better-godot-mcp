@@ -125,7 +125,7 @@ function validateSceneArgs(action: string, args: Record<string, unknown>, config
 
 function resolvePath(base: string | undefined, relativePath: string): string {
   if (base) return safeResolve(base, relativePath)
-  return resolve(relativePath)
+  return safeResolve(process.cwd(), relativePath)
 }
 
 export async function handleScenes(action: string, args: Record<string, unknown>, config: GodotConfig) {
@@ -137,7 +137,7 @@ export async function handleScenes(action: string, args: Record<string, unknown>
       const rootType = (args.root_type as string) || 'Node2D'
       const rootName = (args.root_name as string) || basename(scenePath, '.tscn')
 
-      const fullPath = resolve(projectPath as string, scenePath)
+      const fullPath = safeResolve(projectPath as string, scenePath)
       if (existsSync(fullPath)) {
         throw new GodotMCPError(
           `Scene already exists: ${scenePath}`,

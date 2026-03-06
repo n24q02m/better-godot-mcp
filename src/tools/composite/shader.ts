@@ -88,7 +88,7 @@ export async function handleShader(action: string, args: Record<string, unknown>
       const shaderType = (args.shader_type as string) || 'canvas_item'
       const content = (args.content as string) || SHADER_TEMPLATES[shaderType] || SHADER_TEMPLATES.canvas_item
 
-      const fullPath = projectPath ? safeResolve(projectPath, shaderPath) : resolve(shaderPath)
+      const fullPath = safeResolve(projectPath || process.cwd(), shaderPath)
 
       // Ensure directory exists
       await mkdir(dirname(fullPath), { recursive: true })
@@ -110,7 +110,7 @@ export async function handleShader(action: string, args: Record<string, unknown>
       const shaderPath = args.shader_path as string
       if (!shaderPath) throw new GodotMCPError('No shader_path specified', 'INVALID_ARGS', 'Provide shader_path.')
 
-      const fullPath = projectPath ? safeResolve(projectPath, shaderPath) : resolve(shaderPath)
+      const fullPath = safeResolve(projectPath || process.cwd(), shaderPath)
 
       try {
         const content = await readFile(fullPath, 'utf-8')
@@ -129,7 +129,7 @@ export async function handleShader(action: string, args: Record<string, unknown>
       const content = args.content as string
       if (!content) throw new GodotMCPError('No content specified', 'INVALID_ARGS', 'Provide shader content.')
 
-      const fullPath = projectPath ? safeResolve(projectPath, shaderPath) : resolve(shaderPath)
+      const fullPath = safeResolve(projectPath || process.cwd(), shaderPath)
       await mkdir(dirname(fullPath), { recursive: true })
       await writeFile(fullPath, content, 'utf-8')
       return formatSuccess(`Written: ${shaderPath} (${content.length} chars)`)
@@ -139,7 +139,7 @@ export async function handleShader(action: string, args: Record<string, unknown>
       const shaderPath = args.shader_path as string
       if (!shaderPath) throw new GodotMCPError('No shader_path specified', 'INVALID_ARGS', 'Provide shader_path.')
 
-      const fullPath = projectPath ? safeResolve(projectPath, shaderPath) : resolve(shaderPath)
+      const fullPath = safeResolve(projectPath || process.cwd(), shaderPath)
 
       try {
         const content = await readFile(fullPath, 'utf-8')

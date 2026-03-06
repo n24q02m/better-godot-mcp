@@ -4,7 +4,7 @@
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
+import { dirname } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
@@ -23,7 +23,7 @@ export async function handleTilemap(action: string, args: Record<string, unknown
         )
       const tileSize = (args.tile_size as number) || 16
 
-      const fullPath = projectPath ? safeResolve(projectPath, tilesetPath) : resolve(tilesetPath)
+      const fullPath = safeResolve(projectPath || process.cwd(), tilesetPath)
       if (existsSync(fullPath)) {
         throw new GodotMCPError(`TileSet already exists: ${tilesetPath}`, 'TILEMAP_ERROR', 'Use a different path.')
       }
@@ -49,7 +49,7 @@ export async function handleTilemap(action: string, args: Record<string, unknown
         throw new GodotMCPError('tileset_path and texture_path required', 'INVALID_ARGS', 'Both are required.')
       }
 
-      const fullPath = projectPath ? safeResolve(projectPath, tilesetPath) : resolve(tilesetPath)
+      const fullPath = safeResolve(projectPath || process.cwd(), tilesetPath)
       if (!existsSync(fullPath))
         throw new GodotMCPError(`TileSet not found: ${tilesetPath}`, 'TILEMAP_ERROR', 'Create the tileset first.')
 
@@ -92,7 +92,7 @@ export async function handleTilemap(action: string, args: Record<string, unknown
       const scenePath = args.scene_path as string
       if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
 
-      const fullPath = projectPath ? safeResolve(projectPath, scenePath) : resolve(scenePath)
+      const fullPath = safeResolve(projectPath || process.cwd(), scenePath)
       if (!existsSync(fullPath))
         throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
 

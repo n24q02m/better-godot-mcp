@@ -157,7 +157,7 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       const parent = (args.parent as string) || '.'
       const bus = (args.bus as string) || 'Master'
 
-      const fullPath = projectPath ? safeResolve(projectPath, scenePath) : resolve(scenePath)
+      const fullPath = safeResolve(projectPath || process.cwd(), scenePath)
       if (!existsSync(fullPath))
         throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check file path.')
 

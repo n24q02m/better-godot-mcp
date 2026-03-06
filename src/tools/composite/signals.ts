@@ -4,7 +4,6 @@
  */
 
 import { readFile, writeFile } from 'node:fs/promises'
-import { resolve } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
@@ -15,7 +14,7 @@ export async function handleSignals(action: string, args: Record<string, unknown
   const scenePath = args.scene_path as string
 
   if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
-  const fullPath = projectPath ? safeResolve(projectPath, scenePath) : resolve(scenePath)
+  const fullPath = safeResolve(projectPath || process.cwd(), scenePath)
 
   async function readScene() {
     try {

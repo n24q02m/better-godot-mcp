@@ -125,44 +125,28 @@ export function setSettingInContent(content: string, path: string, value: string
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
-    let start = 0
-    let end = line.length
+    const trimmed = line.trim()
 
-    if (line.charCodeAt(0) <= 32) {
-      while (start < end && line.charCodeAt(start) <= 32) start++
-    }
-    if (end > 0 && line.charCodeAt(end - 1) <= 32) {
-      while (end > start && line.charCodeAt(end - 1) <= 32) end--
-    }
-
-    if (start === end) {
+    if (trimmed === '') {
       result.push(line)
       continue
     }
 
-    const firstChar = line.charCodeAt(start)
-
     // Check for section header
-    if (firstChar === 91 && line.charCodeAt(end - 1) === 93) {
-      // '[' and ']'
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
       if (inSection && !keySet) {
         // Add key before leaving section
         result.push(`${key}=${value}`)
         keySet = true
       }
-      // Check if this is the target section header
-      if (end - start === sectionHeader.length && line.startsWith(sectionHeader, start)) {
-        inSection = true
-        sectionFound = true
-      } else {
-        inSection = false
-      }
+      inSection = trimmed === sectionHeader
+      if (inSection) sectionFound = true
       result.push(line)
       continue
     }
 
     // Replace existing key in current section
-    if (inSection && !keySet && line.startsWith(`${key}=`, start)) {
+    if (inSection && !keySet && trimmed.startsWith(`${key}=`)) {
       result.push(`${key}=${value}`)
       keySet = true
       continue

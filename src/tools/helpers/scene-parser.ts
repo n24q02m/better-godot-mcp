@@ -265,26 +265,15 @@ export function removeNodeFromContent(content: string, nodeName: string): string
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
-    let start = 0
-    let end = line.length
+    const trimmed = line.trim()
 
-    if (line.charCodeAt(0) <= 32) {
-      while (start < end && line.charCodeAt(start) <= 32) start++
-    }
-    if (end > 0 && line.charCodeAt(end - 1) <= 32) {
-      while (end > start && line.charCodeAt(end - 1) <= 32) end--
-    }
-
-    if (start === end) {
+    if (trimmed === '') {
       if (!skipping) result.push(line)
       continue
     }
 
-    const firstChar = line.charCodeAt(start)
-
-    if (firstChar === 91) {
-      // '['
-      if (line.startsWith('[node', start) && line.includes(searchStr, start)) {
+    if (trimmed.startsWith('[')) {
+      if (trimmed.startsWith('[node') && trimmed.includes(searchStr)) {
         skipping = true
         continue
       } else if (skipping) {
@@ -293,8 +282,8 @@ export function removeNodeFromContent(content: string, nodeName: string): string
     }
 
     if (!skipping) {
-      if (firstChar === 91 && line.startsWith('[connection', start)) {
-        if (!line.includes(`from="${nodeName}"`, start) && !line.includes(`to="${nodeName}"`, start)) {
+      if (trimmed.startsWith('[connection')) {
+        if (!trimmed.includes(`from="${nodeName}"`) && !trimmed.includes(`to="${nodeName}"`)) {
           result.push(line)
         }
       } else {
@@ -356,40 +345,31 @@ export function setNodePropertyInContent(content: string, nodeName: string, prop
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
-    let start = 0
-    let end = line.length
+    const trimmed = line.trim()
 
-    if (line.charCodeAt(0) <= 32) {
-      while (start < end && line.charCodeAt(start) <= 32) start++
-    }
-    if (end > 0 && line.charCodeAt(end - 1) <= 32) {
-      while (end > start && line.charCodeAt(end - 1) <= 32) end--
-    }
-
-    if (start === end) {
+    if (trimmed === '') {
       result.push(line)
       continue
     }
 
-    const firstChar = line.charCodeAt(start)
-
-    if (firstChar === 91 && line.startsWith('[node', start) && line.includes(searchStr, start)) {
-      // '['
-      inTargetNode = true
-      result.push(line)
-      continue
-    }
-
-    if (inTargetNode && firstChar === 91) {
-      // Entering new section - add property if not yet set
-      if (!propertySet) {
-        result.push(`${property} = ${value}`)
-        propertySet = true
+    if (trimmed.startsWith('[')) {
+      if (trimmed.startsWith('[node') && trimmed.includes(searchStr)) {
+        inTargetNode = true
+        result.push(line)
+        continue
       }
-      inTargetNode = false
+
+      if (inTargetNode) {
+        // Entering new section - add property if not yet set
+        if (!propertySet) {
+          result.push(`${property} = ${value}`)
+          propertySet = true
+        }
+        inTargetNode = false
+      }
     }
 
-    if (inTargetNode && line.startsWith(`${property} `, start)) {
+    if (inTargetNode && trimmed.startsWith(`${property} `)) {
       // Replace existing property
       result.push(`${property} = ${value}`)
       propertySet = true

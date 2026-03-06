@@ -30,22 +30,6 @@
           "name": "GODOT_PATH"
         }
       ]
-    },
-    {
-      "registryType": "oci",
-      "identifier": "docker.io/n24q02m/better-godot-mcp:latest",
-      "runtimeHint": "docker",
-      "transport": {
-        "type": "stdio"
-      },
-      "environmentVariables": [
-        {
-          "description": "Default Godot project path.",
-          "isRequired": false,
-          "isSecret": false,
-          "name": "GODOT_PROJECT_PATH"
-        }
-      ]
     }
   ]
 }

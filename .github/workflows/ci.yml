@@ -116,3 +116,4 @@ jobs:
           GITHUB_ACTION_CONFIG__AUTO_REVIEW: "true"
           GITHUB_ACTION_CONFIG__AUTO_DESCRIBE: "true"
           GITHUB_ACTION_CONFIG__AUTO_IMPROVE: "true"
+          GITHUB_ACTION_CONFIG__HANDLE_PR_ACTIONS: '["opened", "reopened", "ready_for_review", "synchronize"]'

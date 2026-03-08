@@ -3,7 +3,8 @@
  * Actions: create | read | write | attach | list | delete
  */
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
+import { readdir } from 'node:fs/promises'
 import { dirname, extname, join, relative, resolve } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
@@ -97,27 +98,28 @@ function getTemplate(extendsType: string): string {
   return SCRIPT_TEMPLATES[extendsType] || `extends ${extendsType}\n\n\nfunc _ready() -> void:\n\tpass\n`
 }
 
-function findScriptFiles(dir: string, results: string[] = []): string[] {
+async function findScriptFiles(dir: string): Promise<string[]> {
   try {
-    const entries = readdirSync(dir, { withFileTypes: true })
-    for (const entry of entries) {
-      if (
-        entry.name.startsWith('.') ||
-        entry.name === 'node_modules' ||
-        entry.name === 'build' ||
-        entry.name === 'addons'
-      )
-        continue
+    const entries = await readdir(dir, { withFileTypes: true })
+    const promises = entries.map(async (entry) => {
+      const name = entry.name
+      if (name.startsWith('.') || name === 'node_modules' || name === 'build' || name === 'addons') return []
+
+      const fullPath = join(dir, name)
       if (entry.isDirectory()) {
-        findScriptFiles(join(dir, entry.name), results)
-      } else if (extname(entry.name) === '.gd') {
-        results.push(join(dir, entry.name))
+        return findScriptFiles(fullPath)
+      } else if (extname(name) === '.gd') {
+        return [fullPath]
       }
-    }
+      return []
+    })
+
+    const nestedResults = await Promise.all(promises)
+    return nestedResults.flat()
   } catch {
     // Skip inaccessible
+    return []
   }
-  return results
 }
 
 export async function handleScripts(action: string, args: Record<string, unknown>, config: GodotConfig) {
@@ -227,7 +229,7 @@ export async function handleScripts(action: string, args: Record<string, unknown
         throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path argument.')
 
       const resolvedPath = resolve(projectPath)
-      const scripts = findScriptFiles(resolvedPath)
+      const scripts = await findScriptFiles(resolvedPath)
       const relativePaths = scripts.map((s) => relative(resolvedPath, s).replace(/\\/g, '/'))
 
       return formatJSON({ project: resolvedPath, count: relativePaths.length, scripts: relativePaths })

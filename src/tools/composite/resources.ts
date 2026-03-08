@@ -3,7 +3,8 @@
  * Actions: list | info | delete | import_config
  */
 
-import { existsSync, readdirSync, readFileSync, statSync, unlinkSync } from 'node:fs'
+import { existsSync, readFileSync, statSync, unlinkSync } from 'node:fs'
+import { readdir, stat } from 'node:fs/promises'
 import { extname, join, relative, resolve } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
@@ -33,23 +34,34 @@ interface ResourceEntry {
   size: number
 }
 
-function findResourceFiles(dir: string, extensions?: Set<string>, results: ResourceEntry[] = []): ResourceEntry[] {
+async function findResourceFiles(dir: string, extensions?: Set<string>): Promise<ResourceEntry[]> {
   const exts = extensions || RESOURCE_EXTENSIONS
   try {
-    const entries = readdirSync(dir, { withFileTypes: true })
-    for (const entry of entries) {
-      if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === 'build') continue
-      const fullPath = join(dir, entry.name)
+    const entries = await readdir(dir, { withFileTypes: true })
+    const promises = entries.map(async (entry) => {
+      const name = entry.name
+      if (name.startsWith('.') || name === 'node_modules' || name === 'build') return []
+
+      const fullPath = join(dir, name)
       if (entry.isDirectory()) {
-        findResourceFiles(fullPath, exts, results)
-      } else if (exts.has(extname(entry.name).toLowerCase())) {
-        results.push({ path: fullPath, size: statSync(fullPath).size })
+        return findResourceFiles(fullPath, exts)
+      } else if (exts.has(extname(name).toLowerCase())) {
+        try {
+          const fileStat = await stat(fullPath)
+          return [{ path: fullPath, size: fileStat.size }]
+        } catch {
+          return []
+        }
       }
-    }
+      return []
+    })
+
+    const results = await Promise.all(promises)
+    return results.flat()
   } catch {
     // Skip inaccessible
+    return []
   }
-  return results
 }
 
 export async function handleResources(action: string, args: Record<string, unknown>, config: GodotConfig) {
@@ -73,7 +85,7 @@ export async function handleResources(action: string, args: Record<string, unkno
         if (typeMap[filterType]) exts = new Set(typeMap[filterType])
       }
 
-      const resources = findResourceFiles(resolvedPath, exts)
+      const resources = await findResourceFiles(resolvedPath, exts)
       const relativePaths = resources.map((r) => ({
         path: relative(resolvedPath, r.path).replace(/\\/g, '/'),
         ext: extname(r.path),

@@ -36,6 +36,27 @@
       "description": "Pin GitHub Actions to SHA for security",
       "matchManagers": ["github-actions"],
       "pinDigests": true
+    },
+    {
+      "description": "Pin PSR to v10 — block Renovate downgrades",
+      "matchPackagePatterns": ["^python-semantic-release/"],
+      "matchManagers": ["github-actions"],
+      "allowedVersions": ">=10.0.0"
+    },
+    {
+      "description": "Disable Python runtime upgrades (pinned to 3.13)",
+      "matchPackageNames": ["python"],
+      "enabled": false
+    },
+    {
+      "description": "Disable Node.js runtime upgrades (pinned to 24)",
+      "matchPackageNames": ["node"],
+      "enabled": false
+    },
+    {
+      "description": "Disable Java runtime upgrades (pinned to 21 LTS)",
+      "matchPackageNames": ["java"],
+      "enabled": false
     }
   ]
 }

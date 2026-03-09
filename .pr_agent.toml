@@ -1,4 +1,3 @@
 [config]
 model = "gemini/gemini-3-flash-preview"
 fallback_models = ["gemini/gemini-2.5-flash"]
-ignore_pr_authors = ["n24q02m", "[bot]"]

@@ -255,6 +255,15 @@ export function getNodePath(_scene: ParsedScene, node: SceneNodeInfo): string {
  * Remove a node from scene content by name
  */
 export function removeNodeFromContent(content: string, nodeName: string): string {
+  // Fast-path: Skip allocations and processing if the node name is not in the content
+  if (
+    !content.includes(`name="${nodeName}"`) &&
+    !content.includes(`from="${nodeName}"`) &&
+    !content.includes(`to="${nodeName}"`)
+  ) {
+    return content
+  }
+
   const lines = content.split('\n')
   const result: string[] = []
   let skipping = false
@@ -299,6 +308,11 @@ function escapeRegExp(string: string): string {
  * Rename a node in scene content
  */
 export function renameNodeInContent(content: string, oldName: string, newName: string): string {
+  // Fast-path: Skip processing if the old name is not in the content
+  if (!content.includes(oldName)) {
+    return content
+  }
+
   const escapedOldName = escapeRegExp(oldName)
 
   // Replace in node declarations
@@ -318,6 +332,11 @@ export function renameNodeInContent(content: string, oldName: string, newName: s
  * Set a property on a node in scene content
  */
 export function setNodePropertyInContent(content: string, nodeName: string, property: string, value: string): string {
+  // Fast-path: Skip allocations and processing if the node name is not in the content
+  if (!content.includes(`name="${nodeName}"`)) {
+    return content
+  }
+
   const lines = content.split('\n')
   const result: string[] = []
   let inTargetNode = false

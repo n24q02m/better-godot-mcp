@@ -16,3 +16,6 @@ logs_*/
 .venv/
 temp/
 coverage/
+
+# AI Agent
+JULES.md

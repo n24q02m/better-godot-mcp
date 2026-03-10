@@ -3,12 +3,13 @@
  * Actions: create_control | set_theme | layout | list_controls
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
-import { parseScene } from '../helpers/scene-parser.js'
+import { parseSceneContent } from '../helpers/scene-parser.js'
 
 const CONTROL_TEMPLATES: Record<string, Record<string, string>> = {
   Button: { text: '"Click"' },
@@ -52,7 +53,7 @@ export async function handleUI(action: string, args: Record<string, unknown>, co
       if (!controlName) throw new GodotMCPError('No name specified', 'INVALID_ARGS', 'Provide control node name.')
 
       const fullPath = resolveScene(projectPath, scenePath)
-      let content = readFileSync(fullPath, 'utf-8')
+      let content = await readFile(fullPath, 'utf-8')
 
       const parentAttr = parent === '.' ? '' : ` parent="${parent}"`
       let nodeDecl = `\n[node name="${controlName}" type="${controlType}"${parentAttr}]\n`
@@ -74,7 +75,7 @@ export async function handleUI(action: string, args: Record<string, unknown>, co
       }
 
       content = `${content.trimEnd()}\n${nodeDecl}`
-      writeFileSync(fullPath, content, 'utf-8')
+      await writeFile(fullPath, content, 'utf-8')
 
       return formatSuccess(`Created UI control: ${controlName} (${controlType}) under ${parent}`)
     }
@@ -102,8 +103,8 @@ export async function handleUI(action: string, args: Record<string, unknown>, co
         '',
       ].join('\n')
 
-      mkdirSync(dirname(fullPath), { recursive: true })
-      writeFileSync(fullPath, content, 'utf-8')
+      await mkdir(dirname(fullPath), { recursive: true })
+      await writeFile(fullPath, content, 'utf-8')
 
       return formatSuccess(`Created theme: ${themePath} (font size: ${fontSize})`)
     }
@@ -116,7 +117,7 @@ export async function handleUI(action: string, args: Record<string, unknown>, co
       const preset = (args.preset as string) || 'full_rect'
 
       const fullPath = resolveScene(projectPath, scenePath)
-      let content = readFileSync(fullPath, 'utf-8')
+      let content = await readFile(fullPath, 'utf-8')
 
       const nodeRegex = new RegExp(`(\\[node name="${nodeName}"[^\\]]*\\])`)
       const match = content.match(nodeRegex)
@@ -158,7 +159,7 @@ export async function handleUI(action: string, args: Record<string, unknown>, co
         throw new GodotMCPError(`Node "${nodeName}" not found`, 'NODE_ERROR', 'Check node name.')
       const insertPoint = match.index + match[0].length
       content = `${content.slice(0, insertPoint)}${layoutProps}${content.slice(insertPoint)}`
-      writeFileSync(fullPath, content, 'utf-8')
+      await writeFile(fullPath, content, 'utf-8')
 
       return formatSuccess(`Set layout preset "${preset}" on ${nodeName}`)
     }
@@ -168,7 +169,8 @@ export async function handleUI(action: string, args: Record<string, unknown>, co
       if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
 
       const fullPath = resolveScene(projectPath, scenePath)
-      const scene = parseScene(fullPath)
+      const content = await readFile(fullPath, 'utf-8')
+      const scene = parseSceneContent(content)
 
       const controlTypes = new Set([
         'Control',

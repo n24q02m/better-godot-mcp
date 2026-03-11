@@ -68,6 +68,45 @@ describe('detector', () => {
       expect(v?.patch).toBe(1)
     })
 
+    it('should parse version with missing patch (major and minor only)', () => {
+      const v = parseGodotVersion('Godot v4.2')
+      expect(v).not.toBeNull()
+      expect(v?.major).toBe(4)
+      expect(v?.minor).toBe(2)
+      expect(v?.patch).toBe(0)
+    })
+
+    it('should parse version with dashes and unusual prefix', () => {
+      const v = parseGodotVersion('my-custom-build-v4.1.2-stable')
+      expect(v).not.toBeNull()
+      expect(v?.major).toBe(4)
+      expect(v?.minor).toBe(1)
+      expect(v?.patch).toBe(2)
+      expect(v?.label).toBe('stable')
+    })
+
+    it('should parse version without label', () => {
+      const v = parseGodotVersion('4.0.0')
+      expect(v).not.toBeNull()
+      expect(v?.major).toBe(4)
+      expect(v?.minor).toBe(0)
+      expect(v?.patch).toBe(0)
+      expect(v?.label).toBe('stable') // defaults to 'stable'
+    })
+
+    it('should handle unusual whitespace', () => {
+      const v = parseGodotVersion('  Godot Engine v4.3.0  \n')
+      expect(v).not.toBeNull()
+      expect(v?.major).toBe(4)
+      expect(v?.minor).toBe(3)
+      expect(v?.patch).toBe(0)
+      expect(v?.label).toBe('stable')
+    })
+
+    it('should return null for whitespace-only strings', () => {
+      expect(parseGodotVersion('   \n  \t  ')).toBeNull()
+    })
+
     it('should return null for invalid string', () => {
       expect(parseGodotVersion('not a version')).toBeNull()
     })

@@ -156,6 +156,27 @@ describe('godot-types', () => {
       expect(parseGodotValue('  42  ')).toBe(42)
     })
 
+    it('should return malformed Vector2 as-is', () => {
+      expect(parseGodotValue('Vector2(1)')).toBe('Vector2(1)')
+      expect(parseGodotValue('Vector2(1, a)')).toBe('Vector2(1, a)')
+    })
+
+    it('should return malformed Vector3 as-is', () => {
+      expect(parseGodotValue('Vector3(1, 2)')).toBe('Vector3(1, 2)')
+    })
+
+    it('should return malformed Color as-is', () => {
+      expect(parseGodotValue('Color(1)')).toBe('Color(1)')
+    })
+
+    it('should return malformed Rect2 as-is', () => {
+      expect(parseGodotValue('Rect2(1, 2, 3)')).toBe('Rect2(1, 2, 3)')
+    })
+
+    it('should return malformed dictionary/JSON as-is', () => {
+      expect(parseGodotValue('{"key": }')).toBe('{"key": }')
+    })
+
     it('should return unrecognized values as-is', () => {
       expect(parseGodotValue('SomeUnknownType()')).toBe('SomeUnknownType()')
     })

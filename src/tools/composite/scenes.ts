@@ -4,11 +4,11 @@
  */
 
 import { copyFileSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
-import { readdir, readFile } from 'node:fs/promises'
-import { basename, dirname, extname, join, relative, resolve } from 'node:path'
+import { readFile } from 'node:fs/promises'
+import { basename, dirname, join, relative, resolve } from 'node:path'
 import type { GodotConfig, SceneInfo, SceneNode } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
-import { safeResolve } from '../helpers/paths.js'
+import { findFiles, safeResolve } from '../helpers/paths.js'
 import { setSettingInContent } from '../helpers/project-settings.js'
 
 // Pre-compiled regex for parsing scene metadata without splitting lines
@@ -90,29 +90,6 @@ async function parseTscnFile(filePath: string): Promise<SceneInfo> {
 /**
  * Recursively find all .tscn files in a directory
  */
-async function findSceneFiles(dir: string): Promise<string[]> {
-  try {
-    const entries = await readdir(dir, { withFileTypes: true })
-    const promises = entries.map(async (entry) => {
-      const name = entry.name
-      if (name.startsWith('.') || name === 'node_modules' || name === 'build') return []
-
-      const fullPath = join(dir, name)
-      if (entry.isDirectory()) {
-        return findSceneFiles(fullPath)
-      } else if (extname(name) === '.tscn') {
-        return [fullPath]
-      }
-      return []
-    })
-
-    const nestedResults = await Promise.all(promises)
-    return nestedResults.flat()
-  } catch {
-    // Skip inaccessible directories
-    return []
-  }
-}
 
 function generateTscnContent(rootName: string, rootType: string): string {
   return [`[gd_scene format=3]`, '', `[node name="${rootName}" type="${rootType}"]`, ''].join('\n')
@@ -186,7 +163,7 @@ export async function handleScenes(action: string, args: Record<string, unknown>
     case 'list': {
       // projectPath is guaranteed
       const resolvedPath = resolve(projectPath as string)
-      const scenes = await findSceneFiles(resolvedPath)
+      const scenes = await findFiles(resolvedPath, ['.tscn'])
       const relativePaths = scenes.map((s) => relative(resolvedPath, s).replace(/\\/g, '/'))
 
       return formatJSON({

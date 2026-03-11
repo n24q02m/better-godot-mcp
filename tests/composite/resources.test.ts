@@ -200,6 +200,12 @@ describe('resources', () => {
         handleResources('import_config', { project_path: projectPath, resource_path: '../../../etc/passwd' }, config),
       ).rejects.toThrow('Access denied')
     })
+
+    it('should reject access outside project via project_path argument', async () => {
+      await expect(handleResources('info', { project_path: '/', resource_path: 'etc/passwd' }, config)).rejects.toThrow(
+        'Access denied',
+      )
+    })
   })
 
   it('should throw for unknown action', async () => {

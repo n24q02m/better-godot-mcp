@@ -86,6 +86,48 @@ describe('detector', () => {
       const v = parseGodotVersion('  4.6.stable  \n')
       expect(v?.raw).toBe('4.6.stable')
     })
+
+    it('should parse version with only major and minor', () => {
+      const v = parseGodotVersion('Godot v4.0')
+      expect(v).not.toBeNull()
+      expect(v?.major).toBe(4)
+      expect(v?.minor).toBe(0)
+      expect(v?.patch).toBe(0)
+    })
+
+    it('should parse version with just v prefix and numbers', () => {
+      const v = parseGodotVersion('v4.0')
+      expect(v).not.toBeNull()
+      expect(v?.major).toBe(4)
+      expect(v?.minor).toBe(0)
+      expect(v?.patch).toBe(0)
+    })
+
+    it('should parse simple version numbers without v', () => {
+      const v = parseGodotVersion('4.0')
+      expect(v).not.toBeNull()
+      expect(v?.major).toBe(4)
+      expect(v?.minor).toBe(0)
+      expect(v?.patch).toBe(0)
+    })
+
+    it('should return null for incomplete version lacking minor', () => {
+      expect(parseGodotVersion('4')).toBeNull()
+      expect(parseGodotVersion('v4')).toBeNull()
+    })
+
+    it('should handle complex filenames as versions', () => {
+      const v = parseGodotVersion('Godot_v4.3-stable_win64_console.exe')
+      expect(v).not.toBeNull()
+      expect(v?.major).toBe(4)
+      expect(v?.minor).toBe(3)
+      expect(v?.patch).toBe(0)
+      expect(v?.label).toBe('stable_win64_console.exe')
+    })
+
+    it('should return null for whitespace only', () => {
+      expect(parseGodotVersion('  \n\t  ')).toBeNull()
+    })
   })
 
   // ==========================================

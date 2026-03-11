@@ -79,8 +79,23 @@ export function parseProjectSettingsContent(content: string): ProjectSettings {
         while (valStart < end && content.charCodeAt(valStart) <= 32) valStart++
 
         const key = content.slice(start, keyEnd)
-        const value = content.slice(valStart, end)
 
+        // Handle multi-line block values starting with '{'
+        if (content.charCodeAt(valStart) === 123) {
+          // 123 is '{'
+          const blockEnd = content.indexOf('}', valStart)
+          if (blockEnd !== -1) {
+            const value = content.slice(valStart, blockEnd + 1)
+            sections.get(currentSection)?.set(key, value)
+
+            // Advance pos to the end of the block's line to prevent infinite loop
+            const afterBlockEnd = content.indexOf('\n', blockEnd)
+            pos = afterBlockEnd === -1 ? len : afterBlockEnd + 1
+            continue
+          }
+        }
+
+        const value = content.slice(valStart, end)
         sections.get(currentSection)?.set(key, value)
       }
     }

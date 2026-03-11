@@ -3,7 +3,8 @@
  * Actions: create_region | add_agent | add_obstacle
  */
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
+import { readFile, writeFile } from 'node:fs/promises'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatSuccess, GodotMCPError } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
@@ -34,12 +35,12 @@ export async function handleNavigation(action: string, args: Record<string, unkn
       const dimension = (args.dimension as string) || '3D'
 
       const fullPath = resolveScene(projectPath, scenePath)
-      let content = readFileSync(fullPath, 'utf-8')
+      let content = await readFile(fullPath, 'utf-8')
 
       const nodeType = dimension === '2D' ? 'NavigationRegion2D' : 'NavigationRegion3D'
       content = appendNode(content, regionName, nodeType, parent)
 
-      writeFileSync(fullPath, content, 'utf-8')
+      await writeFile(fullPath, content, 'utf-8')
       return formatSuccess(`Created navigation region: ${regionName} (${nodeType})`)
     }
 
@@ -51,7 +52,7 @@ export async function handleNavigation(action: string, args: Record<string, unkn
       const dimension = (args.dimension as string) || '3D'
 
       const fullPath = resolveScene(projectPath, scenePath)
-      let content = readFileSync(fullPath, 'utf-8')
+      let content = await readFile(fullPath, 'utf-8')
 
       const nodeType = dimension === '2D' ? 'NavigationAgent2D' : 'NavigationAgent3D'
       let extraProps = ''
@@ -62,7 +63,7 @@ export async function handleNavigation(action: string, args: Record<string, unkn
 
       content = appendNode(content, agentName, nodeType, parent, extraProps || undefined)
 
-      writeFileSync(fullPath, content, 'utf-8')
+      await writeFile(fullPath, content, 'utf-8')
       return formatSuccess(`Added navigation agent: ${agentName} (${nodeType})`)
     }
 
@@ -74,7 +75,7 @@ export async function handleNavigation(action: string, args: Record<string, unkn
       const dimension = (args.dimension as string) || '3D'
 
       const fullPath = resolveScene(projectPath, scenePath)
-      let content = readFileSync(fullPath, 'utf-8')
+      let content = await readFile(fullPath, 'utf-8')
 
       const nodeType = dimension === '2D' ? 'NavigationObstacle2D' : 'NavigationObstacle3D'
       let extraProps = ''
@@ -83,7 +84,7 @@ export async function handleNavigation(action: string, args: Record<string, unkn
 
       content = appendNode(content, obstacleName, nodeType, parent, extraProps || undefined)
 
-      writeFileSync(fullPath, content, 'utf-8')
+      await writeFile(fullPath, content, 'utf-8')
       return formatSuccess(`Added navigation obstacle: ${obstacleName} (${nodeType})`)
     }
 

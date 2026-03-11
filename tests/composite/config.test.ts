@@ -2,10 +2,17 @@
  * Integration tests for Config tool
  */
 
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { GodotConfig } from '../../src/godot/types.js'
 import { handleConfig } from '../../src/tools/composite/config.js'
 import { makeConfig } from '../fixtures.js'
+
+vi.mock('node:fs', () => ({
+  default: {
+    existsSync: vi.fn().mockReturnValue(true),
+    statSync: vi.fn().mockReturnValue({ isFile: () => true }),
+  },
+}))
 
 describe('config', () => {
   let config: GodotConfig

@@ -3,6 +3,7 @@
  * Actions: status | set
  */
 
+import fs from 'node:fs'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
 
@@ -22,7 +23,7 @@ export async function handleConfig(action: string, args: Record<string, unknown>
 
     case 'set': {
       const key = args.key as string
-      const value = args.value as string
+      const value = args.value
 
       if (!key) {
         throw new GodotMCPError('No key specified', 'INVALID_ARGS', 'Provide key to set (e.g., project_path).')
@@ -31,18 +32,50 @@ export async function handleConfig(action: string, args: Record<string, unknown>
         throw new GodotMCPError('No value specified', 'INVALID_ARGS', 'Provide value for the key.')
       }
 
+      if (typeof value !== 'string') {
+        throw new GodotMCPError('Invalid value type', 'INVALID_ARGS', 'Value must be a string.')
+      }
+
       const validKeys = ['project_path', 'godot_path', 'timeout']
       if (!validKeys.includes(key)) {
         throw new GodotMCPError(`Invalid config key: ${key}`, 'INVALID_ARGS', `Valid keys: ${validKeys.join(', ')}`)
       }
 
-      // Validate paths don't contain shell metacharacters
-      if ((key === 'project_path' || key === 'godot_path') && /[;&|`$(){}<>'"\0\n\r]/.test(value)) {
-        throw new GodotMCPError(
-          `Invalid characters in ${key}`,
-          'INVALID_ARGS',
-          'Path must not contain shell metacharacters: ; & | ` $ ( ) { } < > \' " \\0 \\n \\r',
-        )
+      // Strict validation for paths
+      if (key === 'project_path' || key === 'godot_path') {
+        // Prevent command injection by explicitly rejecting shell metacharacters
+        if (/[;&|`$(){}<>'"\0\n\r]/.test(value)) {
+          throw new GodotMCPError(
+            `Invalid characters in ${key}`,
+            'INVALID_ARGS',
+            'Path must not contain shell metacharacters: ; & | ` $ ( ) { } < > \' " \\0 \\n \\r',
+          )
+        }
+
+        // Ensure godot_path points to an actual executable file.
+        // This prevents executing arbitrary commands or passing arguments via spaces
+        // (e.g. "node -e '...'" or "/bin/sh -c '...'").
+        if (key === 'godot_path') {
+          try {
+            if (!fs.existsSync(value)) {
+              throw new GodotMCPError(
+                'Invalid godot_path',
+                'INVALID_ARGS',
+                `The executable does not exist at path: ${value}`,
+              )
+            }
+            if (!fs.statSync(value).isFile()) {
+              throw new GodotMCPError('Invalid godot_path', 'INVALID_ARGS', `The path provided is not a file: ${value}`)
+            }
+          } catch (e) {
+            if (e instanceof GodotMCPError) throw e
+            throw new GodotMCPError(
+              'Invalid godot_path',
+              'INVALID_ARGS',
+              `Could not access the specified path: ${value}`,
+            )
+          }
+        }
       }
 
       runtimeConfig[key] = value

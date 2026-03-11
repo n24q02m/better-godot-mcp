@@ -27,6 +27,19 @@ describe('scripts', () => {
   // create
   // ==========================================
   describe('create', () => {
+    it('should throw on path traversal attempt', async () => {
+      await expect(
+        handleScripts(
+          'create',
+          {
+            project_path: projectPath,
+            script_path: '../malicious.gd',
+          },
+          config,
+        ),
+      ).rejects.toThrow('Access denied')
+    })
+
     it('should create script with default template', async () => {
       const result = await handleScripts(
         'create',
@@ -107,6 +120,19 @@ describe('scripts', () => {
   // read
   // ==========================================
   describe('read', () => {
+    it('should throw on path traversal attempt', async () => {
+      await expect(
+        handleScripts(
+          'read',
+          {
+            project_path: projectPath,
+            script_path: '../../etc/passwd',
+          },
+          config,
+        ),
+      ).rejects.toThrow('Access denied')
+    })
+
     it('should read script content', async () => {
       createTmpScript(projectPath, 'test.gd', 'extends Node\n\nvar hp = 100\n')
 
@@ -140,6 +166,20 @@ describe('scripts', () => {
   // write
   // ==========================================
   describe('write', () => {
+    it('should throw on path traversal attempt', async () => {
+      await expect(
+        handleScripts(
+          'write',
+          {
+            project_path: projectPath,
+            script_path: '../outside.gd',
+            content: 'malicious',
+          },
+          config,
+        ),
+      ).rejects.toThrow('Access denied')
+    })
+
     it('should write content to script', async () => {
       const newContent = 'extends Node2D\n\nfunc shoot(): pass\n'
       await handleScripts(
@@ -215,6 +255,19 @@ describe('scripts', () => {
   // delete
   // ==========================================
   describe('delete', () => {
+    it('should throw on path traversal attempt', async () => {
+      await expect(
+        handleScripts(
+          'delete',
+          {
+            project_path: projectPath,
+            script_path: '../important.gd',
+          },
+          config,
+        ),
+      ).rejects.toThrow('Access denied')
+    })
+
     it('should delete existing script', async () => {
       createTmpScript(projectPath, 'to_delete.gd')
 

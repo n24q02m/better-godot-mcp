@@ -1,0 +1,3 @@
+## 2024-03-24 - Security Issue Verification
+**Learning:** A potential path traversal vulnerability in `scripts.ts` involving `resolve(projectPath, scriptPath)` was identified in an external report but the implementation was found to be already using the secure wrapper `safeResolve` uniformly inside `resolvePath`. It is crucial to verify actual codebase state against vulnerability reports before attempting fixes, and to assert these security boundaries with specific tests to prevent future regressions.
+**Action:** Always verify the existence of a vulnerability in the current main branch before implementing a fix. Write explicit tests for path traversal to ensure security guarantees (`safeResolve`) are maintained across refactoring.

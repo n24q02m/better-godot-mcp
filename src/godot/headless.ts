@@ -2,7 +2,7 @@
  * Run Godot in headless mode for CLI operations
  */
 
-import { execFileSync, spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import type { HeadlessResult } from './types.js'
 
 const DEFAULT_TIMEOUT_MS = 30_000
@@ -17,28 +17,27 @@ export function execGodotSync(
 ): HeadlessResult {
   const timeout = options?.timeout ?? DEFAULT_TIMEOUT_MS
 
-  try {
-    const stdout = execFileSync(godotPath, args, {
-      timeout,
-      cwd: options?.cwd,
-      stdio: ['pipe', 'pipe', 'pipe'],
-      encoding: 'utf-8',
-    })
+  const result = spawnSync(godotPath, args, {
+    timeout,
+    cwd: options?.cwd,
+    stdio: ['pipe', 'pipe', 'pipe'],
+    encoding: 'utf-8',
+  })
 
-    return {
-      success: true,
-      stdout: stdout.trim(),
-      stderr: '',
-      exitCode: 0,
-    }
-  } catch (error: unknown) {
-    const execError = error as { status?: number; stdout?: string; stderr?: string; message?: string }
+  if (result.error || result.status !== 0) {
     return {
       success: false,
-      stdout: (execError.stdout as string) || '',
-      stderr: (execError.stderr as string) || execError.message || 'Unknown error',
-      exitCode: execError.status ?? 1,
+      stdout: result.stdout?.trim() || '',
+      stderr: result.stderr?.trim() || result.error?.message || 'Unknown error',
+      exitCode: result.status ?? 1,
     }
+  }
+
+  return {
+    success: true,
+    stdout: result.stdout?.trim() || '',
+    stderr: result.stderr?.trim() || '',
+    exitCode: 0,
   }
 }
 

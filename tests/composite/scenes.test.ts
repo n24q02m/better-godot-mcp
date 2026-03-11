@@ -273,9 +273,7 @@ describe('scenes', () => {
     })
 
     it('should reject path traversal via project_path argument in list', async () => {
-      await expect(
-        handleScenes('list', { project_path: '../../../etc' }, config),
-      ).rejects.toThrow('Access denied')
+      await expect(handleScenes('list', { project_path: '../../../etc' }, config)).rejects.toThrow('Access denied')
     })
 
     it('should reject path traversal via project_path argument', async () => {

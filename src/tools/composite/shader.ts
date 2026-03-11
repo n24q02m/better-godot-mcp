@@ -3,11 +3,11 @@
  * Actions: create | read | write | get_params | list
  */
 
-import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
-import { dirname, extname, join, relative, resolve } from 'node:path'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { dirname, relative, resolve } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
-import { safeResolve } from '../helpers/paths.js'
+import { findFiles, safeResolve } from '../helpers/paths.js'
 
 const SHADER_TEMPLATES: Record<string, string> = {
   canvas_item: `shader_type canvas_item;
@@ -47,30 +47,6 @@ void fog() {
 \tALBEDO = vec3(0.8);
 }
 `,
-}
-
-async function findShaderFiles(dir: string): Promise<string[]> {
-  try {
-    const entries = await readdir(dir, { withFileTypes: true })
-    const promises = entries.map(async (entry) => {
-      const name = entry.name
-      if (name.startsWith('.') || name === 'node_modules' || name === 'build') return []
-      const fullPath = join(dir, name)
-
-      if (entry.isDirectory()) {
-        return findShaderFiles(fullPath)
-      } else if (entry.isFile() && (extname(name) === '.gdshader' || extname(name) === '.gdshaderinc')) {
-        return [fullPath]
-      }
-      return []
-    })
-
-    const nestedResults = await Promise.all(promises)
-    return nestedResults.flat()
-  } catch {
-    // Skip inaccessible
-    return []
-  }
 }
 
 export async function handleShader(action: string, args: Record<string, unknown>, config: GodotConfig) {
@@ -173,7 +149,7 @@ export async function handleShader(action: string, args: Record<string, unknown>
       if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
 
       const resolvedPath = resolve(projectPath)
-      const shaders = await findShaderFiles(resolvedPath)
+      const shaders = await findFiles(resolvedPath, new Set(['.gdshader', '.gdshaderinc']))
       const relativePaths = shaders.map((s) => relative(resolvedPath, s).replace(/\\/g, '/'))
 
       return formatJSON({ project: resolvedPath, count: relativePaths.length, shaders: relativePaths })

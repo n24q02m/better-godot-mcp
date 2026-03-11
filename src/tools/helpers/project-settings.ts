@@ -44,47 +44,96 @@ export function parseProjectSettingsContent(content: string): ProjectSettings {
   const len = content.length
 
   while (pos < len) {
-    const nextNewline = content.indexOf('\n', pos)
-    const lineEnd = nextNewline === -1 ? len : nextNewline
+    // Skip leading whitespace (<= 32)
+    while (pos < len && content.charCodeAt(pos) <= 32) pos++
+    if (pos >= len) break
 
-    // Trim line manually (whitespace <= 32)
-    let start = pos
-    let end = lineEnd
-    while (start < end && content.charCodeAt(start) <= 32) start++
-    while (end > start && content.charCodeAt(end - 1) <= 32) end--
-
-    // Skip empty lines or comments (59 is ';')
-    if (start === end || content.charCodeAt(start) === 59) {
-      pos = nextNewline === -1 ? len : nextNewline + 1
+    // Skip comments
+    if (content.charCodeAt(pos) === 59) {
+      pos = content.indexOf('\n', pos)
+      if (pos === -1) pos = len
       continue
     }
 
-    const firstChar = content.charCodeAt(start)
-    const lastChar = content.charCodeAt(end - 1)
-
-    // Section header: starts with '[' (91) and ends with ']' (93)
-    if (firstChar === 91 && lastChar === 93) {
-      currentSection = content.slice(start + 1, end - 1)
-      if (!sections.has(currentSection)) {
-        sections.set(currentSection, new Map())
+    // Section header: starts with '['
+    if (content.charCodeAt(pos) === 91) {
+      const endBracket = content.indexOf(']', pos)
+      if (endBracket !== -1) {
+        currentSection = content.slice(pos + 1, endBracket).trim()
+        if (!sections.has(currentSection)) {
+          sections.set(currentSection, new Map())
+        }
+        pos = content.indexOf('\n', endBracket)
+        if (pos === -1) pos = len
+        continue
       }
     } else if (currentSection) {
       // Key=value
-      const eqIdx = content.indexOf('=', start)
-      if (eqIdx !== -1 && eqIdx < end) {
-        let keyEnd = eqIdx
-        while (keyEnd > start && content.charCodeAt(keyEnd - 1) <= 32) keyEnd--
+      const eqIdx = content.indexOf('=', pos)
+      let newlineIdx = content.indexOf('\n', pos)
+      if (newlineIdx === -1) newlineIdx = len
 
+      if (eqIdx !== -1 && eqIdx < newlineIdx) {
+        const key = content.slice(pos, eqIdx).trim()
         let valStart = eqIdx + 1
-        while (valStart < end && content.charCodeAt(valStart) <= 32) valStart++
+        while (valStart < len && content.charCodeAt(valStart) <= 32 && content.charCodeAt(valStart) !== 10) valStart++
 
-        const key = content.slice(start, keyEnd)
-        const value = content.slice(valStart, end)
+        let valEnd = newlineIdx
 
+        // Multi-line block detection
+        const firstValChar = content.charCodeAt(valStart)
+        if (firstValChar === 123 || firstValChar === 34) {
+          // '{' or '"'
+          let inString = false
+          let braceDepth = 0
+          let valPos = valStart
+
+          while (valPos < len) {
+            const c = content.charCodeAt(valPos)
+
+            if (c === 92) {
+              // '\' escape
+              valPos += 2
+              continue
+            }
+            if (c === 34) {
+              // '"'
+              inString = !inString
+            } else if (!inString) {
+              if (c === 123)
+                braceDepth++ // '{'
+              else if (c === 125) braceDepth-- // '}'
+            }
+
+            if (!inString && braceDepth === 0) {
+              if (firstValChar === 123 && c === 125) {
+                valEnd = valPos + 1
+                break
+              } else if (firstValChar === 34 && c === 34 && valPos > valStart) {
+                valEnd = valPos + 1
+                break
+              }
+            }
+            valPos++
+          }
+          if (valPos >= len) {
+            valEnd = len // Unclosed string/brace
+          }
+          // After finding the end of the multi-line value, find the next newline to continue scanning from there
+          pos = content.indexOf('\n', valEnd)
+          if (pos === -1) pos = len
+        } else {
+          pos = newlineIdx
+        }
+
+        const value = content.slice(valStart, valEnd).trim()
         sections.get(currentSection)?.set(key, value)
+        continue
       }
     }
 
+    // Move to next line if we didn't advance during processing
+    const nextNewline = content.indexOf('\n', pos)
     pos = nextNewline === -1 ? len : nextNewline + 1
   }
 
@@ -113,53 +162,156 @@ export function setSettingInContent(content: string, path: string, value: string
   const parts = path.split('/')
   if (parts.length < 2) return content
 
-  const section = parts[0]
-  const key = parts.slice(1).join('/')
-  const sectionHeader = `[${section}]`
-  const lines = content.split('\n')
-  const result: string[] = []
-  let inSection = false
+  const targetSection = parts[0]
+  const targetKey = parts.slice(1).join('/')
+  const sectionHeader = `[${targetSection}]`
+
+  let currentSection = ''
+  let result = ''
   let keySet = false
   let sectionFound = false
 
-  for (let i = 0; i < lines.length; i++) {
-    const trimmed = lines[i].trim()
+  let pos = 0
+  const len = content.length
 
-    // Check for section header
-    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-      if (inSection && !keySet) {
-        // Add key before leaving section
-        result.push(`${key}=${value}`)
-        keySet = true
-      }
-      inSection = trimmed === sectionHeader
-      if (inSection) sectionFound = true
-    }
+  while (pos < len) {
+    // Keep track of the start of this element (line or block)
 
-    // Replace existing key in current section
-    if (inSection && trimmed.startsWith(`${key}=`)) {
-      result.push(`${key}=${value}`)
-      keySet = true
+    let endPos = pos
+
+    // Skip leading whitespace for parsing, but preserve it in output
+    let parsePos = pos
+    while (parsePos < len && content.charCodeAt(parsePos) <= 32 && content.charCodeAt(parsePos) !== 10) parsePos++
+
+    // Skip comments
+    if (content.charCodeAt(parsePos) === 59) {
+      endPos = content.indexOf('\n', pos)
+      if (endPos === -1) endPos = len
+      result += content.slice(pos, endPos === len ? endPos : endPos + 1)
+      pos = endPos === len ? len : endPos + 1
       continue
     }
 
-    result.push(lines[i])
+    if (parsePos < len && content.charCodeAt(parsePos) === 10) {
+      result += content.slice(pos, parsePos + 1)
+      pos = parsePos + 1
+      continue
+    }
+
+    if (parsePos >= len) {
+      result += content.slice(pos, len)
+      break
+    }
+
+    // Section header
+    if (content.charCodeAt(parsePos) === 91) {
+      // '['
+      const endBracket = content.indexOf(']', parsePos)
+      if (endBracket !== -1) {
+        const newSection = content.slice(parsePos + 1, endBracket).trim()
+
+        // If we are leaving the target section and haven't set the key, insert it before the new section
+        if (currentSection === targetSection && !keySet) {
+          result += `${targetKey}=${value}\n`
+          keySet = true
+        }
+
+        currentSection = newSection
+        if (currentSection === targetSection) sectionFound = true
+
+        endPos = content.indexOf('\n', endBracket)
+        if (endPos === -1) endPos = len
+        result += content.slice(pos, endPos === len ? endPos : endPos + 1)
+        pos = endPos === len ? len : endPos + 1
+        continue
+      }
+    }
+
+    // Key=Value parsing
+    if (currentSection) {
+      const eqIdx = content.indexOf('=', parsePos)
+      let newlineIdx = content.indexOf('\n', parsePos)
+      if (newlineIdx === -1) newlineIdx = len
+
+      if (eqIdx !== -1 && eqIdx < newlineIdx) {
+        const key = content.slice(parsePos, eqIdx).trim()
+
+        let valStart = eqIdx + 1
+        while (valStart < len && content.charCodeAt(valStart) <= 32 && content.charCodeAt(valStart) !== 10) valStart++
+
+        let valEnd = newlineIdx
+        const firstValChar = content.charCodeAt(valStart)
+
+        // Multi-line block detection
+        if (firstValChar === 123 || firstValChar === 34) {
+          // '{' or '"'
+          let inString = false
+          let braceDepth = 0
+          let valPos = valStart
+
+          while (valPos < len) {
+            const c = content.charCodeAt(valPos)
+            if (c === 92) {
+              valPos += 2
+              continue
+            } // '\' escape
+            if (c === 34)
+              inString = !inString // '"'
+            else if (!inString) {
+              if (c === 123) braceDepth++
+              else if (c === 125) braceDepth--
+            }
+
+            if (!inString && braceDepth === 0) {
+              if (firstValChar === 123 && c === 125) {
+                valEnd = valPos + 1
+                break
+              } else if (firstValChar === 34 && c === 34 && valPos > valStart) {
+                valEnd = valPos + 1
+                break
+              }
+            }
+            valPos++
+          }
+          if (valPos >= len) valEnd = len
+          endPos = content.indexOf('\n', valEnd)
+          if (endPos === -1) endPos = len
+        } else {
+          endPos = newlineIdx
+        }
+
+        // Check if this is the key we want to replace
+        if (currentSection === targetSection && key === targetKey) {
+          result += `${targetKey}=${value}${endPos !== len ? '\n' : ''}`
+          keySet = true
+        } else {
+          result += content.slice(pos, endPos === len ? endPos : endPos + 1)
+        }
+
+        pos = endPos === len ? len : endPos + 1
+        continue
+      }
+    }
+
+    // Unrecognized line, just append
+    endPos = content.indexOf('\n', parsePos)
+    if (endPos === -1) endPos = len
+    result += content.slice(pos, endPos === len ? endPos : endPos + 1)
+    pos = endPos === len ? len : endPos + 1
   }
 
-  // Handle last section
-  if (inSection && !keySet) {
-    result.push(`${key}=${value}`)
+  if (currentSection === targetSection && !keySet) {
+    if (!result.endsWith('\n') && result.length > 0) result += '\n'
+    result += `${targetKey}=${value}\n`
     keySet = true
   }
 
-  // Section doesn't exist yet - add it
   if (!sectionFound) {
-    result.push('')
-    result.push(sectionHeader)
-    result.push(`${key}=${value}`)
+    if (!result.endsWith('\n') && result.length > 0) result += '\n'
+    result += `\n${sectionHeader}\n${targetKey}=${value}\n`
   }
 
-  return result.join('\n')
+  return result
 }
 
 /**
@@ -188,4 +340,126 @@ export function getInputActions(settings: ProjectSettings): Map<string, string> 
     }
   }
   return actions
+}
+
+/**
+ * Remove a setting value from project.godot content
+ */
+export function removeSettingInContent(content: string, path: string): string {
+  const parts = path.split('/')
+  if (parts.length < 2) return content
+
+  const targetSection = parts[0]
+  const targetKey = parts.slice(1).join('/')
+
+  let currentSection = ''
+  let result = ''
+
+  let pos = 0
+  const len = content.length
+
+  while (pos < len) {
+    let endPos = pos
+
+    let parsePos = pos
+    while (parsePos < len && content.charCodeAt(parsePos) <= 32 && content.charCodeAt(parsePos) !== 10) parsePos++
+
+    if (content.charCodeAt(parsePos) === 59) {
+      endPos = content.indexOf('\n', pos)
+      if (endPos === -1) endPos = len
+      result += content.slice(pos, endPos === len ? endPos : endPos + 1)
+      pos = endPos === len ? len : endPos + 1
+      continue
+    }
+
+    if (parsePos < len && content.charCodeAt(parsePos) === 10) {
+      result += content.slice(pos, parsePos + 1)
+      pos = parsePos + 1
+      continue
+    }
+
+    if (parsePos >= len) {
+      result += content.slice(pos, len)
+      break
+    }
+
+    if (content.charCodeAt(parsePos) === 91) {
+      const endBracket = content.indexOf(']', parsePos)
+      if (endBracket !== -1) {
+        currentSection = content.slice(parsePos + 1, endBracket).trim()
+        endPos = content.indexOf('\n', endBracket)
+        if (endPos === -1) endPos = len
+        result += content.slice(pos, endPos === len ? endPos : endPos + 1)
+        pos = endPos === len ? len : endPos + 1
+        continue
+      }
+    }
+
+    if (currentSection) {
+      const eqIdx = content.indexOf('=', parsePos)
+      let newlineIdx = content.indexOf('\n', parsePos)
+      if (newlineIdx === -1) newlineIdx = len
+
+      if (eqIdx !== -1 && eqIdx < newlineIdx) {
+        const key = content.slice(parsePos, eqIdx).trim()
+
+        let valStart = eqIdx + 1
+        while (valStart < len && content.charCodeAt(valStart) <= 32 && content.charCodeAt(valStart) !== 10) valStart++
+
+        let valEnd = newlineIdx
+        const firstValChar = content.charCodeAt(valStart)
+
+        if (firstValChar === 123 || firstValChar === 34) {
+          let inString = false
+          let braceDepth = 0
+          let valPos = valStart
+
+          while (valPos < len) {
+            const c = content.charCodeAt(valPos)
+            if (c === 92) {
+              valPos += 2
+              continue
+            }
+            if (c === 34) inString = !inString
+            else if (!inString) {
+              if (c === 123) braceDepth++
+              else if (c === 125) braceDepth--
+            }
+
+            if (!inString && braceDepth === 0) {
+              if (firstValChar === 123 && c === 125) {
+                valEnd = valPos + 1
+                break
+              } else if (firstValChar === 34 && c === 34 && valPos > valStart) {
+                valEnd = valPos + 1
+                break
+              }
+            }
+            valPos++
+          }
+          if (valPos >= len) valEnd = len
+          endPos = content.indexOf('\n', valEnd)
+          if (endPos === -1) endPos = len
+        } else {
+          endPos = newlineIdx
+        }
+
+        if (currentSection === targetSection && key === targetKey) {
+          // Skip appending it to result. We successfully removed it.
+          pos = endPos === len ? len : endPos + 1
+        } else {
+          result += content.slice(pos, endPos === len ? endPos : endPos + 1)
+          pos = endPos === len ? len : endPos + 1
+        }
+        continue
+      }
+    }
+
+    endPos = content.indexOf('\n', parsePos)
+    if (endPos === -1) endPos = len
+    result += content.slice(pos, endPos === len ? endPos : endPos + 1)
+    pos = endPos === len ? len : endPos + 1
+  }
+
+  return result
 }

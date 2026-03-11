@@ -2,7 +2,7 @@
  * Integration tests for Physics tool
  */
 
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { GodotConfig } from '../../src/godot/types.js'
@@ -36,7 +36,7 @@ describe('physics', () => {
 3d_physics/layer_1="World"
 3d_physics/layer_3="Trigger"
 `
-      writeFileSync(projectGodotPath, content, 'utf-8')
+      await writeFile(projectGodotPath, content, 'utf-8')
 
       const result = await handlePhysics('layers', { project_path: projectPath }, config)
       const data = JSON.parse(result.content[0].text)
@@ -76,7 +76,7 @@ describe('physics', () => {
       )
 
       expect(result.content[0].text).toContain('Set collision')
-      const content = readFileSync(join(projectPath, 'test.tscn'), 'utf-8')
+      const content = await readFile(join(projectPath, 'test.tscn'), 'utf-8')
       expect(content).toContain('collision_layer = 2')
       expect(content).toContain('collision_mask = 5')
     })
@@ -114,7 +114,7 @@ collision_mask = 1
         config,
       )
 
-      const content = readFileSync(join(projectPath, 'test.tscn'), 'utf-8')
+      const content = await readFile(join(projectPath, 'test.tscn'), 'utf-8')
       expect(content).toContain('collision_layer = 4')
     })
 
@@ -169,7 +169,7 @@ collision_mask = 1
       )
 
       expect(result.content[0].text).toContain('Configured physics body')
-      const content = readFileSync(join(projectPath, 'test.tscn'), 'utf-8')
+      const content = await readFile(join(projectPath, 'test.tscn'), 'utf-8')
       expect(content).toContain('gravity_scale = 0.5')
       expect(content).toContain('mass = 10')
       expect(content).toContain('freeze = true')
@@ -193,7 +193,7 @@ collision_mask = 1
       )
 
       expect(result.content[0].text).toContain('Set 2d physics layer 1: "Player"')
-      const content = readFileSync(join(projectPath, 'project.godot'), 'utf-8')
+      const content = await readFile(join(projectPath, 'project.godot'), 'utf-8')
       expect(content).toContain('2d_physics/layer_1="Player"')
     })
 
@@ -209,7 +209,7 @@ collision_mask = 1
         config,
       )
 
-      const content = readFileSync(join(projectPath, 'project.godot'), 'utf-8')
+      const content = await readFile(join(projectPath, 'project.godot'), 'utf-8')
       expect(content).toContain('3d_physics/layer_5="Environment"')
     })
   })

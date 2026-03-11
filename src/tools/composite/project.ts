@@ -6,7 +6,7 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 import { execGodotSync, runGodotProject } from '../../godot/headless.js'
 import type { GodotConfig, ProjectInfo } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
@@ -73,7 +73,7 @@ export async function handleProject(action: string, args: Record<string, unknown
           'Provide project_path argument or set it via config.set action.',
         )
       }
-      const info = await parseProjectGodot(resolve(projectPath))
+      const info = await parseProjectGodot(safeResolve(config.projectPath || process.cwd(), projectPath))
       return formatJSON(info)
     }
 
@@ -91,7 +91,7 @@ export async function handleProject(action: string, args: Record<string, unknown
       const projectPath = (args.project_path as string) || config.projectPath
       if (!projectPath)
         throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path argument.')
-      const { pid } = runGodotProject(config.godotPath, resolve(projectPath))
+      const { pid } = runGodotProject(config.godotPath, safeResolve(config.projectPath || process.cwd(), projectPath))
       return formatSuccess(`Godot project started (PID: ${pid})`)
     }
 
@@ -115,7 +115,7 @@ export async function handleProject(action: string, args: Record<string, unknown
       if (!key)
         throw new GodotMCPError('No key specified', 'INVALID_ARGS', 'Provide key (e.g., "application/config/name").')
 
-      const configPath = join(resolve(projectPath), 'project.godot')
+      const configPath = join(safeResolve(config.projectPath || process.cwd(), projectPath), 'project.godot')
       if (!existsSync(configPath))
         throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
 
@@ -133,7 +133,7 @@ export async function handleProject(action: string, args: Record<string, unknown
       if (!key || value === undefined)
         throw new GodotMCPError('key and value required', 'INVALID_ARGS', 'Provide key and value.')
 
-      const configPath = join(resolve(projectPath), 'project.godot')
+      const configPath = join(safeResolve(config.projectPath || process.cwd(), projectPath), 'project.godot')
       if (!existsSync(configPath))
         throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
 
@@ -159,13 +159,14 @@ export async function handleProject(action: string, args: Record<string, unknown
         )
       }
 
+      const resolvedProjectPath = safeResolve(config.projectPath || process.cwd(), projectPath)
       const result = execGodotSync(config.godotPath, [
         '--headless',
         '--path',
-        resolve(projectPath),
+        resolvedProjectPath,
         '--export-release',
         preset,
-        safeResolve(projectPath, outputPath),
+        safeResolve(resolvedProjectPath, outputPath),
       ])
 
       return formatSuccess(`Export complete: ${outputPath}\n${result.stdout}`)

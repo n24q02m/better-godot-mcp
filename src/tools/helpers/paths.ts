@@ -1,4 +1,4 @@
-import { isAbsolute, relative, resolve } from 'node:path'
+import { isAbsolute, relative, resolve, sep } from 'node:path'
 import { GodotMCPError } from './errors.js'
 
 /**
@@ -21,7 +21,7 @@ export function safeResolve(baseDir: string, targetPath: string): string {
   // 1. Starts with .. (parent directory)
   // 2. Is absolute (on Windows, could be different drive)
   // 3. relativePath should not be absolute if it's inside base
-  if (relativePath.startsWith('..') || isAbsolute(relativePath)) {
+  if (relativePath === '..' || relativePath.startsWith(`..${sep}`) || isAbsolute(relativePath)) {
     throw new GodotMCPError(
       `Access denied: Path '${targetPath}' resolves to '${resolvedTarget}' which is outside the project root '${resolvedBase}'.`,
       'INVALID_ARGS',

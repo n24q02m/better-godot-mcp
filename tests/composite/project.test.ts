@@ -66,7 +66,8 @@ describe('project', () => {
     })
 
     it('should throw for non-existent project directory', async () => {
-      await expect(handleProject('info', { project_path: '/tmp/nonexistent' }, config)).rejects.toThrow(
+      // The path should be inside the config project path to test "not found" instead of "access denied"
+      await expect(handleProject('info', { project_path: 'nonexistent' }, config)).rejects.toThrow(
         'No project.godot found',
       )
     })
@@ -170,9 +171,9 @@ describe('project', () => {
     })
 
     it('should throw for missing project.godot', async () => {
-      await expect(
-        handleProject('settings_get', { project_path: '/tmp/nonexistent', key: 'a' }, config),
-      ).rejects.toThrow('No project.godot found')
+      await expect(handleProject('settings_get', { project_path: 'nonexistent', key: 'a' }, config)).rejects.toThrow(
+        'No project.godot found',
+      )
     })
   })
 
@@ -219,7 +220,7 @@ describe('project', () => {
 
     it('should throw for missing project.godot', async () => {
       await expect(
-        handleProject('settings_set', { project_path: '/tmp/nonexistent', key: 'a', value: 'b' }, config),
+        handleProject('settings_set', { project_path: 'nonexistent', key: 'test/key', value: 'value' }, config),
       ).rejects.toThrow('No project.godot found')
     })
   })

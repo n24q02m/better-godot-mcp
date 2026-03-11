@@ -1,0 +1,4 @@
+## 2024-05-18 - [Path Traversal bypass using prefix matching]
+**Vulnerability:** The `safeResolve` helper used a simple `relativePath.startsWith('..')` which allows false-positive prevention of perfectly safe sibling folders starting with `..` (like `..secret`). Additionally, multiple tools (`project.ts`, `editor.ts`) simply resolved user-supplied `project_path` strings using `resolve(projectPath)`, exposing the server to out-of-bounds traversal to anywhere on the disk.
+**Learning:** Checking for path traversal merely via `.startsWith('..')` is buggy against prefixes. And user inputs representing file paths *must always* be run through a bounding check like `safeResolve` against a known good boundary (`process.cwd()` or `config.projectPath`).
+**Prevention:** Always restrict paths using `relativePath === '..' || relativePath.startsWith('..' + sep)` and consistently apply `safeResolve(boundary, targetPath)` across all user-facing endpoints.

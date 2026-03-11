@@ -4,11 +4,11 @@
  */
 
 import { execFile } from 'node:child_process'
-import { resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { launchGodotEditor } from '../../godot/headless.js'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
+import { safeResolve } from '../helpers/paths.js'
 
 const execFileAsync = promisify(execFile)
 
@@ -60,7 +60,7 @@ export async function handleEditor(action: string, args: Record<string, unknown>
         throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path argument.')
       }
 
-      const { pid } = launchGodotEditor(config.godotPath, resolve(projectPath))
+      const { pid } = launchGodotEditor(config.godotPath, safeResolve(config.projectPath || process.cwd(), projectPath))
       return formatSuccess(`Godot editor launched (PID: ${pid})`)
     }
 

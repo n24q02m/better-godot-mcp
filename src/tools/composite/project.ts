@@ -23,20 +23,34 @@ async function parseProjectGodot(projectPath: string): Promise<ProjectInfo> {
     )
   }
 
-  const content = await readFile(configPath, 'utf-8')
-  const lines = content.split('\n')
+  const settings = await parseProjectSettingsAsync(configPath)
 
   const info: ProjectInfo = { name: 'Unknown', configVersion: 5, mainScene: null, features: [], settings: {} }
-  let currentSection = ''
 
-  for (const line of lines) {
-    const trimmed = line.trim()
+  const nameValue = getSetting(settings, 'application/config/name')
+  if (nameValue) {
+    info.name = nameValue.replace(/^"(.*)"$/, '$1')
+  }
 
-    const sectionMatch = trimmed.match(/^\[(.+)\]$/)
-    if (sectionMatch) {
-      currentSection = sectionMatch[1]
-      continue
+  const mainSceneValue = getSetting(settings, 'application/run/main_scene')
+  if (mainSceneValue) {
+    info.mainScene = mainSceneValue.replace(/^"(.*)"$/, '$1')
+  }
+
+  const featuresValue = getSetting(settings, 'application/config/features')
+  if (featuresValue) {
+    const featMatch = featuresValue.match(/PackedStringArray\((.+)\)/)
+    if (featMatch) {
+      info.features = featMatch[1].split(',').map((f) => f.trim().replace(/"/g, ''))
     }
+  }
+
+  // Parse top-level settings (like config_version) from raw content since
+  // parseProjectSettingsAsync only parses keys within a section.
+  for (const line of settings.raw.split('\n')) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith(';')) continue
+    if (trimmed.startsWith('[')) break
 
     const kvMatch = trimmed.match(/^(\S+)\s*=\s*(.+)$/)
     if (!kvMatch) continue
@@ -44,19 +58,18 @@ async function parseProjectGodot(projectPath: string): Promise<ProjectInfo> {
     const [, key, rawValue] = kvMatch
     const value = rawValue.replace(/^"(.*)"$/, '$1')
 
-    if (currentSection === '' || currentSection === 'application') {
-      if (key === 'config/name') info.name = value
-      if (key === 'run/main_scene') info.mainScene = value
-      if (key === 'config/features') {
-        const featMatch = rawValue.match(/PackedStringArray\((.+)\)/)
-        if (featMatch) {
-          info.features = featMatch[1].split(',').map((f) => f.trim().replace(/"/g, ''))
-        }
-      }
+    info.settings[key] = value
+    if (key === 'config_version') {
+      info.configVersion = Number.parseInt(value, 10)
     }
+  }
 
-    if (key === 'config_version') info.configVersion = Number.parseInt(value, 10)
-    info.settings[`${currentSection ? `${currentSection}/` : ''}${key}`] = value
+  // Populate settings from parsed sections
+  for (const [section, keys] of settings.sections.entries()) {
+    for (const [key, rawValue] of keys.entries()) {
+      const value = rawValue.replace(/^"(.*)"$/, '$1')
+      info.settings[`${section}/${key}`] = value
+    }
   }
 
   return info

@@ -2,7 +2,7 @@
  * Run Godot in headless mode for CLI operations
  */
 
-import { execFileSync, spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import type { HeadlessResult } from './types.js'
 
 const DEFAULT_TIMEOUT_MS = 30_000
@@ -18,12 +18,22 @@ export function execGodotSync(
   const timeout = options?.timeout ?? DEFAULT_TIMEOUT_MS
 
   try {
-    const stdout = execFileSync(godotPath, args, {
+    const result = spawnSync(godotPath, args, {
       timeout,
       cwd: options?.cwd,
       stdio: ['pipe', 'pipe', 'pipe'],
       encoding: 'utf-8',
     })
+
+    if (result.error) {
+      throw result.error
+    }
+
+    if (result.status !== 0) {
+      throw { status: result.status, stdout: result.stdout, stderr: result.stderr, message: 'Command failed' }
+    }
+
+    const stdout = result.stdout || ''
 
     return {
       success: true,

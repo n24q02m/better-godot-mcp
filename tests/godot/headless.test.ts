@@ -2,10 +2,10 @@ import * as child_process from 'node:child_process'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { execGodotSync } from '../../src/godot/headless.js'
 
-// Mock execFileSync
+// Mock spawnSync
 vi.mock('node:child_process', () => {
   return {
-    execFileSync: vi.fn(),
+    spawnSync: vi.fn(),
     spawn: vi.fn(),
   }
 })
@@ -15,19 +15,19 @@ describe('execGodotSync', () => {
     vi.resetAllMocks()
   })
 
-  it('executes Godot with correct arguments using execFileSync (secure version)', () => {
+  it('executes Godot with correct arguments using spawnSync (secure version)', () => {
     const godotPath = '/usr/bin/godot'
     const args = ['--version']
     const options = { timeout: 1000, cwd: '/tmp' }
 
     // Mock successful execution
-    vi.mocked(child_process.execFileSync).mockReturnValue('4.2.1')
+    vi.mocked(child_process.spawnSync).mockReturnValue({ status: 0, stdout: '4.2.1', stderr: '' })
 
     const result = execGodotSync(godotPath, args, options)
 
     expect(result.success).toBe(true)
     expect(result.stdout).toBe('4.2.1')
-    expect(child_process.execFileSync).toHaveBeenCalledWith(
+    expect(child_process.spawnSync).toHaveBeenCalledWith(
       godotPath,
       args,
       expect.objectContaining({
@@ -50,7 +50,7 @@ describe('execGodotSync', () => {
       stderr: 'Unknown argument',
     })
 
-    vi.mocked(child_process.execFileSync).mockImplementation(() => {
+    vi.mocked(child_process.spawnSync).mockImplementation(() => {
       throw error
     })
 

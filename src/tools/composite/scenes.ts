@@ -3,8 +3,17 @@
  * Actions: create | list | info | delete | duplicate | set_main
  */
 
-import { copyFileSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
-import { readdir, readFile } from 'node:fs/promises'
+import { access, copyFile, mkdir, readdir, readFile, unlink, writeFile } from 'node:fs/promises'
+
+async function exists(path: string): Promise<boolean> {
+  try {
+    await access(path)
+    return true
+  } catch {
+    return false
+  }
+}
+
 import { basename, dirname, extname, join, relative, resolve } from 'node:path'
 import type { GodotConfig, SceneInfo, SceneNode } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
@@ -168,7 +177,7 @@ export async function handleScenes(action: string, args: Record<string, unknown>
       const rootName = (args.root_name as string) || basename(scenePath, '.tscn')
 
       const fullPath = safeResolve(projectPath as string, scenePath)
-      if (existsSync(fullPath)) {
+      if (await exists(fullPath)) {
         throw new GodotMCPError(
           `Scene already exists: ${scenePath}`,
           'SCENE_ERROR',
@@ -177,8 +186,8 @@ export async function handleScenes(action: string, args: Record<string, unknown>
       }
 
       const content = generateTscnContent(rootName, rootType)
-      mkdirSync(dirname(fullPath), { recursive: true })
-      writeFileSync(fullPath, content, 'utf-8')
+      await mkdir(dirname(fullPath), { recursive: true })
+      await writeFile(fullPath, content, 'utf-8')
 
       return formatSuccess(`Created scene: ${scenePath}\nRoot: ${rootName} (${rootType})`)
     }
@@ -199,7 +208,7 @@ export async function handleScenes(action: string, args: Record<string, unknown>
     case 'info': {
       // scenePath is guaranteed
       const fullPath = resolvePath(projectPath, scenePath)
-      if (!existsSync(fullPath)) {
+      if (!(await exists(fullPath))) {
         throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path and try again.')
       }
 
@@ -210,11 +219,11 @@ export async function handleScenes(action: string, args: Record<string, unknown>
     case 'delete': {
       // scenePath is guaranteed
       const fullPath = resolvePath(projectPath, scenePath)
-      if (!existsSync(fullPath)) {
+      if (!(await exists(fullPath))) {
         throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
       }
 
-      unlinkSync(fullPath)
+      await unlink(fullPath)
       return formatSuccess(`Deleted scene: ${scenePath}`)
     }
 
@@ -223,10 +232,10 @@ export async function handleScenes(action: string, args: Record<string, unknown>
       const srcFull = resolvePath(projectPath, scenePath)
       const dstFull = resolvePath(projectPath, newPath as string)
 
-      if (!existsSync(srcFull)) {
+      if (!(await exists(srcFull))) {
         throw new GodotMCPError(`Source scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the source path.')
       }
-      if (existsSync(dstFull)) {
+      if (await exists(dstFull)) {
         throw new GodotMCPError(
           `Destination already exists: ${newPath}`,
           'SCENE_ERROR',
@@ -234,22 +243,22 @@ export async function handleScenes(action: string, args: Record<string, unknown>
         )
       }
 
-      mkdirSync(dirname(dstFull), { recursive: true })
-      copyFileSync(srcFull, dstFull)
+      await mkdir(dirname(dstFull), { recursive: true })
+      await copyFile(srcFull, dstFull)
       return formatSuccess(`Duplicated: ${scenePath} -> ${newPath}`)
     }
 
     case 'set_main': {
       // projectPath and scenePath are guaranteed
       const configPath = join(resolve(projectPath as string), 'project.godot')
-      if (!existsSync(configPath)) {
+      if (!(await exists(configPath))) {
         throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
       }
 
       const resPath = `res://${scenePath.replace(/\\/g, '/')}`
-      const content = readFileSync(configPath, 'utf-8')
+      const content = await readFile(configPath, 'utf-8')
       const updated = setSettingInContent(content, 'application/run/main_scene', `"${resPath}"`)
-      writeFileSync(configPath, updated, 'utf-8')
+      await writeFile(configPath, updated, 'utf-8')
 
       return formatSuccess(`Set main scene: ${resPath}`)
     }

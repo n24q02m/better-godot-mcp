@@ -183,6 +183,16 @@ describe('resources', () => {
   // path traversal prevention
   // ==========================================
   describe('path traversal', () => {
+    it('should reject list with malicious project_path', async () => {
+      await expect(handleResources('list', { project_path: '../../../etc' }, config)).rejects.toThrow('Access denied')
+    })
+
+    it('should reject info with malicious project_path', async () => {
+      await expect(
+        handleResources('info', { project_path: '../../../etc', resource_path: 'passwd' }, config),
+      ).rejects.toThrow('Access denied')
+    })
+
     it('should reject info with path traversal', async () => {
       await expect(
         handleResources('info', { project_path: projectPath, resource_path: '../../../etc/passwd' }, config),

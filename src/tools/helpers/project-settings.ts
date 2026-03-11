@@ -76,10 +76,91 @@ export function parseProjectSettingsContent(content: string): ProjectSettings {
         while (keyEnd > start && content.charCodeAt(keyEnd - 1) <= 32) keyEnd--
 
         let valStart = eqIdx + 1
-        while (valStart < end && content.charCodeAt(valStart) <= 32) valStart++
+        while (valStart < len && content.charCodeAt(valStart) <= 32 && content.charCodeAt(valStart) !== 10) valStart++
 
         const key = content.slice(start, keyEnd)
-        const value = content.slice(valStart, end)
+
+        let valueEnd = end
+        let value = ''
+
+        if (valStart < len) {
+          const firstChar = content.charCodeAt(valStart)
+
+          // Handle multi-line blocks starting with {
+          if (firstChar === 123) {
+            // '{'
+            let blockEnd = valStart + 1
+            let bracketCount = 1
+            let inString = false
+            let isEscaped = false
+
+            while (blockEnd < len) {
+              const char = content.charCodeAt(blockEnd)
+
+              if (isEscaped) {
+                isEscaped = false
+              } else if (char === 92) {
+                // '\'
+                isEscaped = true
+              } else if (char === 34) {
+                // '"'
+                inString = !inString
+              } else if (!inString) {
+                if (char === 123) {
+                  // '{'
+                  bracketCount++
+                } else if (char === 125) {
+                  // '}'
+                  bracketCount--
+                  if (bracketCount === 0) {
+                    blockEnd++
+                    break
+                  }
+                }
+              }
+              blockEnd++
+            }
+
+            valueEnd = blockEnd
+            // find next newline
+            const nl = content.indexOf('\n', valueEnd)
+            pos = nl === -1 ? len : nl + 1
+            value = content.slice(valStart, valueEnd)
+          }
+          // Handle multi-line strings starting with "
+          else if (firstChar === 34) {
+            // '"'
+            let stringEnd = valStart + 1
+            let isEscaped = false
+
+            while (stringEnd < len) {
+              const char = content.charCodeAt(stringEnd)
+
+              if (isEscaped) {
+                isEscaped = false
+              } else if (char === 92) {
+                // '\'
+                isEscaped = true
+              } else if (char === 34) {
+                // '"'
+                stringEnd++
+                break
+              }
+              stringEnd++
+            }
+
+            valueEnd = stringEnd
+            // find next newline
+            const nl = content.indexOf('\n', valueEnd)
+            pos = nl === -1 ? len : nl + 1
+            value = content.slice(valStart, valueEnd)
+          } else {
+            // Normal single line value
+            value = content.slice(valStart, end)
+          }
+        } else {
+          value = content.slice(valStart, end)
+        }
 
         sections.get(currentSection)?.set(key, value)
       }

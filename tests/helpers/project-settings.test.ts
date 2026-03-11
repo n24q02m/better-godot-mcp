@@ -144,3 +144,34 @@ describe('project-settings', () => {
     })
   })
 })
+
+describe('multiline parsing', () => {
+  it('should parse multiline strings', () => {
+    const content = `[application]
+config/description="This is a
+multiline description
+with multiple lines"
+run/main_scene="res://main.tscn"`
+    const settings = parseProjectSettingsContent(content)
+    const app = settings.sections.get('application')
+    expect(app?.get('config/description')).toBe('"This is a\nmultiline description\nwith multiple lines"')
+    expect(app?.get('run/main_scene')).toBe('"res://main.tscn"')
+  })
+
+  it('should parse multiline blocks (like input actions)', () => {
+    const content = `[input]
+action={
+  "deadzone": 0.5,
+  "events": [
+    Object(InputEventKey,"keycode":65)
+  ]
+}
+run/main_scene="res://main.tscn"`
+    const settings = parseProjectSettingsContent(content)
+    const input = settings.sections.get('input')
+    expect(input?.get('action')).toBe(
+      '{\n  "deadzone": 0.5,\n  "events": [\n    Object(InputEventKey,"keycode":65)\n  ]\n}',
+    )
+    expect(input?.get('run/main_scene')).toBe('"res://main.tscn"')
+  })
+})

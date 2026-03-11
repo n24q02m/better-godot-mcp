@@ -177,7 +177,7 @@ jobs:
           egress-policy: audit
 
       - name: Send email notification
-        uses: dawidd6/action-send-mail@ba302ba66e88942841281c984a6b31ca6d6289e6 # v11
+        uses: dawidd6/action-send-mail@e9d44227e5ff9b5be74ac40a69c554324ded2e5b # v13
         with:
           server_address: smtp.gmail.com
           server_port: 587

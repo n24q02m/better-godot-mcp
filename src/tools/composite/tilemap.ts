@@ -3,7 +3,8 @@
  * Actions: create_tileset | add_source | set_tile | paint | list
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
@@ -37,8 +38,8 @@ export async function handleTilemap(action: string, args: Record<string, unknown
         '',
       ].join('\n')
 
-      mkdirSync(dirname(fullPath), { recursive: true })
-      writeFileSync(fullPath, content, 'utf-8')
+      await mkdir(dirname(fullPath), { recursive: true })
+      await writeFile(fullPath, content, 'utf-8')
       return formatSuccess(`Created TileSet: ${tilesetPath} (tile size: ${tileSize}x${tileSize})`)
     }
 
@@ -53,7 +54,7 @@ export async function handleTilemap(action: string, args: Record<string, unknown
       if (!existsSync(fullPath))
         throw new GodotMCPError(`TileSet not found: ${tilesetPath}`, 'TILEMAP_ERROR', 'Create the tileset first.')
 
-      let content = readFileSync(fullPath, 'utf-8')
+      let content = await readFile(fullPath, 'utf-8')
       const resPath = `res://${texturePath.replace(/\\/g, '/')}`
 
       // Count existing sources to get next ID
@@ -64,7 +65,7 @@ export async function handleTilemap(action: string, args: Record<string, unknown
       const extRes = `[ext_resource type="Texture2D" path="${resPath}" id="${sourceId}"]`
       content = content.replace('[resource]', `${extRes}\n\n[resource]`)
 
-      writeFileSync(fullPath, content, 'utf-8')
+      await writeFile(fullPath, content, 'utf-8')
       return formatSuccess(`Added texture source: ${texturePath} (id: ${sourceId})`)
     }
 
@@ -96,7 +97,7 @@ export async function handleTilemap(action: string, args: Record<string, unknown
       if (!existsSync(fullPath))
         throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
 
-      const content = readFileSync(fullPath, 'utf-8')
+      const content = await readFile(fullPath, 'utf-8')
       const tilemaps: string[] = []
       const tmRegex = /\[node name="([^"]+)" type="TileMapLayer"/g
       for (const match of content.matchAll(tmRegex)) {

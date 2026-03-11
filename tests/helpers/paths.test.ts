@@ -1,7 +1,7 @@
-import { describe, it, expect } from 'vitest'
 import { resolve } from 'node:path'
-import { safeResolve } from '../../src/tools/helpers/paths.js'
+import { describe, expect, it } from 'vitest'
 import { GodotMCPError } from '../../src/tools/helpers/errors.js'
+import { safeResolve } from '../../src/tools/helpers/paths.js'
 
 describe('safeResolve', () => {
   const baseDir = resolve('/mock/base/dir')

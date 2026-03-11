@@ -7,6 +7,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
+import { getInputActions, parseProjectSettingsContent } from '../helpers/project-settings.js'
 
 /**
  * Godot 4.x Key enum numeric values (@GlobalScope.Key)
@@ -141,78 +142,6 @@ function getProjectGodotPath(projectPath: string | null | undefined): string {
   return configPath
 }
 
-/**
- * Parse input actions from project.godot
- */
-function parseInputActions(content: string): Map<string, string[]> {
-  const actions = new Map<string, string[]>()
-  let inInputSection = false
-  let currentActionName: string | null = null
-  let currentActionAccumulator = ''
-
-  for (const line of content.split('\n')) {
-    const trimmed = line.trim()
-
-    // Handle multi-line continuation
-    if (currentActionName !== null) {
-      currentActionAccumulator += trimmed
-      if (trimmed.endsWith('}')) {
-        // End of multi-line action
-        const eventsMatch = currentActionAccumulator.match(/"events":\s*\[([^\]]*)\]/)
-        const events = eventsMatch
-          ? eventsMatch[1]
-              .split(',')
-              .map((e) => e.trim())
-              .filter(Boolean)
-          : []
-        actions.set(currentActionName, events)
-        currentActionName = null
-        currentActionAccumulator = ''
-      }
-      continue
-    }
-
-    if (trimmed === '[input]') {
-      inInputSection = true
-      continue
-    }
-
-    // Stop if we hit another section
-    if (trimmed.startsWith('[') && inInputSection) {
-      inInputSection = false
-      break
-    }
-
-    if (inInputSection) {
-      // Single-line format: action_name={...}
-      const match = trimmed.match(/^(\w+)=\{(.+)\}$/)
-      if (match) {
-        const actionName = match[1]
-        const eventsMatch = match[2].match(/"events":\s*\[([^\]]*)\]/)
-        const events = eventsMatch
-          ? eventsMatch[1]
-              .split(',')
-              .map((e) => e.trim())
-              .filter(Boolean)
-          : []
-        actions.set(actionName, events)
-      } else {
-        // Multi-line format start: action_name={
-        //   "deadzone": 0.2,
-        //   "events": [...]
-        // }
-        const startMatch = trimmed.match(/^(\w+)=\{(.*)$/)
-        if (startMatch) {
-          currentActionName = startMatch[1]
-          currentActionAccumulator = startMatch[2]
-        }
-      }
-    }
-  }
-
-  return actions
-}
-
 export async function handleInputMap(action: string, args: Record<string, unknown>, config: GodotConfig) {
   const projectPath = (args.project_path as string) || config.projectPath
 
@@ -220,12 +149,22 @@ export async function handleInputMap(action: string, args: Record<string, unknow
     case 'list': {
       const configPath = getProjectGodotPath(projectPath)
       const content = readFileSync(configPath, 'utf-8')
-      const actions = parseInputActions(content)
+      const settings = parseProjectSettingsContent(content)
+      const actions = getInputActions(settings)
 
-      const actionList = Array.from(actions.entries()).map(([name, events]) => ({
-        name,
-        eventCount: events.length,
-      }))
+      const actionList = Array.from(actions.entries()).map(([name, configStr]) => {
+        const eventsMatch = configStr.match(/"events":\s*\[([^\]]*)\]/)
+        const events = eventsMatch
+          ? eventsMatch[1]
+              .split(',')
+              .map((e) => e.trim())
+              .filter(Boolean)
+          : []
+        return {
+          name,
+          eventCount: events.length,
+        }
+      })
 
       return formatJSON({ count: actionList.length, actions: actionList })
     }

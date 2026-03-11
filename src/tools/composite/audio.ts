@@ -3,7 +3,8 @@
  * Actions: list_buses | add_bus | add_effect | create_stream
  */
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
+import { readFile, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
@@ -21,7 +22,7 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
         return formatJSON({ buses: [{ name: 'Master', volume: 0, effects: [] }], note: 'Using default bus layout.' })
       }
 
-      const content = readFileSync(busLayoutPath, 'utf-8')
+      const content = await readFile(busLayoutPath, 'utf-8')
       const buses: { name: string; volume?: string; solo?: boolean; mute?: boolean }[] = []
 
       // Parse bus entries
@@ -44,7 +45,7 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       let content: string
 
       if (existsSync(busLayoutPath)) {
-        content = readFileSync(busLayoutPath, 'utf-8')
+        content = await readFile(busLayoutPath, 'utf-8')
       } else {
         content = [
           '[gd_resource type="AudioBusLayout" format=3]',
@@ -72,7 +73,7 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       ].join('\n')
 
       content = `${content.trimEnd()}\n${newBus}\n`
-      writeFileSync(busLayoutPath, content, 'utf-8')
+      await writeFile(busLayoutPath, content, 'utf-8')
 
       return formatSuccess(`Added audio bus: ${busName} (send to: ${sendTo})`)
     }
@@ -96,7 +97,7 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       let content: string
 
       if (existsSync(busLayoutPath)) {
-        content = readFileSync(busLayoutPath, 'utf-8')
+        content = await readFile(busLayoutPath, 'utf-8')
       } else {
         content = [
           '[gd_resource type="AudioBusLayout" format=3]',
@@ -145,7 +146,7 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       const effectRef = `bus/${busIndex}/effect/${effectIndex}/effect = SubResource("${subResId}")\nbus/${busIndex}/effect/${effectIndex}/enabled = true\n`
       content = `${content.trimEnd()}\n${effectRef}`
 
-      writeFileSync(busLayoutPath, content, 'utf-8')
+      await writeFile(busLayoutPath, content, 'utf-8')
       return formatSuccess(`Added ${fullEffectType} to bus "${busName}" (effect index: ${effectIndex})`)
     }
 
@@ -161,14 +162,14 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       if (!existsSync(fullPath))
         throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check file path.')
 
-      let content = readFileSync(fullPath, 'utf-8')
+      let content = await readFile(fullPath, 'utf-8')
       const nodeType =
         streamType === '3D' ? 'AudioStreamPlayer3D' : streamType === '2D' ? 'AudioStreamPlayer2D' : 'AudioStreamPlayer'
       const parentAttr = parent === '.' ? '' : ` parent="${parent}"`
       const nodeDecl = `\n[node name="${nodeName}" type="${nodeType}"${parentAttr}]\nbus = "${bus}"\n`
       content = `${content.trimEnd()}\n${nodeDecl}`
 
-      writeFileSync(fullPath, content, 'utf-8')
+      await writeFile(fullPath, content, 'utf-8')
       return formatSuccess(`Created ${nodeType}: ${nodeName} (bus: ${bus})`)
     }
 

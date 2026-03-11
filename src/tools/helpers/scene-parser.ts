@@ -316,15 +316,18 @@ export function renameNodeInContent(content: string, oldName: string, newName: s
   const escapedOldName = escapeRegExp(oldName)
 
   // Replace in node declarations
-  let result = content.replace(new RegExp(`name="${escapedOldName}"`, 'g'), `name="${newName}"`)
+  let result = content.replace(new RegExp(`name="${escapedOldName}"`, 'g'), () => `name="${newName}"`)
   // Replace in parent references
-  result = result.replace(new RegExp(`parent="${escapedOldName}"`, 'g'), `parent="${newName}"`)
+  result = result.replace(new RegExp(`parent="${escapedOldName}"`, 'g'), () => `parent="${newName}"`)
   // Replace in parent paths containing the old name
-  result = result.replace(new RegExp(`parent="([^"]*/)${escapedOldName}(/[^"]*)"`, 'g'), `parent="$1${newName}$2"`)
-  result = result.replace(new RegExp(`parent="([^"]*/)${escapedOldName}"`, 'g'), `parent="$1${newName}"`)
+  result = result.replace(
+    new RegExp(`parent="([^"]*/)${escapedOldName}(/[^"]*)"`, 'g'),
+    (_, p1, p2) => `parent="${p1}${newName}${p2}"`,
+  )
+  result = result.replace(new RegExp(`parent="([^"]*/)${escapedOldName}"`, 'g'), (_, p1) => `parent="${p1}${newName}"`)
   // Replace in connection references
-  result = result.replace(new RegExp(`from="${escapedOldName}"`, 'g'), `from="${newName}"`)
-  result = result.replace(new RegExp(`to="${escapedOldName}"`, 'g'), `to="${newName}"`)
+  result = result.replace(new RegExp(`from="${escapedOldName}"`, 'g'), () => `from="${newName}"`)
+  result = result.replace(new RegExp(`to="${escapedOldName}"`, 'g'), () => `to="${newName}"`)
   return result
 }
 

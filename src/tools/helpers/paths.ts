@@ -1,4 +1,5 @@
-import { isAbsolute, relative, resolve } from 'node:path'
+import { readdir } from 'node:fs/promises'
+import { extname, isAbsolute, join, relative, resolve } from 'node:path'
 import { GodotMCPError } from './errors.js'
 
 /**
@@ -30,4 +31,37 @@ export function safeResolve(baseDir: string, targetPath: string): string {
   }
 
   return resolvedTarget
+}
+
+/**
+ * Recursively finds files in a directory that match specific extensions.
+ *
+ * @param dir The directory to search in
+ * @param validExtensions Array of allowed file extensions (e.g., ['.gd', '.tscn'])
+ * @param ignoredDirs Array of directory names to ignore (defaults to ['.', 'node_modules', 'build'])
+ * @returns Array of absolute file paths
+ */
+export async function findFiles(dir: string, validExtensions: string[], ignoredDirs?: string[]): Promise<string[]> {
+  const ignoreList = new Set(['node_modules', 'build', ...(ignoredDirs || [])])
+  try {
+    const entries = await readdir(dir, { withFileTypes: true })
+    const promises = entries.map(async (entry) => {
+      const name = entry.name
+      if (name.startsWith('.') || ignoreList.has(name)) return []
+
+      const fullPath = join(dir, name)
+      if (entry.isDirectory()) {
+        return findFiles(fullPath, validExtensions, ignoredDirs)
+      } else if (validExtensions.includes(extname(name).toLowerCase())) {
+        return [fullPath]
+      }
+      return []
+    })
+
+    const nestedResults = await Promise.all(promises)
+    return nestedResults.flat()
+  } catch {
+    // Skip inaccessible
+    return []
+  }
 }

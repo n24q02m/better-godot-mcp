@@ -9,6 +9,7 @@ import { dirname, extname, join, relative, resolve } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
+import { validateSceneArgs } from '../helpers/scene-parser.js'
 
 const SCRIPT_TEMPLATES: Record<string, string> = {
   Node: `extends Node
@@ -123,7 +124,7 @@ async function findScriptFiles(dir: string): Promise<string[]> {
 }
 
 export async function handleScripts(action: string, args: Record<string, unknown>, config: GodotConfig) {
-  const projectPath = (args.project_path as string) || config.projectPath
+  const { projectPath } = validateSceneArgs(args, config, false)
 
   if (!projectPath && action !== 'list') {
     // List handles missing projectPath internally, but others need it for safeResolve base
@@ -188,7 +189,7 @@ export async function handleScripts(action: string, args: Record<string, unknown
     }
 
     case 'attach': {
-      const scenePath = args.scene_path as string
+      const { scenePath } = validateSceneArgs(args, config, false)
       const scriptPath = args.script_path as string
       const nodeName = args.node_name as string
       if (!scenePath || !scriptPath) {

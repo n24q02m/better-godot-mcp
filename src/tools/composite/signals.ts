@@ -7,13 +7,10 @@ import { readFile, writeFile } from 'node:fs/promises'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
-import { parseSceneContent } from '../helpers/scene-parser.js'
+import { parseSceneContent, validateSceneArgs } from '../helpers/scene-parser.js'
 
 export async function handleSignals(action: string, args: Record<string, unknown>, config: GodotConfig) {
-  const projectPath = (args.project_path as string) || config.projectPath
-  const scenePath = args.scene_path as string
-
-  if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
+  const { projectPath, scenePath } = validateSceneArgs(args, config)
   const fullPath = safeResolve(projectPath || process.cwd(), scenePath)
 
   async function readScene() {

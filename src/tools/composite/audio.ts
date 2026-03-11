@@ -8,9 +8,10 @@ import { resolve } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
+import { validateSceneArgs } from '../helpers/scene-parser.js'
 
 export async function handleAudio(action: string, args: Record<string, unknown>, config: GodotConfig) {
-  const projectPath = (args.project_path as string) || config.projectPath
+  const { projectPath } = validateSceneArgs(args, config, false)
 
   switch (action) {
     case 'list_buses': {
@@ -150,8 +151,7 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
     }
 
     case 'create_stream': {
-      const scenePath = args.scene_path as string
-      if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
+      const { scenePath } = validateSceneArgs(args, config)
       const nodeName = (args.name as string) || 'AudioStreamPlayer'
       const streamType = (args.stream_type as string) || '2D'
       const parent = (args.parent as string) || '.'

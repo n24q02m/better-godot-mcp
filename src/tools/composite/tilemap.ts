@@ -8,9 +8,10 @@ import { dirname } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
+import { validateSceneArgs } from '../helpers/scene-parser.js'
 
 export async function handleTilemap(action: string, args: Record<string, unknown>, config: GodotConfig) {
-  const projectPath = (args.project_path as string) || config.projectPath
+  const { projectPath } = validateSceneArgs(args, config, false)
 
   switch (action) {
     case 'create_tileset': {
@@ -77,9 +78,7 @@ export async function handleTilemap(action: string, args: Record<string, unknown
     }
 
     case 'paint': {
-      const scenePath = args.scene_path as string
-      if (!scenePath)
-        throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path with TileMapLayer node.')
+      validateSceneArgs(args, config)
 
       return formatSuccess(
         'TileMap painting requires modifying tile_map_data which is binary-encoded.\n' +
@@ -89,9 +88,7 @@ export async function handleTilemap(action: string, args: Record<string, unknown
     }
 
     case 'list': {
-      const scenePath = args.scene_path as string
-      if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
-
+      const { scenePath } = validateSceneArgs(args, config)
       const fullPath = safeResolve(projectPath || process.cwd(), scenePath)
       if (!existsSync(fullPath))
         throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')

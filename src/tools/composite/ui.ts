@@ -8,7 +8,7 @@ import { dirname } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
-import { parseScene } from '../helpers/scene-parser.js'
+import { parseScene, validateSceneArgs } from '../helpers/scene-parser.js'
 
 const CONTROL_TEMPLATES: Record<string, Record<string, string>> = {
   Button: { text: '"Click"' },
@@ -39,12 +39,11 @@ function resolveScene(projectPath: string | null | undefined, scenePath: string)
 }
 
 export async function handleUI(action: string, args: Record<string, unknown>, config: GodotConfig) {
-  const projectPath = (args.project_path as string) || config.projectPath
+  const { projectPath } = validateSceneArgs(args, config, false)
 
   switch (action) {
     case 'create_control': {
-      const scenePath = args.scene_path as string
-      if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
+      const { scenePath } = validateSceneArgs(args, config)
       const controlName = args.name as string
       const controlType = (args.type as string) || 'Control'
       const parent = (args.parent as string) || '.'
@@ -109,8 +108,7 @@ export async function handleUI(action: string, args: Record<string, unknown>, co
     }
 
     case 'layout': {
-      const scenePath = args.scene_path as string
-      if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
+      const { scenePath } = validateSceneArgs(args, config)
       const nodeName = args.name as string
       if (!nodeName) throw new GodotMCPError('No name specified', 'INVALID_ARGS', 'Provide node name.')
       const preset = (args.preset as string) || 'full_rect'
@@ -164,8 +162,7 @@ export async function handleUI(action: string, args: Record<string, unknown>, co
     }
 
     case 'list_controls': {
-      const scenePath = args.scene_path as string
-      if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
+      const { scenePath } = validateSceneArgs(args, config)
 
       const fullPath = resolveScene(projectPath, scenePath)
       const scene = parseScene(fullPath)

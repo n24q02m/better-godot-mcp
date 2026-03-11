@@ -7,6 +7,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatSuccess, GodotMCPError } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
+import { validateSceneArgs } from '../helpers/scene-parser.js'
 
 function resolveScene(projectPath: string | null | undefined, scenePath: string): string {
   const fullPath = safeResolve(projectPath || process.cwd(), scenePath)
@@ -23,12 +24,11 @@ function appendNode(content: string, name: string, type: string, parent: string,
 }
 
 export async function handleNavigation(action: string, args: Record<string, unknown>, config: GodotConfig) {
-  const projectPath = (args.project_path as string) || config.projectPath
+  const { projectPath } = validateSceneArgs(args, config, false)
 
   switch (action) {
     case 'create_region': {
-      const scenePath = args.scene_path as string
-      if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
+      const { scenePath } = validateSceneArgs(args, config)
       const regionName = (args.name as string) || 'NavigationRegion3D'
       const parent = (args.parent as string) || '.'
       const dimension = (args.dimension as string) || '3D'
@@ -44,8 +44,7 @@ export async function handleNavigation(action: string, args: Record<string, unkn
     }
 
     case 'add_agent': {
-      const scenePath = args.scene_path as string
-      if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
+      const { scenePath } = validateSceneArgs(args, config)
       const agentName = (args.name as string) || 'NavigationAgent3D'
       const parent = (args.parent as string) || '.'
       const dimension = (args.dimension as string) || '3D'
@@ -67,8 +66,7 @@ export async function handleNavigation(action: string, args: Record<string, unkn
     }
 
     case 'add_obstacle': {
-      const scenePath = args.scene_path as string
-      if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
+      const { scenePath } = validateSceneArgs(args, config)
       const obstacleName = (args.name as string) || 'NavigationObstacle3D'
       const parent = (args.parent as string) || '.'
       const dimension = (args.dimension as string) || '3D'

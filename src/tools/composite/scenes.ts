@@ -10,6 +10,7 @@ import type { GodotConfig, SceneInfo, SceneNode } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
 import { setSettingInContent } from '../helpers/project-settings.js'
+import { validateSceneArgs } from '../helpers/scene-parser.js'
 
 // Pre-compiled regex for parsing scene metadata without splitting lines
 const rxNode = /^\[node\s+name="([^"]+)"\s+type="([^"]+)"(?:\s+parent="([^"]*)")?/
@@ -118,9 +119,8 @@ function generateTscnContent(rootName: string, rootType: string): string {
   return [`[gd_scene format=3]`, '', `[node name="${rootName}" type="${rootType}"]`, ''].join('\n')
 }
 
-function validateSceneArgs(action: string, args: Record<string, unknown>, config: GodotConfig) {
-  const projectPath = (args.project_path as string) || config.projectPath || undefined
-  const scenePath = args.scene_path as string
+function validateScenesToolArgs(action: string, args: Record<string, unknown>, config: GodotConfig) {
+  const { projectPath, scenePath } = validateSceneArgs(args, config, false)
   const newPath = args.new_path as string
 
   // project_path required
@@ -159,7 +159,7 @@ function resolvePath(base: string | undefined, relativePath: string): string {
 }
 
 export async function handleScenes(action: string, args: Record<string, unknown>, config: GodotConfig) {
-  const { projectPath, scenePath, newPath } = validateSceneArgs(action, args, config)
+  const { projectPath, scenePath, newPath } = validateScenesToolArgs(action, args, config)
 
   switch (action) {
     case 'create': {

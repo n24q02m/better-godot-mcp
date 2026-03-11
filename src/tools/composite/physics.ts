@@ -9,9 +9,10 @@ import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
 import { parseProjectSettings, setSettingInContent } from '../helpers/project-settings.js'
+import { validateSceneArgs } from '../helpers/scene-parser.js'
 
 export async function handlePhysics(action: string, args: Record<string, unknown>, config: GodotConfig) {
-  const projectPath = (args.project_path as string) || config.projectPath
+  const { projectPath } = validateSceneArgs(args, config, false)
 
   switch (action) {
     case 'layers': {
@@ -37,8 +38,7 @@ export async function handlePhysics(action: string, args: Record<string, unknown
     }
 
     case 'collision_setup': {
-      const scenePath = args.scene_path as string
-      if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
+      const { scenePath } = validateSceneArgs(args, config)
       const nodeName = args.name as string
       if (!nodeName) throw new GodotMCPError('No node name specified', 'INVALID_ARGS', 'Provide node name.')
       const collisionLayer = args.collision_layer as number
@@ -70,8 +70,7 @@ export async function handlePhysics(action: string, args: Record<string, unknown
     }
 
     case 'body_config': {
-      const scenePath = args.scene_path as string
-      if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
+      const { scenePath } = validateSceneArgs(args, config)
       const nodeName = args.name as string
       if (!nodeName) throw new GodotMCPError('No node name specified', 'INVALID_ARGS', 'Provide node name.')
 

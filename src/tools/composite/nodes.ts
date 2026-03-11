@@ -14,6 +14,7 @@ import {
   renameNodeInContent,
   type SceneNodeInfo,
   setNodePropertyInContent,
+  validateSceneArgs,
 } from '../helpers/scene-parser.js'
 
 /**
@@ -42,12 +43,11 @@ function resolveScenePath(projectPath: string | null | undefined, scenePath: str
 }
 
 export async function handleNodes(action: string, args: Record<string, unknown>, config: GodotConfig) {
-  const projectPath = (args.project_path as string) || config.projectPath
+  const { projectPath } = validateSceneArgs(args, config, false)
 
   switch (action) {
     case 'add': {
-      const scenePath = args.scene_path as string
-      if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
+      const { scenePath } = validateSceneArgs(args, config)
       const nodeName = args.name as string
       if (!nodeName) throw new GodotMCPError('No node name specified', 'INVALID_ARGS', 'Provide name for the new node.')
       const nodeType = (args.type as string) || 'Node'
@@ -77,8 +77,7 @@ export async function handleNodes(action: string, args: Record<string, unknown>,
     }
 
     case 'remove': {
-      const scenePath = args.scene_path as string
-      if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
+      const { scenePath } = validateSceneArgs(args, config)
       const nodeName = args.name as string
       if (!nodeName)
         throw new GodotMCPError('No node name specified', 'INVALID_ARGS', 'Provide name of node to remove.')
@@ -95,8 +94,7 @@ export async function handleNodes(action: string, args: Record<string, unknown>,
     }
 
     case 'rename': {
-      const scenePath = args.scene_path as string
-      if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
+      const { scenePath } = validateSceneArgs(args, config)
       const nodeName = args.name as string
       const newName = args.new_name as string
       if (!nodeName || !newName)
@@ -114,8 +112,7 @@ export async function handleNodes(action: string, args: Record<string, unknown>,
     }
 
     case 'list': {
-      const scenePath = args.scene_path as string
-      if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
+      const { scenePath } = validateSceneArgs(args, config)
 
       const fullPath = resolveScenePath(projectPath, scenePath)
       if (!existsSync(fullPath))
@@ -138,8 +135,7 @@ export async function handleNodes(action: string, args: Record<string, unknown>,
     }
 
     case 'set_property': {
-      const scenePath = args.scene_path as string
-      if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
+      const { scenePath } = validateSceneArgs(args, config)
       const nodeName = args.name as string
       const property = args.property as string
       const value = args.value as string
@@ -163,8 +159,7 @@ export async function handleNodes(action: string, args: Record<string, unknown>,
     }
 
     case 'get_property': {
-      const scenePath = args.scene_path as string
-      if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
+      const { scenePath } = validateSceneArgs(args, config)
       const nodeName = args.name as string
       const property = args.property as string
       if (!nodeName || !property) {

@@ -1,3 +1,5 @@
+import type { GodotConfig } from '../../godot/types.js'
+import { GodotMCPError } from './errors.js'
 /**
  * Scene Parser - Parse Godot .tscn (text scene) format
  *
@@ -391,4 +393,19 @@ export function getNodeProperty(scene: ParsedScene, nodeName: string, property: 
  */
 export function writeScene(filePath: string, content: string): void {
   writeFileSync(filePath, content, 'utf-8')
+}
+
+/**
+ * Validate and resolve standard scene arguments
+ * Reusable helper to consolidate argument validation logic
+ */
+export function validateSceneArgs(args: Record<string, unknown>, config: GodotConfig, requireScenePath = true) {
+  const projectPath = (args.project_path as string) || config.projectPath || undefined
+  const scenePath = args.scene_path as string
+
+  if (requireScenePath && !scenePath) {
+    throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
+  }
+
+  return { projectPath, scenePath }
 }

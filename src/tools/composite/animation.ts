@@ -7,6 +7,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
+import { validateSceneArgs } from '../helpers/scene-parser.js'
 
 function resolveScene(projectPath: string | null | undefined, scenePath: string): string {
   const fullPath = safeResolve(projectPath || process.cwd(), scenePath)
@@ -16,12 +17,11 @@ function resolveScene(projectPath: string | null | undefined, scenePath: string)
 }
 
 export async function handleAnimation(action: string, args: Record<string, unknown>, config: GodotConfig) {
-  const projectPath = (args.project_path as string) || config.projectPath
+  const { projectPath } = validateSceneArgs(args, config, false)
 
   switch (action) {
     case 'create_player': {
-      const scenePath = args.scene_path as string
-      if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
+      const { scenePath } = validateSceneArgs(args, config)
       const playerName = (args.name as string) || 'AnimationPlayer'
       const parent = (args.parent as string) || '.'
 
@@ -37,8 +37,7 @@ export async function handleAnimation(action: string, args: Record<string, unkno
     }
 
     case 'add_animation': {
-      const scenePath = args.scene_path as string
-      if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
+      const { scenePath } = validateSceneArgs(args, config)
       const animName = args.anim_name as string
       if (!animName) throw new GodotMCPError('No anim_name specified', 'INVALID_ARGS', 'Provide animation name.')
       const duration = (args.duration as number) || 1.0
@@ -65,8 +64,7 @@ export async function handleAnimation(action: string, args: Record<string, unkno
     }
 
     case 'add_track': {
-      const scenePath = args.scene_path as string
-      if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
+      const { scenePath } = validateSceneArgs(args, config)
       const animName = args.anim_name as string
       const trackType = (args.track_type as string) || 'value'
       const nodePath = args.node_path as string
@@ -113,8 +111,7 @@ export async function handleAnimation(action: string, args: Record<string, unkno
     }
 
     case 'list': {
-      const scenePath = args.scene_path as string
-      if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
+      const { scenePath } = validateSceneArgs(args, config)
 
       const fullPath = resolveScene(projectPath, scenePath)
       const content = readFileSync(fullPath, 'utf-8')

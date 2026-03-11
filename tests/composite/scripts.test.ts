@@ -134,6 +134,19 @@ describe('scripts', () => {
         ),
       ).rejects.toThrow('not found')
     })
+
+    it('should throw for path traversal attempts', async () => {
+      await expect(
+        handleScripts(
+          'read',
+          {
+            project_path: projectPath,
+            script_path: '../outside.gd',
+          },
+          config,
+        ),
+      ).rejects.toThrow('outside the project root')
+    })
   })
 
   // ==========================================

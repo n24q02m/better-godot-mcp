@@ -5,7 +5,7 @@
 
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { readdir } from 'node:fs/promises'
-import { dirname, extname, join, relative, resolve } from 'node:path'
+import { dirname, extname, join, relative, resolve, sep } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
@@ -166,7 +166,15 @@ export async function handleScripts(action: string, args: Record<string, unknown
       const scriptPath = args.script_path as string
       if (!scriptPath) throw new GodotMCPError('No script_path specified', 'INVALID_ARGS', 'Provide script_path.')
 
-      const fullPath = resolvePath(scriptPath)
+      const fullPath = projectPath ? resolve(projectPath, scriptPath) : resolve(scriptPath)
+      const resolvedProject = projectPath ? resolve(projectPath) : process.cwd()
+      if (!fullPath.startsWith(resolvedProject + sep) && fullPath !== resolvedProject) {
+        throw new GodotMCPError(
+          'Access denied: Path is outside project directory.',
+          'INVALID_ARGS',
+          'Ensure path is within project_path.',
+        )
+      }
       if (!existsSync(fullPath))
         throw new GodotMCPError(`Script not found: ${scriptPath}`, 'SCRIPT_ERROR', 'Check the file path.')
 

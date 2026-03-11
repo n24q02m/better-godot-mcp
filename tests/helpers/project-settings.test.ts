@@ -60,6 +60,21 @@ describe('project-settings', () => {
       const settings = parseProjectSettingsContent(SAMPLE_PROJECT_GODOT)
       expect(settings.raw).toBe(SAMPLE_PROJECT_GODOT)
     })
+
+    it('should parse multiline values enclosed in {}', () => {
+      const multilineContent = `[input]
+action={
+"deadzone": 0.5,
+"events": [
+  Object(InputEventKey,"keycode":65)
+]
+}
+other=123`
+      const settings = parseProjectSettingsContent(multilineContent)
+      const input = settings.sections.get('input')
+      expect(input?.get('action')).toBe('{\n"deadzone": 0.5,\n"events": [\n  Object(InputEventKey,"keycode":65)\n]\n}')
+      expect(input?.get('other')).toBe('123')
+    })
   })
 
   // ==========================================

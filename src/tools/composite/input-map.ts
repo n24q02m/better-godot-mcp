@@ -1,3 +1,4 @@
+import { parseProjectSettingsContent } from '../helpers/project-settings.js'
 /**
  * Input Map tool - Input action management via project.godot
  * Actions: list | add_action | remove_action | add_event
@@ -146,49 +147,13 @@ function getProjectGodotPath(projectPath: string | null | undefined): string {
  */
 function parseInputActions(content: string): Map<string, string[]> {
   const actions = new Map<string, string[]>()
-  let inInputSection = false
-  let currentActionName: string | null = null
-  let currentActionAccumulator = ''
+  const settings = parseProjectSettingsContent(content)
+  const inputSection = settings.sections.get('input')
 
-  for (const line of content.split('\n')) {
-    const trimmed = line.trim()
-
-    // Handle multi-line continuation
-    if (currentActionName !== null) {
-      currentActionAccumulator += trimmed
-      if (trimmed.endsWith('}')) {
-        // End of multi-line action
-        const eventsMatch = currentActionAccumulator.match(/"events":\s*\[([^\]]*)\]/)
-        const events = eventsMatch
-          ? eventsMatch[1]
-              .split(',')
-              .map((e) => e.trim())
-              .filter(Boolean)
-          : []
-        actions.set(currentActionName, events)
-        currentActionName = null
-        currentActionAccumulator = ''
-      }
-      continue
-    }
-
-    if (trimmed === '[input]') {
-      inInputSection = true
-      continue
-    }
-
-    // Stop if we hit another section
-    if (trimmed.startsWith('[') && inInputSection) {
-      inInputSection = false
-      break
-    }
-
-    if (inInputSection) {
-      // Single-line format: action_name={...}
-      const match = trimmed.match(/^(\w+)=\{(.+)\}$/)
-      if (match) {
-        const actionName = match[1]
-        const eventsMatch = match[2].match(/"events":\s*\[([^\]]*)\]/)
+  if (inputSection) {
+    for (const [actionName, actionData] of inputSection.entries()) {
+      if (actionData.startsWith('{')) {
+        const eventsMatch = actionData.match(/"events":\s*\[([^\]]*)\]/)
         const events = eventsMatch
           ? eventsMatch[1]
               .split(',')
@@ -196,16 +161,6 @@ function parseInputActions(content: string): Map<string, string[]> {
               .filter(Boolean)
           : []
         actions.set(actionName, events)
-      } else {
-        // Multi-line format start: action_name={
-        //   "deadzone": 0.2,
-        //   "events": [...]
-        // }
-        const startMatch = trimmed.match(/^(\w+)=\{(.*)$/)
-        if (startMatch) {
-          currentActionName = startMatch[1]
-          currentActionAccumulator = startMatch[2]
-        }
       }
     }
   }

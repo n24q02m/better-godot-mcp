@@ -44,7 +44,7 @@ export function parseProjectSettingsContent(content: string): ProjectSettings {
   const len = content.length
 
   while (pos < len) {
-    const nextNewline = content.indexOf('\n', pos)
+    let nextNewline = content.indexOf('\n', pos)
     const lineEnd = nextNewline === -1 ? len : nextNewline
 
     // Trim line manually (whitespace <= 32)
@@ -79,7 +79,52 @@ export function parseProjectSettingsContent(content: string): ProjectSettings {
         while (valStart < end && content.charCodeAt(valStart) <= 32) valStart++
 
         const key = content.slice(start, keyEnd)
-        const value = content.slice(valStart, end)
+        let value = content.slice(valStart, end)
+
+        // Handle multi-line dictionary values enclosed in {}
+        if (value.charCodeAt(0) === 123) {
+          // 123 is '{'
+          let dictEnd = end
+          // Look for closing '}' or until end of string
+          while (dictEnd < len) {
+            if (content.charCodeAt(dictEnd - 1) === 125) {
+              // 125 is '}'
+              // Re-check if this line actually ends with '}' (ignoring trailing whitespace)
+              let actualEnd = dictEnd - 1
+              while (actualEnd > valStart && content.charCodeAt(actualEnd) <= 32) actualEnd--
+              if (content.charCodeAt(actualEnd) === 125) {
+                break
+              }
+            }
+
+            const nextLineEnd = content.indexOf('\n', dictEnd)
+            if (nextLineEnd === -1) {
+              dictEnd = len
+              break
+            }
+
+            dictEnd = nextLineEnd + 1 // include newline
+
+            // Check if the current line ends with '}'
+            let tempEnd = dictEnd - 1
+            while (tempEnd > valStart && content.charCodeAt(tempEnd) <= 32) tempEnd--
+            if (content.charCodeAt(tempEnd) === 125) {
+              break
+            }
+          }
+
+          if (dictEnd > end) {
+            value = content.slice(valStart, dictEnd)
+            // Update pos and nextNewline to skip the lines we just read
+            pos = dictEnd
+            nextNewline = dictEnd - 1
+
+            // trim trailing whitespaces
+            let finalEnd = value.length
+            while (finalEnd > 0 && value.charCodeAt(finalEnd - 1) <= 32) finalEnd--
+            value = value.slice(0, finalEnd)
+          }
+        }
 
         sections.get(currentSection)?.set(key, value)
       }

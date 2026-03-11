@@ -3,15 +3,18 @@
  * Actions: create_player | add_animation | add_track | add_keyframe | list
  */
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { access, readFile, writeFile } from 'node:fs/promises'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
 
-function resolveScene(projectPath: string | null | undefined, scenePath: string): string {
+async function resolveScene(projectPath: string | null | undefined, scenePath: string): Promise<string> {
   const fullPath = safeResolve(projectPath || process.cwd(), scenePath)
-  if (!existsSync(fullPath))
+  try {
+    await access(fullPath)
+  } catch {
     throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
+  }
   return fullPath
 }
 
@@ -25,14 +28,14 @@ export async function handleAnimation(action: string, args: Record<string, unkno
       const playerName = (args.name as string) || 'AnimationPlayer'
       const parent = (args.parent as string) || '.'
 
-      const fullPath = resolveScene(projectPath, scenePath)
-      let content = readFileSync(fullPath, 'utf-8')
+      const fullPath = await resolveScene(projectPath, scenePath)
+      let content = await readFile(fullPath, 'utf-8')
 
       const parentAttr = parent === '.' ? '' : ` parent="${parent}"`
       const nodeDecl = `\n[node name="${playerName}" type="AnimationPlayer"${parentAttr}]\n`
       content = `${content.trimEnd()}\n${nodeDecl}`
 
-      writeFileSync(fullPath, content, 'utf-8')
+      await writeFile(fullPath, content, 'utf-8')
       return formatSuccess(`Created AnimationPlayer: ${playerName} under ${parent}`)
     }
 
@@ -44,8 +47,8 @@ export async function handleAnimation(action: string, args: Record<string, unkno
       const duration = (args.duration as number) || 1.0
       const loop = args.loop !== false
 
-      const fullPath = resolveScene(projectPath, scenePath)
-      let content = readFileSync(fullPath, 'utf-8')
+      const fullPath = await resolveScene(projectPath, scenePath)
+      let content = await readFile(fullPath, 'utf-8')
 
       // Add sub_resource for animation
       const animId = `Animation_${animName}`
@@ -60,7 +63,7 @@ export async function handleAnimation(action: string, args: Record<string, unkno
         content = `${content.slice(0, nodeIdx)}${animResource}\n${content.slice(nodeIdx)}`
       }
 
-      writeFileSync(fullPath, content, 'utf-8')
+      await writeFile(fullPath, content, 'utf-8')
       return formatSuccess(`Added animation: ${animName} (duration: ${duration}s, loop: ${loop})`)
     }
 
@@ -79,8 +82,8 @@ export async function handleAnimation(action: string, args: Record<string, unkno
         )
       }
 
-      const fullPath = resolveScene(projectPath, scenePath)
-      const content = readFileSync(fullPath, 'utf-8')
+      const fullPath = await resolveScene(projectPath, scenePath)
+      const content = await readFile(fullPath, 'utf-8')
 
       const trackPath = `${nodePath}:${property}`
       const trackInfo = `tracks/${trackType}/type = "${trackType}"\ntracks/${trackType}/path = NodePath("${trackPath}")\n`
@@ -97,7 +100,7 @@ export async function handleAnimation(action: string, args: Record<string, unkno
       if (endIdx === -1) endIdx = content.length
 
       const updated = `${content.slice(0, endIdx)}\n${trackInfo}${content.slice(endIdx)}`
-      writeFileSync(fullPath, updated, 'utf-8')
+      await writeFile(fullPath, updated, 'utf-8')
 
       return formatSuccess(`Added ${trackType} track: ${trackPath} to animation ${animName}`)
     }
@@ -116,8 +119,8 @@ export async function handleAnimation(action: string, args: Record<string, unkno
       const scenePath = args.scene_path as string
       if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
 
-      const fullPath = resolveScene(projectPath, scenePath)
-      const content = readFileSync(fullPath, 'utf-8')
+      const fullPath = await resolveScene(projectPath, scenePath)
+      const content = await readFile(fullPath, 'utf-8')
 
       const animations: { name: string; duration?: string; loop?: boolean }[] = []
       const animRegex = /\[sub_resource type="Animation" id="([^"]+)"\]/g

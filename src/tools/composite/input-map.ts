@@ -3,7 +3,8 @@
  * Actions: list | add_action | remove_action | add_event
  */
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
+import { readFile, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
@@ -219,7 +220,7 @@ export async function handleInputMap(action: string, args: Record<string, unknow
   switch (action) {
     case 'list': {
       const configPath = getProjectGodotPath(projectPath)
-      const content = readFileSync(configPath, 'utf-8')
+      const content = await readFile(configPath, 'utf-8')
       const actions = parseInputActions(content)
 
       const actionList = Array.from(actions.entries()).map(([name, events]) => ({
@@ -243,7 +244,7 @@ export async function handleInputMap(action: string, args: Record<string, unknow
       }
       const deadzone = (args.deadzone as number) || 0.5
 
-      let content = readFileSync(configPath, 'utf-8')
+      let content = await readFile(configPath, 'utf-8')
 
       // Check if [input] section exists
       if (!content.includes('[input]')) {
@@ -259,7 +260,7 @@ export async function handleInputMap(action: string, args: Record<string, unknow
       const actionLine = `${actionName}={\n"deadzone": ${deadzone},\n"events": []\n}`
       content = content.replace('[input]', `[input]\n${actionLine}`)
 
-      writeFileSync(configPath, content, 'utf-8')
+      await writeFile(configPath, content, 'utf-8')
       return formatSuccess(`Added input action: ${actionName} (deadzone: ${deadzone})`)
     }
 
@@ -275,7 +276,7 @@ export async function handleInputMap(action: string, args: Record<string, unknow
         )
       }
 
-      const content = readFileSync(configPath, 'utf-8')
+      const content = await readFile(configPath, 'utf-8')
       // Remove the action line(s) - handles multi-line format
       const pattern = new RegExp(`${actionName}=\\{[^}]*\\}\\n?`, 'g')
       const updated = content.replace(pattern, '')
@@ -284,7 +285,7 @@ export async function handleInputMap(action: string, args: Record<string, unknow
         throw new GodotMCPError(`Action "${actionName}" not found`, 'INPUT_ERROR', 'Check action name with list.')
       }
 
-      writeFileSync(configPath, updated, 'utf-8')
+      await writeFile(configPath, updated, 'utf-8')
       return formatSuccess(`Removed input action: ${actionName}`)
     }
 
@@ -308,7 +309,7 @@ export async function handleInputMap(action: string, args: Record<string, unknow
         )
       }
 
-      const content = readFileSync(configPath, 'utf-8')
+      const content = await readFile(configPath, 'utf-8')
 
       // Build event object based on type
       let eventObj: string
@@ -349,7 +350,7 @@ export async function handleInputMap(action: string, args: Record<string, unknow
       const newEvents = existingEvents ? `${existingEvents}, ${eventObj}` : eventObj
       const updated = content.replace(actionRegex, `$1${newEvents}]`)
 
-      writeFileSync(configPath, updated, 'utf-8')
+      await writeFile(configPath, updated, 'utf-8')
       return formatSuccess(`Added ${eventType} event to action: ${actionName}`)
     }
 

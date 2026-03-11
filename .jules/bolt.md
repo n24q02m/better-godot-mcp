@@ -1,0 +1,3 @@
+## 2025-03-10 - Asynchronous I/O for Configuration Files
+**Learning:** Using synchronous file I/O operations (`readFileSync`, `writeFileSync`) in the MCP server can cause the single event loop thread to block for significant durations (e.g., >60ms max lag when simulating 13MB file writes), freezing incoming tool requests. Switching to asynchronous I/O (`await readFile`, `await writeFile`) drops max event loop lag dramatically (e.g., to ~0.64ms).
+**Action:** When handling Godot configuration files (e.g., `project.godot`), always import reading/writing methods from `node:fs/promises` rather than `node:fs`, and explicitly await I/O calls to keep the Node.js event loop responsive.

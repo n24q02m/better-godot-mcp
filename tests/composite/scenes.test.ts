@@ -266,6 +266,24 @@ describe('scenes', () => {
   // path traversal prevention
   // ==========================================
   describe('path traversal', () => {
+    it('should reject path traversal via project_path argument in info', async () => {
+      await expect(
+        handleScenes('info', { project_path: '../../../etc', scene_path: 'passwd' }, config),
+      ).rejects.toThrow('Access denied')
+    })
+
+    it('should reject path traversal via project_path argument in list', async () => {
+      await expect(
+        handleScenes('list', { project_path: '../../../etc' }, config),
+      ).rejects.toThrow('Access denied')
+    })
+
+    it('should reject path traversal via project_path argument', async () => {
+      await expect(
+        handleScenes('info', { project_path: '../../../etc', scene_path: 'passwd' }, config),
+      ).rejects.toThrow('Access denied')
+    })
+
     it('should reject info with ../etc/passwd traversal', async () => {
       await expect(
         handleScenes('info', { project_path: projectPath, scene_path: '../../../etc/passwd' }, config),

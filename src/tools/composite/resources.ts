@@ -4,6 +4,7 @@
  */
 
 import { existsSync, readFileSync, statSync, unlinkSync } from 'node:fs'
+import { stat } from 'node:fs/promises'
 import { extname, relative, resolve } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'

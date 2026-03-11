@@ -86,6 +86,38 @@ describe('detector', () => {
       const v = parseGodotVersion('  4.6.stable  \n')
       expect(v?.raw).toBe('4.6.stable')
     })
+
+    it('should return null for non-numeric version (e.g. Godot vX.Y.Z)', () => {
+      expect(parseGodotVersion('Godot vX.Y.Z')).toBeNull()
+    })
+
+    it('should return null for whitespace only output', () => {
+      expect(parseGodotVersion('   \n  \t  ')).toBeNull()
+    })
+
+    it('should return null when minor version is missing', () => {
+      expect(parseGodotVersion('Godot v4')).toBeNull()
+      expect(parseGodotVersion('4')).toBeNull()
+    })
+
+    it('should parse version without patch or label', () => {
+      const v = parseGodotVersion('4.3')
+      expect(v).not.toBeNull()
+      expect(v?.major).toBe(4)
+      expect(v?.minor).toBe(3)
+      expect(v?.patch).toBe(0)
+      expect(v?.label).toBe('stable')
+    })
+
+    it('should parse version embedded in multiline text', () => {
+      const multiline = 'Loading...\nGodot Engine v4.3.stable\nReady.'
+      const v = parseGodotVersion(multiline)
+      expect(v).not.toBeNull()
+      expect(v?.major).toBe(4)
+      expect(v?.minor).toBe(3)
+      expect(v?.patch).toBe(0)
+      expect(v?.label).toBe('stable')
+    })
   })
 
   // ==========================================

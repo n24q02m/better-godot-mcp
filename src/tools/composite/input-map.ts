@@ -297,7 +297,7 @@ export async function handleInputMap(action: string, args: Record<string, unknow
         updatedActionValue = actionValue.replace(eventsRegex, `$1${newEvents}$3`)
       } else {
         // Fallback if "events" array doesn't exist but the action does
-        updatedActionValue = actionValue.replace('}', `,"events": [${eventObj}]\n}`)
+        updatedActionValue = actionValue.replace(/}\s*$/, `,"events": [${eventObj}]\n}`)
       }
 
       const updated = setSettingInContent(content, `input/${actionName}`, updatedActionValue)

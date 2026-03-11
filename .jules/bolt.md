@@ -1,0 +1,3 @@
+## 2024-05-24 - [Replace blocking file operations with async operations]
+**Learning:** Replaced `readFileSync` and `writeFileSync` with their asynchronous counterparts (`await readFile` and `await writeFile`) in `scenes.ts`'s `set_main` action. This prevents blocking the Node.js event loop during heavy operations, ensuring a more responsive MCP server.
+**Action:** When updating configuration files or handling I/O operations inside tool actions in this project, prioritize asynchronous Node.js `node:fs/promises` methods like `await readFile` and `await writeFile` instead of their synchronous versions to avoid blocking the event loop.

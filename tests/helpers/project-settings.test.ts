@@ -60,6 +60,38 @@ describe('project-settings', () => {
       const settings = parseProjectSettingsContent(SAMPLE_PROJECT_GODOT)
       expect(settings.raw).toBe(SAMPLE_PROJECT_GODOT)
     })
+
+    it('should parse multi-line block values', () => {
+      const content = `[input]
+move_left={
+"deadzone": 0.5,
+"events": [
+  Object(InputEventKey,"keycode":65)
+]
+}
+`
+      const settings = parseProjectSettingsContent(content)
+      const input = settings.sections.get('input')
+      const expected = `{
+"deadzone": 0.5,
+"events": [
+  Object(InputEventKey,"keycode":65)
+]
+}`
+      expect(input?.get('move_left')).toBe(expected)
+    })
+
+    it('should parse multi-line string values', () => {
+      const content = `[rendering]
+test="multiline
+string
+here"
+`
+      const settings = parseProjectSettingsContent(content)
+      const rendering = settings.sections.get('rendering')
+      const expected = `"multiline\nstring\nhere"`
+      expect(rendering?.get('test')).toBe(expected)
+    })
   })
 
   // ==========================================

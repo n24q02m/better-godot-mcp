@@ -35,6 +35,7 @@ export async function parseProjectSettingsAsync(filePath: string): Promise<Proje
  * Parse project.godot content string
  * Optimized to traverse the string directly instead of using split('\n') and regex.
  * Parses large project.godot files ~60% faster by avoiding string allocations.
+ * Now supports multi-line values for both blocks enclosed in {} and strings enclosed in "".
  */
 export function parseProjectSettingsContent(content: string): ProjectSettings {
   const sections = new Map<string, Map<string, string>>()
@@ -44,48 +45,88 @@ export function parseProjectSettingsContent(content: string): ProjectSettings {
   const len = content.length
 
   while (pos < len) {
-    const nextNewline = content.indexOf('\n', pos)
-    const lineEnd = nextNewline === -1 ? len : nextNewline
+    // Trim leading whitespace for the line
+    while (pos < len && content.charCodeAt(pos) <= 32) pos++
+    if (pos >= len) break
 
-    // Trim line manually (whitespace <= 32)
-    let start = pos
-    let end = lineEnd
-    while (start < end && content.charCodeAt(start) <= 32) start++
-    while (end > start && content.charCodeAt(end - 1) <= 32) end--
-
-    // Skip empty lines or comments (59 is ';')
-    if (start === end || content.charCodeAt(start) === 59) {
+    // Skip comments
+    if (content.charCodeAt(pos) === 59) {
+      // ';'
+      const nextNewline = content.indexOf('\n', pos)
       pos = nextNewline === -1 ? len : nextNewline + 1
       continue
     }
 
-    const firstChar = content.charCodeAt(start)
-    const lastChar = content.charCodeAt(end - 1)
-
-    // Section header: starts with '[' (91) and ends with ']' (93)
-    if (firstChar === 91 && lastChar === 93) {
-      currentSection = content.slice(start + 1, end - 1)
-      if (!sections.has(currentSection)) {
-        sections.set(currentSection, new Map())
-      }
-    } else if (currentSection) {
-      // Key=value
-      const eqIdx = content.indexOf('=', start)
-      if (eqIdx !== -1 && eqIdx < end) {
-        let keyEnd = eqIdx
-        while (keyEnd > start && content.charCodeAt(keyEnd - 1) <= 32) keyEnd--
-
-        let valStart = eqIdx + 1
-        while (valStart < end && content.charCodeAt(valStart) <= 32) valStart++
-
-        const key = content.slice(start, keyEnd)
-        const value = content.slice(valStart, end)
-
-        sections.get(currentSection)?.set(key, value)
+    // Section header: starts with '[' (91)
+    if (content.charCodeAt(pos) === 91) {
+      const endBracket = content.indexOf(']', pos)
+      if (endBracket !== -1) {
+        currentSection = content.slice(pos + 1, endBracket).trim()
+        if (!sections.has(currentSection)) {
+          sections.set(currentSection, new Map())
+        }
+        const nextNewline = content.indexOf('\n', endBracket)
+        pos = nextNewline === -1 ? len : nextNewline + 1
+        continue
       }
     }
 
-    pos = nextNewline === -1 ? len : nextNewline + 1
+    // Key=value pairs
+    if (currentSection) {
+      const eqIdx = content.indexOf('=', pos)
+      const nextNewline = content.indexOf('\n', pos)
+
+      // If we found an '=' before the end of the line (or file)
+      if (eqIdx !== -1 && (nextNewline === -1 || eqIdx < nextNewline)) {
+        let keyEnd = eqIdx
+        while (keyEnd > pos && content.charCodeAt(keyEnd - 1) <= 32) keyEnd--
+        const key = content.slice(pos, keyEnd)
+
+        let valStart = eqIdx + 1
+        while (valStart < len && content.charCodeAt(valStart) <= 32 && content.charCodeAt(valStart) !== 10) valStart++
+
+        let inString = false
+        let braceDepth = 0
+        let valEnd = valStart
+
+        // State machine to parse the value
+        while (valEnd < len) {
+          const char = content.charCodeAt(valEnd)
+
+          if (char === 34 && content.charCodeAt(valEnd - 1) !== 92) {
+            // '"' not escaped by '\'
+            inString = !inString
+          } else if (!inString) {
+            if (char === 123) {
+              // '{'
+              braceDepth++
+            } else if (char === 125) {
+              // '}'
+              braceDepth--
+            } else if (char === 10 && braceDepth === 0) {
+              // '\n' outside blocks
+              break
+            }
+          }
+
+          valEnd++
+        }
+
+        // We might have ended on a newline or EOF. Trim trailing whitespace.
+        let end = valEnd
+        while (end > valStart && content.charCodeAt(end - 1) <= 32) end--
+
+        const value = content.slice(valStart, end)
+        sections.get(currentSection)?.set(key, value)
+
+        pos = valEnd < len ? valEnd + 1 : len // move past the terminating character (usually newline)
+        continue
+      }
+    }
+
+    // Fallback: move to the next line if we couldn't parse as section or key=value
+    const fallbackNextNewline = content.indexOf('\n', pos)
+    pos = fallbackNextNewline === -1 ? len : fallbackNextNewline + 1
   }
 
   return { sections, raw: content }

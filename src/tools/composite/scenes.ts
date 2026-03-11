@@ -3,8 +3,8 @@
  * Actions: create | list | info | delete | duplicate | set_main
  */
 
-import { copyFileSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
-import { readdir, readFile } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
+import { copyFile, mkdir, readdir, readFile, unlink, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, join, relative, resolve } from 'node:path'
 import type { GodotConfig, SceneInfo, SceneNode } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
@@ -177,8 +177,8 @@ export async function handleScenes(action: string, args: Record<string, unknown>
       }
 
       const content = generateTscnContent(rootName, rootType)
-      mkdirSync(dirname(fullPath), { recursive: true })
-      writeFileSync(fullPath, content, 'utf-8')
+      await mkdir(dirname(fullPath), { recursive: true })
+      await writeFile(fullPath, content, 'utf-8')
 
       return formatSuccess(`Created scene: ${scenePath}\nRoot: ${rootName} (${rootType})`)
     }
@@ -214,7 +214,7 @@ export async function handleScenes(action: string, args: Record<string, unknown>
         throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
       }
 
-      unlinkSync(fullPath)
+      await unlink(fullPath)
       return formatSuccess(`Deleted scene: ${scenePath}`)
     }
 
@@ -234,8 +234,8 @@ export async function handleScenes(action: string, args: Record<string, unknown>
         )
       }
 
-      mkdirSync(dirname(dstFull), { recursive: true })
-      copyFileSync(srcFull, dstFull)
+      await mkdir(dirname(dstFull), { recursive: true })
+      await copyFile(srcFull, dstFull)
       return formatSuccess(`Duplicated: ${scenePath} -> ${newPath}`)
     }
 
@@ -247,9 +247,9 @@ export async function handleScenes(action: string, args: Record<string, unknown>
       }
 
       const resPath = `res://${scenePath.replace(/\\/g, '/')}`
-      const content = readFileSync(configPath, 'utf-8')
+      const content = await readFile(configPath, 'utf-8')
       const updated = setSettingInContent(content, 'application/run/main_scene', `"${resPath}"`)
-      writeFileSync(configPath, updated, 'utf-8')
+      await writeFile(configPath, updated, 'utf-8')
 
       return formatSuccess(`Set main scene: ${resPath}`)
     }

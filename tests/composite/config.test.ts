@@ -145,7 +145,6 @@ describe('config', () => {
       ).rejects.toThrow('Invalid characters')
     })
 
-
     it('should reject paths that are not strings (e.g. arrays to bypass regex)', async () => {
       await expect(
         handleConfig('set', { key: 'godot_path', value: ['node', '-e', 'pwned'] as unknown as string }, config),

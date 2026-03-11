@@ -4,8 +4,8 @@
  */
 
 import { execFileSync } from 'node:child_process'
-import { existsSync } from 'node:fs'
-import { readFile, writeFile } from 'node:fs/promises'
+import { access, constants, readFile, writeFile } from 'node:fs/promises'
+
 import { join, resolve } from 'node:path'
 import { execGodotSync, runGodotProject } from '../../godot/headless.js'
 import type { GodotConfig, ProjectInfo } from '../../godot/types.js'
@@ -13,9 +13,18 @@ import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
 import { getSetting, parseProjectSettingsAsync, setSettingInContent } from '../helpers/project-settings.js'
 
+async function fileExists(filePath: string): Promise<boolean> {
+  try {
+    await access(filePath, constants.F_OK)
+    return true
+  } catch {
+    return false
+  }
+}
+
 async function parseProjectGodot(projectPath: string): Promise<ProjectInfo> {
   const configPath = join(projectPath, 'project.godot')
-  if (!existsSync(configPath)) {
+  if (!(await fileExists(configPath))) {
     throw new GodotMCPError(
       `No project.godot found at ${projectPath}`,
       'PROJECT_NOT_FOUND',
@@ -23,40 +32,37 @@ async function parseProjectGodot(projectPath: string): Promise<ProjectInfo> {
     )
   }
 
-  const content = await readFile(configPath, 'utf-8')
-  const lines = content.split('\n')
+  const projectSettings = await parseProjectSettingsAsync(configPath)
 
   const info: ProjectInfo = { name: 'Unknown', configVersion: 5, mainScene: null, features: [], settings: {} }
-  let currentSection = ''
 
-  for (const line of lines) {
-    const trimmed = line.trim()
+  // Extract config_version from raw content (it appears before any section)
+  const configVersionMatch = projectSettings.raw.match(/^config_version\s*=\s*(\d+)/m)
+  if (configVersionMatch) {
+    info.configVersion = Number.parseInt(configVersionMatch[1], 10)
+    info.settings['config_version'] = configVersionMatch[1]
+  }
 
-    const sectionMatch = trimmed.match(/^\[(.+)\]$/)
-    if (sectionMatch) {
-      currentSection = sectionMatch[1]
-      continue
-    }
+  // Iterate over sections and populate info.settings
+  for (const [section, map] of projectSettings.sections.entries()) {
+    for (const [key, rawValue] of map.entries()) {
+      // For info extraction, we need the unquoted value
+      const value = rawValue.replace(/^"(.*)"$/, '$1')
+      const fullKey = `${section}/${key}`
 
-    const kvMatch = trimmed.match(/^(\S+)\s*=\s*(.+)$/)
-    if (!kvMatch) continue
+      info.settings[fullKey] = value
 
-    const [, key, rawValue] = kvMatch
-    const value = rawValue.replace(/^"(.*)"$/, '$1')
-
-    if (currentSection === '' || currentSection === 'application') {
-      if (key === 'config/name') info.name = value
-      if (key === 'run/main_scene') info.mainScene = value
-      if (key === 'config/features') {
-        const featMatch = rawValue.match(/PackedStringArray\((.+)\)/)
-        if (featMatch) {
-          info.features = featMatch[1].split(',').map((f) => f.trim().replace(/"/g, ''))
+      if (section === 'application') {
+        if (key === 'config/name') info.name = value
+        if (key === 'run/main_scene') info.mainScene = value
+        if (key === 'config/features') {
+          const featMatch = rawValue.match(/PackedStringArray\((.+)\)/)
+          if (featMatch) {
+            info.features = featMatch[1].split(',').map((f) => f.trim().replace(/"/g, ''))
+          }
         }
       }
     }
-
-    if (key === 'config_version') info.configVersion = Number.parseInt(value, 10)
-    info.settings[`${currentSection ? `${currentSection}/` : ''}${key}`] = value
   }
 
   return info
@@ -116,7 +122,7 @@ export async function handleProject(action: string, args: Record<string, unknown
         throw new GodotMCPError('No key specified', 'INVALID_ARGS', 'Provide key (e.g., "application/config/name").')
 
       const configPath = join(resolve(projectPath), 'project.godot')
-      if (!existsSync(configPath))
+      if (!(await fileExists(configPath)))
         throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
 
       const settings = await parseProjectSettingsAsync(configPath)
@@ -134,7 +140,7 @@ export async function handleProject(action: string, args: Record<string, unknown
         throw new GodotMCPError('key and value required', 'INVALID_ARGS', 'Provide key and value.')
 
       const configPath = join(resolve(projectPath), 'project.godot')
-      if (!existsSync(configPath))
+      if (!(await fileExists(configPath)))
         throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
 
       const content = await readFile(configPath, 'utf-8')

@@ -10,78 +10,48 @@ import type { GodotConfig, SceneInfo, SceneNode } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
 import { setSettingInContent } from '../helpers/project-settings.js'
-
-// Pre-compiled regex for parsing scene metadata without splitting lines
-const rxNode = /^\[node\s+name="([^"]+)"\s+type="([^"]+)"(?:\s+parent="([^"]*)")?/
-const _rxRes = /^\[(?:ext_resource|sub_resource)\s+(.+)\]$/
-const rxScript = /^script\s*=\s*(.+)$/
+import { parseSceneContent, type SceneNodeInfo } from '../helpers/scene-parser.js'
 
 /**
  * Parse a .tscn file to extract scene information
- * Optimized to use direct string index traversal to avoid memory allocations from split('\n')
- * Parses .tscn files ~2x faster
  */
 async function parseTscnFile(filePath: string): Promise<SceneInfo> {
   const content = await readFile(filePath, 'utf-8')
+  const parsed = parseSceneContent(content)
 
-  const nodes: SceneNode[] = []
-  const resources: string[] = []
+  const nodes: SceneNode[] = parsed.nodes.map((n: SceneNodeInfo) => {
+    const properties = { ...n.properties }
+    let script: string | null = null
+
+    if (properties.script) {
+      script = properties.script
+      delete properties.script
+    }
+
+    return {
+      name: n.name,
+      type: n.type || 'Node',
+      parent: n.parent || null,
+      properties,
+      script,
+    }
+  })
+
   let rootNode = ''
   let rootType = ''
 
-  let pos = 0
-  const len = content.length
+  if (nodes.length > 0 && !nodes[0].parent) {
+    rootNode = nodes[0].name
+    rootType = nodes[0].type
+  }
 
-  while (pos < len) {
-    let nextNewline = content.indexOf('\n', pos)
-    if (nextNewline === -1) nextNewline = len
-
-    // Trim line manually
-    let start = pos
-    let end = nextNewline
-    while (start < end && content.charCodeAt(start) <= 32) start++
-    while (end > start && content.charCodeAt(end - 1) <= 32) end--
-
-    if (start < end) {
-      const firstChar = content.charCodeAt(start)
-
-      if (firstChar === 91) {
-        // '[' character indicates a new section
-        const line = content.slice(start, end)
-        if (line.startsWith('[node ')) {
-          const nodeMatch = line.match(rxNode)
-          if (nodeMatch) {
-            const node: SceneNode = {
-              name: nodeMatch[1],
-              type: nodeMatch[2],
-              parent: nodeMatch[3] ?? null,
-              properties: {},
-              script: null,
-            }
-
-            if (!node.parent && nodes.length === 0) {
-              rootNode = node.name
-              rootType = node.type
-            }
-
-            nodes.push(node)
-          }
-        } else if (line.startsWith('[ext_resource') || line.startsWith('[sub_resource')) {
-          resources.push(line)
-        }
-      } else if (firstChar === 115 && nodes.length > 0) {
-        // 's' character, check for script
-        const line = content.slice(start, end)
-        if (line.startsWith('script')) {
-          const scriptMatch = line.match(rxScript)
-          if (scriptMatch) {
-            nodes[nodes.length - 1].script = scriptMatch[1]
-          }
-        }
-      }
+  // Extract raw resource lines to match previous behavior
+  const resources: string[] = []
+  const lines = content.split('\n')
+  for (const line of lines) {
+    if (line.startsWith('[ext_resource') || line.startsWith('[sub_resource')) {
+      resources.push(line.trim())
     }
-
-    pos = nextNewline + 1
   }
 
   return { path: filePath, rootNode, rootType, nodeCount: nodes.length, nodes, resources }

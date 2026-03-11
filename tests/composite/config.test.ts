@@ -145,6 +145,13 @@ describe('config', () => {
       ).rejects.toThrow('Invalid characters')
     })
 
+
+    it('should reject paths that are not strings (e.g. arrays to bypass regex)', async () => {
+      await expect(
+        handleConfig('set', { key: 'godot_path', value: ['node', '-e', 'pwned'] as unknown as string }, config),
+      ).rejects.toThrow('Invalid characters')
+    })
+
     it('should allow timeout with numeric value (no path validation)', async () => {
       const result = await handleConfig('set', { key: 'timeout', value: '30000' }, config)
       expect(result.content[0].text).toContain('Config updated')

@@ -3,11 +3,24 @@
  * Actions: create_tileset | add_source | set_tile | paint | list
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { constants } from 'node:fs'
+import { access, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
+
+/**
+ * Async helper to check file existence without blocking the event loop
+ */
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    await access(path, constants.F_OK)
+    return true
+  } catch {
+    return false
+  }
+}
 
 export async function handleTilemap(action: string, args: Record<string, unknown>, config: GodotConfig) {
   const projectPath = (args.project_path as string) || config.projectPath
@@ -24,7 +37,10 @@ export async function handleTilemap(action: string, args: Record<string, unknown
       const tileSize = (args.tile_size as number) || 16
 
       const fullPath = safeResolve(projectPath || process.cwd(), tilesetPath)
-      if (existsSync(fullPath)) {
+
+      // Performance optimization: using async pathExists instead of existsSync
+      // to avoid blocking the Node.js event loop during I/O operations
+      if (await pathExists(fullPath)) {
         throw new GodotMCPError(`TileSet already exists: ${tilesetPath}`, 'TILEMAP_ERROR', 'Use a different path.')
       }
 
@@ -37,8 +53,10 @@ export async function handleTilemap(action: string, args: Record<string, unknown
         '',
       ].join('\n')
 
-      mkdirSync(dirname(fullPath), { recursive: true })
-      writeFileSync(fullPath, content, 'utf-8')
+      // Performance optimization: using async file writing instead of sync
+      // to avoid blocking the Node.js event loop during I/O operations
+      await mkdir(dirname(fullPath), { recursive: true })
+      await writeFile(fullPath, content, 'utf-8')
       return formatSuccess(`Created TileSet: ${tilesetPath} (tile size: ${tileSize}x${tileSize})`)
     }
 
@@ -50,10 +68,13 @@ export async function handleTilemap(action: string, args: Record<string, unknown
       }
 
       const fullPath = safeResolve(projectPath || process.cwd(), tilesetPath)
-      if (!existsSync(fullPath))
+
+      // Performance optimization: using async pathExists instead of existsSync
+      if (!(await pathExists(fullPath)))
         throw new GodotMCPError(`TileSet not found: ${tilesetPath}`, 'TILEMAP_ERROR', 'Create the tileset first.')
 
-      let content = readFileSync(fullPath, 'utf-8')
+      // Performance optimization: using async file reading instead of sync
+      let content = await readFile(fullPath, 'utf-8')
       const resPath = `res://${texturePath.replace(/\\/g, '/')}`
 
       // Count existing sources to get next ID
@@ -64,7 +85,8 @@ export async function handleTilemap(action: string, args: Record<string, unknown
       const extRes = `[ext_resource type="Texture2D" path="${resPath}" id="${sourceId}"]`
       content = content.replace('[resource]', `${extRes}\n\n[resource]`)
 
-      writeFileSync(fullPath, content, 'utf-8')
+      // Performance optimization: using async file writing instead of sync
+      await writeFile(fullPath, content, 'utf-8')
       return formatSuccess(`Added texture source: ${texturePath} (id: ${sourceId})`)
     }
 
@@ -93,10 +115,13 @@ export async function handleTilemap(action: string, args: Record<string, unknown
       if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
 
       const fullPath = safeResolve(projectPath || process.cwd(), scenePath)
-      if (!existsSync(fullPath))
+
+      // Performance optimization: using async pathExists instead of existsSync
+      if (!(await pathExists(fullPath)))
         throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
 
-      const content = readFileSync(fullPath, 'utf-8')
+      // Performance optimization: using async file reading instead of sync
+      const content = await readFile(fullPath, 'utf-8')
       const tilemaps: string[] = []
       const tmRegex = /\[node name="([^"]+)" type="TileMapLayer"/g
       for (const match of content.matchAll(tmRegex)) {

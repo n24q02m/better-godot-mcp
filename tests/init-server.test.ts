@@ -160,7 +160,7 @@ describe('initServer', () => {
     expect(mockServerConstructor).toHaveBeenCalledWith(
       {
         name: 'better-godot-mcp',
-        version: '1.1.0',
+        version: expect.any(String),
       },
       {
         capabilities: {

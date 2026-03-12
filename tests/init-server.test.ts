@@ -2,11 +2,16 @@
  * Tests for initServer function - Server initialization flow
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+const mockServerConstructor = vi.fn()
 
 // Mock all dependencies before importing
 vi.mock('@modelcontextprotocol/sdk/server/index.js', () => {
   class MockServer {
+    constructor(...args: unknown[]) {
+      mockServerConstructor(...args)
+    }
     setRequestHandler = vi.fn()
     connect = vi.fn().mockResolvedValue(undefined)
   }
@@ -31,10 +36,17 @@ vi.mock('../src/tools/registry.js', () => ({
 }))
 
 describe('initServer', () => {
+  const originalEnv = process.env
+
   beforeEach(() => {
     vi.clearAllMocks()
     // Suppress console.error output during tests
     vi.spyOn(console, 'error').mockImplementation(() => {})
+    process.env = { ...originalEnv }
+  })
+
+  afterEach(() => {
+    process.env = originalEnv
   })
 
   it('should initialize server when Godot is detected', async () => {
@@ -101,6 +113,60 @@ describe('initServer', () => {
         godotPath: null,
         godotVersion: null,
       }),
+    )
+  })
+
+  it('should read GODOT_PROJECT_PATH from environment', async () => {
+    const { detectGodot } = await import('../src/godot/detector.js')
+    vi.mocked(detectGodot).mockReturnValue(null)
+    process.env.GODOT_PROJECT_PATH = '/path/to/my/project'
+
+    const { initServer } = await import('../src/init-server.js')
+    await initServer()
+
+    const { registerTools } = await import('../src/tools/registry.js')
+    expect(registerTools).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        projectPath: '/path/to/my/project',
+      }),
+    )
+  })
+
+  it('should pass null projectPath if GODOT_PROJECT_PATH is not set', async () => {
+    const { detectGodot } = await import('../src/godot/detector.js')
+    vi.mocked(detectGodot).mockReturnValue(null)
+    delete process.env.GODOT_PROJECT_PATH
+
+    const { initServer } = await import('../src/init-server.js')
+    await initServer()
+
+    const { registerTools } = await import('../src/tools/registry.js')
+    expect(registerTools).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        projectPath: null,
+      }),
+    )
+  })
+
+  it('should instantiate Server with correct name, version, and capabilities', async () => {
+    const { detectGodot } = await import('../src/godot/detector.js')
+    vi.mocked(detectGodot).mockReturnValue(null)
+
+    const { initServer } = await import('../src/init-server.js')
+    await initServer()
+
+    expect(mockServerConstructor).toHaveBeenCalledWith(
+      {
+        name: 'better-godot-mcp',
+        version: '1.1.0',
+      },
+      {
+        capabilities: {
+          tools: {},
+        },
+      },
     )
   })
 

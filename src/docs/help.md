@@ -5,7 +5,7 @@ Get full documentation for any tool.
 
 ## Usage
 ```json
-{"action": "help", "tool_name": "scenes"}
+{"tool_name": "scenes"}
 ```
 
 ## Available Topics

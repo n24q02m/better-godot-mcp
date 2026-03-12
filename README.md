@@ -18,8 +18,8 @@
 
 **18 composite tools** that consolidate Godot Engine operations into action-based mega-tools optimized for AI agents.
 
-<a href="https://glama.ai/mcp/servers/@n24q02m/better-godot-mcp">
-  <img width="380" height="200" src="https://glama.ai/mcp/servers/@n24q02m/better-godot-mcp/badge" alt="better-godot-mcp MCP server" />
+<a href="https://glama.ai/mcp/servers/n24q02m/better-godot-mcp">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/n24q02m/better-godot-mcp/badge" alt="better-godot-mcp MCP server" />
 </a>
 
 ### Key Features

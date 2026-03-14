@@ -55,6 +55,29 @@ describe('security', () => {
       expect(wrapped.content[0].text).toContain('<untrusted_godot_content>')
     })
 
+    it('should wrap result for all newly added external content tools', () => {
+      const tools = [
+        'project',
+        'nodes',
+        'input_map',
+        'signals',
+        'animation',
+        'tilemap',
+        'physics',
+        'audio',
+        'navigation',
+        'ui',
+      ]
+
+      for (const toolName of tools) {
+        const result = {
+          content: [{ type: 'text', text: `[dummy content for ${toolName}]` }],
+        }
+        const wrapped = wrapToolResult(toolName, result)
+        expect(wrapped.content[0].text).toContain('<untrusted_godot_content>', `Failed to wrap for tool: ${toolName}`)
+      }
+    })
+
     it('should NOT wrap error result even for tracked tool', () => {
       const toolName = 'scripts'
       const result = {

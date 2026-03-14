@@ -131,7 +131,8 @@ export function parseSceneContent(content: string): ParsedScene {
           const line = content.slice(start, end)
           // Performance: Fast-path character check for section headers
           const c1 = content.charCodeAt(start + 1)
-          if (c1 === 110 && line.startsWith('[node')) { // n
+          if (c1 === 110 && line.startsWith('[node')) {
+            // n
             currentSection = 'node'
             const nameMatch = line.match(rxName)
             if (nameMatch) {
@@ -150,7 +151,8 @@ export function parseSceneContent(content: string): ParsedScene {
                   : undefined,
               }
             }
-          } else if (c1 === 101 && line.startsWith('[ext_resource')) { // e
+          } else if (c1 === 101 && line.startsWith('[ext_resource')) {
+            // e
             currentSection = 'ext_resource'
             const typeMatch = line.match(rxType)
             const uidMatch = line.match(rxUid)
@@ -164,14 +166,16 @@ export function parseSceneContent(content: string): ParsedScene {
                 id: idMatch[1],
               })
             }
-          } else if (c1 === 115 && line.startsWith('[sub_resource')) { // s
+          } else if (c1 === 115 && line.startsWith('[sub_resource')) {
+            // s
             currentSection = 'sub_resource'
             const typeMatch = line.match(rxType)
             const idMatch = line.match(rxId)
             if (typeMatch && idMatch) {
               currentSubResource = { type: typeMatch[1], id: idMatch[1], properties: {} }
             }
-          } else if (c1 === 99 && line.startsWith('[connection')) { // c
+          } else if (c1 === 99 && line.startsWith('[connection')) {
+            // c
             currentSection = 'connection'
             const signalMatch = line.match(rxSignal)
             const fromMatch = line.match(rxFrom)
@@ -187,7 +191,8 @@ export function parseSceneContent(content: string): ParsedScene {
                 flags: flagsMatch ? Number.parseInt(flagsMatch[1], 10) : undefined,
               })
             }
-          } else if (c1 === 103 && line.startsWith('[gd_scene')) { // g
+          } else if (c1 === 103 && line.startsWith('[gd_scene')) {
+            // g
             currentSection = 'header'
             const formatMatch = line.match(rxGdSceneFormat)
             const stepsMatch = line.match(rxGdSceneSteps)

@@ -9,7 +9,7 @@ import { dirname, extname, join, relative, resolve } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
-import { escapeRegExp } from '../helpers/scene-parser.js'
+import { getNodeHeaderRegex } from '../helpers/scene-parser.js'
 
 const SCRIPT_TEMPLATES: Record<string, string> = {
   Node: `extends Node
@@ -208,7 +208,7 @@ export async function handleScripts(action: string, args: Record<string, unknown
       const resPath = `res://${scriptPath.replace(/\\/g, '/')}`
 
       if (nodeName) {
-        const nodePattern = new RegExp(`(\\[node name="${escapeRegExp(nodeName)}"[^\\]]*\\])`)
+        const nodePattern = getNodeHeaderRegex(nodeName)
         const match = content.match(nodePattern)
         if (!match)
           throw new GodotMCPError(

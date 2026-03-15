@@ -6,7 +6,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
-import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
+import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
 import { parseProjectSettings, setSettingInContent } from '../helpers/project-settings.js'
 import { escapeRegExp } from '../helpers/scene-parser.js'
@@ -121,10 +121,6 @@ export async function handlePhysics(action: string, args: Record<string, unknown
     }
 
     default:
-      throw new GodotMCPError(
-        `Unknown action: ${action}`,
-        'INVALID_ACTION',
-        'Valid actions: layers, collision_setup, body_config, set_layer_name. Use help tool for full docs.',
-      )
+      throwUnknownAction(action, ['layers', 'collision_setup', 'body_config', 'set_layer_name'])
   }
 }

@@ -5,7 +5,7 @@
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import type { GodotConfig } from '../../godot/types.js'
-import { formatSuccess, GodotMCPError } from '../helpers/errors.js'
+import { formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
 
 function resolveScene(projectPath: string | null | undefined, scenePath: string): string {
@@ -88,10 +88,6 @@ export async function handleNavigation(action: string, args: Record<string, unkn
     }
 
     default:
-      throw new GodotMCPError(
-        `Unknown action: ${action}`,
-        'INVALID_ACTION',
-        'Valid actions: create_region, add_agent, add_obstacle. Use help tool for full docs.',
-      )
+      throwUnknownAction(action, ['create_region', 'add_agent', 'add_obstacle'])
   }
 }

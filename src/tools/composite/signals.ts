@@ -5,7 +5,7 @@
 
 import { readFile, writeFile } from 'node:fs/promises'
 import type { GodotConfig } from '../../godot/types.js'
-import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
+import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
 import { parseSceneContent } from '../helpers/scene-parser.js'
 
@@ -123,10 +123,6 @@ export async function handleSignals(action: string, args: Record<string, unknown
     }
 
     default:
-      throw new GodotMCPError(
-        `Unknown action: ${action}`,
-        'INVALID_ACTION',
-        'Valid actions: list, connect, disconnect. Use help tool for full docs.',
-      )
+      throwUnknownAction(action, ['list', 'connect', 'disconnect'])
   }
 }

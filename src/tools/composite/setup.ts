@@ -7,7 +7,7 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { detectGodot } from '../../godot/detector.js'
 import type { GodotConfig } from '../../godot/types.js'
-import { formatJSON, GodotMCPError } from '../helpers/errors.js'
+import { formatJSON, throwUnknownAction } from '../helpers/errors.js'
 
 export async function handleSetup(action: string, _args: Record<string, unknown>, config: GodotConfig) {
   switch (action) {
@@ -53,10 +53,6 @@ export async function handleSetup(action: string, _args: Record<string, unknown>
     }
 
     default:
-      throw new GodotMCPError(
-        `Unknown action: ${action}`,
-        'INVALID_ACTION',
-        'Valid actions: detect_godot, check. Use help tool for full docs.',
-      )
+      throwUnknownAction(action, ['detect_godot', 'check'])
   }
 }

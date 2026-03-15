@@ -7,7 +7,7 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFil
 import { readdir, readFile } from 'node:fs/promises'
 import { basename, dirname, extname, join, relative, resolve } from 'node:path'
 import type { GodotConfig, SceneInfo, SceneNode } from '../../godot/types.js'
-import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
+import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
 import { setSettingInContent } from '../helpers/project-settings.js'
 
@@ -255,10 +255,6 @@ export async function handleScenes(action: string, args: Record<string, unknown>
     }
 
     default:
-      throw new GodotMCPError(
-        `Unknown action: ${action}`,
-        'INVALID_ACTION',
-        'Valid actions: create, list, info, delete, duplicate, set_main. Use help tool for full docs.',
-      )
+      throwUnknownAction(action, ['create', 'list', 'info', 'delete', 'duplicate', 'set_main'])
   }
 }

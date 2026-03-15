@@ -13,7 +13,7 @@ import { safeResolve } from '../helpers/paths.js'
 const execFileAsync = promisify(execFile)
 
 /**
- * Check if any Godot processes are running
+ * Check if all Godot processes are running
  */
 async function getGodotProcessesAsync(): Promise<Array<{ pid: string; name: string }>> {
   try {

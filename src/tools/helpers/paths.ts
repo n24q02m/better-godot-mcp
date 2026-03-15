@@ -1,5 +1,19 @@
+import { constants } from 'node:fs'
+import { access } from 'node:fs/promises'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
 import { GodotMCPError } from './errors.js'
+
+/**
+ * Checks if a path exists asynchronously
+ */
+export async function pathExists(path: string): Promise<boolean> {
+  try {
+    await access(path, constants.F_OK)
+    return true
+  } catch {
+    return false
+  }
+}
 
 /**
  * Safely resolves a path relative to a base directory, preventing path traversal.

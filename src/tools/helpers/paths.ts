@@ -1,3 +1,4 @@
+import { access } from 'node:fs/promises'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
 import { GodotMCPError } from './errors.js'
 
@@ -30,4 +31,13 @@ export function safeResolve(baseDir: string, targetPath: string): string {
   }
 
   return resolvedTarget
+}
+
+export async function pathExists(filePath: string): Promise<boolean> {
+  try {
+    await access(filePath)
+    return true
+  } catch {
+    return false
+  }
 }

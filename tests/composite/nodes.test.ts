@@ -1,3 +1,5 @@
+import * as fs from 'node:fs'
+import * as path from 'node:path'
 /**
  * Integration tests for Nodes tool
  */
@@ -68,6 +70,78 @@ describe('nodes', () => {
       expect(content).toContain('parent="UI"')
     })
 
+    it('should add node with properties', async () => {
+      createTmpScene(projectPath, 'test.tscn', MINIMAL_TSCN)
+
+      const result = await handleNodes(
+        'add',
+        {
+          project_path: projectPath,
+          scene_path: 'test.tscn',
+          name: 'Player',
+          type: 'CharacterBody2D',
+          properties: {
+            speed: '300',
+            health: '100',
+          },
+        },
+        config,
+      )
+
+      expect(result.content[0].text).toContain('Added node')
+      const content = fs.readFileSync(path.join(projectPath, 'test.tscn'), 'utf-8')
+      expect(content).toContain('name="Player"')
+      expect(content).toContain('speed = 300')
+      expect(content).toContain('health = 100')
+    })
+
+    it('should throw when properties is not an object', async () => {
+      createTmpScene(projectPath, 'test.tscn', MINIMAL_TSCN)
+      await expect(
+        handleNodes(
+          'add',
+          {
+            project_path: projectPath,
+            scene_path: 'test.tscn',
+            name: 'Player',
+            properties: 'invalid', // string instead of object
+          },
+          config,
+        ),
+      ).rejects.toThrow('Invalid properties format')
+
+      await expect(
+        handleNodes(
+          'add',
+          {
+            project_path: projectPath,
+            scene_path: 'test.tscn',
+            name: 'Player2',
+            properties: ['invalid'], // array instead of object
+          },
+          config,
+        ),
+      ).rejects.toThrow('Invalid properties format')
+    })
+
+    it('should throw when property values are not strings', async () => {
+      createTmpScene(projectPath, 'test.tscn', MINIMAL_TSCN)
+      await expect(
+        handleNodes(
+          'add',
+          {
+            project_path: projectPath,
+            scene_path: 'test.tscn',
+            name: 'Player',
+            properties: {
+              speed: 300, // number instead of string
+            },
+          },
+          config,
+        ),
+      ).rejects.toThrow('Invalid property value')
+    })
+
     it('should throw for duplicate node name at same parent', async () => {
       createTmpScene(projectPath, 'test.tscn', COMPLEX_TSCN)
 
@@ -83,6 +157,35 @@ describe('nodes', () => {
           config,
         ),
       ).rejects.toThrow('already exists')
+    })
+
+    it('should throw when scene_path is missing', async () => {
+      await expect(
+        handleNodes(
+          'add',
+          {
+            project_path: projectPath,
+            name: 'Player',
+            type: 'CharacterBody2D',
+          },
+          config,
+        ),
+      ).rejects.toThrow('No scene_path specified')
+    })
+
+    it('should throw when node name is missing', async () => {
+      createTmpScene(projectPath, 'test.tscn')
+      await expect(
+        handleNodes(
+          'add',
+          {
+            project_path: projectPath,
+            scene_path: 'test.tscn',
+            type: 'CharacterBody2D',
+          },
+          config,
+        ),
+      ).rejects.toThrow('No node name specified')
     })
 
     it('should throw for missing scene', async () => {
@@ -174,6 +277,34 @@ describe('nodes', () => {
   // rename
   // ==========================================
   describe('rename', () => {
+    it('should throw when scene_path is missing', async () => {
+      await expect(
+        handleNodes(
+          'rename',
+          {
+            project_path: projectPath,
+            name: 'Sprite',
+            new_name: 'PlayerSprite',
+          },
+          config,
+        ),
+      ).rejects.toThrow('No scene_path specified')
+    })
+
+    it('should throw when name or new_name is missing', async () => {
+      createTmpScene(projectPath, 'test.tscn')
+      await expect(
+        handleNodes(
+          'rename',
+          {
+            project_path: projectPath,
+            scene_path: 'test.tscn',
+            name: 'Sprite',
+          },
+          config,
+        ),
+      ).rejects.toThrow('Both name and new_name required')
+    })
     it('should rename a node', async () => {
       createTmpScene(projectPath, 'test.tscn', COMPLEX_TSCN)
 
@@ -199,6 +330,17 @@ describe('nodes', () => {
   // list
   // ==========================================
   describe('list', () => {
+    it('should throw when scene_path is missing', async () => {
+      await expect(
+        handleNodes(
+          'list',
+          {
+            project_path: projectPath,
+          },
+          config,
+        ),
+      ).rejects.toThrow('No scene_path specified')
+    })
     it('should list all nodes with info', async () => {
       createTmpScene(projectPath, 'test.tscn', COMPLEX_TSCN)
 
@@ -239,6 +381,36 @@ describe('nodes', () => {
   // set_property
   // ==========================================
   describe('set_property', () => {
+    it('should throw when scene_path is missing', async () => {
+      await expect(
+        handleNodes(
+          'set_property',
+          {
+            project_path: projectPath,
+            name: 'Player',
+            property: 'speed',
+            value: '500',
+          },
+          config,
+        ),
+      ).rejects.toThrow('No scene_path specified')
+    })
+
+    it('should throw when name, property, or value is missing', async () => {
+      createTmpScene(projectPath, 'test.tscn')
+      await expect(
+        handleNodes(
+          'set_property',
+          {
+            project_path: projectPath,
+            scene_path: 'test.tscn',
+            name: 'Player',
+            property: 'speed',
+          },
+          config,
+        ),
+      ).rejects.toThrow('name, property, and value required')
+    })
     it('should set property on a node', async () => {
       createTmpScene(projectPath, 'test.tscn', MINIMAL_TSCN)
 
@@ -283,6 +455,34 @@ describe('nodes', () => {
   // get_property
   // ==========================================
   describe('get_property', () => {
+    it('should throw when scene_path is missing', async () => {
+      await expect(
+        handleNodes(
+          'get_property',
+          {
+            project_path: projectPath,
+            name: 'Player',
+            property: 'speed',
+          },
+          config,
+        ),
+      ).rejects.toThrow('No scene_path specified')
+    })
+
+    it('should throw when name or property is missing', async () => {
+      createTmpScene(projectPath, 'test.tscn')
+      await expect(
+        handleNodes(
+          'get_property',
+          {
+            project_path: projectPath,
+            scene_path: 'test.tscn',
+            name: 'Player',
+          },
+          config,
+        ),
+      ).rejects.toThrow('name and property required')
+    })
     it('should get property value', async () => {
       createTmpScene(projectPath, 'test.tscn', COMPLEX_TSCN)
 

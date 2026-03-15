@@ -69,7 +69,29 @@ export async function handleNodes(action: string, args: Record<string, unknown>,
       }
 
       const parentAttr = parent === '.' ? '' : ` parent="${parent}"`
-      const nodeDecl = `\n[node name="${nodeName}" type="${nodeType}"${parentAttr}]\n`
+      let nodeDecl = `\n[node name="${nodeName}" type="${nodeType}"${parentAttr}]\n`
+
+      // Handle properties parsing
+      if (args.properties !== undefined) {
+        if (typeof args.properties !== 'object' || args.properties === null || Array.isArray(args.properties)) {
+          throw new GodotMCPError(
+            'Invalid properties format',
+            'INVALID_ARGS',
+            'properties must be an object with string keys and values.',
+          )
+        }
+        for (const [key, value] of Object.entries(args.properties)) {
+          if (typeof key !== 'string' || typeof value !== 'string') {
+            throw new GodotMCPError(
+              'Invalid property value',
+              'INVALID_ARGS',
+              'Property keys and values must be strings.',
+            )
+          }
+          nodeDecl += `${key} = ${value}\n`
+        }
+      }
+
       const updated = `${content.trimEnd()}\n${nodeDecl}`
       writeFileSync(fullPath, updated, 'utf-8')
 

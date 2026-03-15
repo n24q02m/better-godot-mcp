@@ -225,7 +225,7 @@ collision_mask = 1
     it('should throw if project path is missing for layers', async () => {
       // Temporarily override config to null
       const emptyConfig = makeConfig({ projectPath: null })
-      await expect(handlePhysics('layers', { project_path: null }, emptyConfig)).rejects.toThrow(
+      await expect(handlePhysics('layers', { project_path: '' }, emptyConfig)).rejects.toThrow(
         'No project path specified',
       )
     })

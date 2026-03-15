@@ -3,11 +3,11 @@
  * Actions: layers | collision_setup | body_config | set_layer_name
  */
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { readFile, writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
-import { safeResolve } from '../helpers/paths.js'
+import { pathExists, safeResolve } from '../helpers/paths.js'
 import { parseProjectSettings, setSettingInContent } from '../helpers/project-settings.js'
 import { escapeRegExp } from '../helpers/scene-parser.js'
 
@@ -17,8 +17,8 @@ export async function handlePhysics(action: string, args: Record<string, unknown
   switch (action) {
     case 'layers': {
       if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
-      const configPath = join(resolve(projectPath), 'project.godot')
-      if (!existsSync(configPath))
+      const configPath = join(safeResolve(config.projectPath, projectPath), 'project.godot')
+      if (!(await pathExists(configPath)))
         throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify project path.')
 
       const settings = parseProjectSettings(configPath)
@@ -45,11 +45,11 @@ export async function handlePhysics(action: string, args: Record<string, unknown
       const collisionLayer = args.collision_layer as number
       const collisionMask = args.collision_mask as number
 
-      const fullPath = safeResolve(projectPath || process.cwd(), scenePath)
-      if (!existsSync(fullPath))
+      const fullPath = safeResolve(safeResolve(config.projectPath, projectPath), scenePath)
+      if (!(await pathExists(fullPath)))
         throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check file path.')
 
-      let content = readFileSync(fullPath, 'utf-8')
+      let content = await readFile(fullPath, 'utf-8')
       const nodeRegex = new RegExp(`(\\[node name="${escapeRegExp(nodeName)}"[^\\]]*\\])`)
       const match = content.match(nodeRegex)
       if (!match) throw new GodotMCPError(`Node "${nodeName}" not found`, 'NODE_ERROR', 'Check node name.')
@@ -63,7 +63,7 @@ export async function handlePhysics(action: string, args: Record<string, unknown
       if (collisionMask !== undefined) props += `\ncollision_mask = ${collisionMask}`
 
       content = `${content.slice(0, insertPoint)}${props}${content.slice(insertPoint)}`
-      writeFileSync(fullPath, content, 'utf-8')
+      await writeFile(fullPath, content, 'utf-8')
 
       return formatSuccess(
         `Set collision on ${nodeName}: layer=${collisionLayer ?? 'unchanged'}, mask=${collisionMask ?? 'unchanged'}`,
@@ -76,11 +76,11 @@ export async function handlePhysics(action: string, args: Record<string, unknown
       const nodeName = args.name as string
       if (!nodeName) throw new GodotMCPError('No node name specified', 'INVALID_ARGS', 'Provide node name.')
 
-      const fullPath = safeResolve(projectPath || process.cwd(), scenePath)
-      if (!existsSync(fullPath))
+      const fullPath = safeResolve(safeResolve(config.projectPath, projectPath), scenePath)
+      if (!(await pathExists(fullPath)))
         throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check file path.')
 
-      let content = readFileSync(fullPath, 'utf-8')
+      let content = await readFile(fullPath, 'utf-8')
       const nodeRegex = new RegExp(`(\\[node name="${escapeRegExp(nodeName)}"[^\\]]*\\])`)
       const match = content.match(nodeRegex)
       if (!match) throw new GodotMCPError(`Node "${nodeName}" not found`, 'NODE_ERROR', 'Check node name.')
@@ -96,7 +96,7 @@ export async function handlePhysics(action: string, args: Record<string, unknown
         throw new GodotMCPError(`Node "${nodeName}" not found`, 'NODE_ERROR', 'Check node name.')
       const insertPoint = match.index + match[0].length
       content = `${content.slice(0, insertPoint)}${props}${content.slice(insertPoint)}`
-      writeFileSync(fullPath, content, 'utf-8')
+      await writeFile(fullPath, content, 'utf-8')
 
       return formatSuccess(`Configured physics body: ${nodeName}`)
     }
@@ -108,14 +108,14 @@ export async function handlePhysics(action: string, args: Record<string, unknown
       const name = args.name as string
       if (!name) throw new GodotMCPError('No name specified', 'INVALID_ARGS', 'Provide layer name.')
 
-      const configPath = join(resolve(projectPath), 'project.godot')
-      if (!existsSync(configPath))
+      const configPath = join(safeResolve(config.projectPath, projectPath), 'project.godot')
+      if (!(await pathExists(configPath)))
         throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify project path.')
 
-      const content = readFileSync(configPath, 'utf-8')
+      const content = await readFile(configPath, 'utf-8')
       const key = `layer_names/${dimension}_physics/layer_${layerNum}`
       const updated = setSettingInContent(content, key, `"${name}"`)
-      writeFileSync(configPath, updated, 'utf-8')
+      await writeFile(configPath, updated, 'utf-8')
 
       return formatSuccess(`Set ${dimension} physics layer ${layerNum}: "${name}"`)
     }

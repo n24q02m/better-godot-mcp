@@ -145,7 +145,7 @@ describe('shader/nodes/physics coverage', () => {
   // physics
   describe('physics', () => {
     it('layers: project.godot not found', async () => {
-      await expect(handlePhysics('layers', { project_path: '/tmp/nonexistent' }, config)).rejects.toThrow(
+      await expect(handlePhysics('layers', { project_path: 'nonexistent' }, config)).rejects.toThrow(
         'No project.godot found',
       )
     })
@@ -205,7 +205,7 @@ describe('shader/nodes/physics coverage', () => {
     })
     it('set_layer_name: project.godot not found', async () => {
       await expect(
-        handlePhysics('set_layer_name', { project_path: '/tmp/nonexistent', name: 'P' }, config),
+        handlePhysics('set_layer_name', { project_path: 'nonexistent', name: 'P' }, config),
       ).rejects.toThrow('No project.godot found')
     })
   })

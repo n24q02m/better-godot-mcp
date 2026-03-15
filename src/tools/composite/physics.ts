@@ -9,7 +9,7 @@ import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
 import { parseProjectSettings, setSettingInContent } from '../helpers/project-settings.js'
-import { escapeRegExp } from '../helpers/scene-parser.js'
+import { matchNodeOrThrow } from '../helpers/scene-parser.js'
 
 export async function handlePhysics(action: string, args: Record<string, unknown>, config: GodotConfig) {
   const projectPath = (args.project_path as string) || config.projectPath
@@ -50,14 +50,10 @@ export async function handlePhysics(action: string, args: Record<string, unknown
         throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check file path.')
 
       let content = readFileSync(fullPath, 'utf-8')
-      const nodeRegex = new RegExp(`(\\[node name="${escapeRegExp(nodeName)}"[^\\]]*\\])`)
-      const match = content.match(nodeRegex)
-      if (!match) throw new GodotMCPError(`Node "${nodeName}" not found`, 'NODE_ERROR', 'Check node name.')
+      const match = matchNodeOrThrow(content, nodeName)
 
       // Find or create properties after node declaration
-      if (match.index === undefined)
-        throw new GodotMCPError(`Node "${nodeName}" not found`, 'NODE_ERROR', 'Check node name.')
-      const insertPoint = match.index + match[0].length
+      const insertPoint = (match.index as number) + match[0].length
       let props = ''
       if (collisionLayer !== undefined) props += `\ncollision_layer = ${collisionLayer}`
       if (collisionMask !== undefined) props += `\ncollision_mask = ${collisionMask}`
@@ -81,9 +77,7 @@ export async function handlePhysics(action: string, args: Record<string, unknown
         throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check file path.')
 
       let content = readFileSync(fullPath, 'utf-8')
-      const nodeRegex = new RegExp(`(\\[node name="${escapeRegExp(nodeName)}"[^\\]]*\\])`)
-      const match = content.match(nodeRegex)
-      if (!match) throw new GodotMCPError(`Node "${nodeName}" not found`, 'NODE_ERROR', 'Check node name.')
+      const match = matchNodeOrThrow(content, nodeName)
 
       let props = ''
       if (args.gravity_scale !== undefined) props += `\ngravity_scale = ${args.gravity_scale}`
@@ -92,9 +86,7 @@ export async function handlePhysics(action: string, args: Record<string, unknown
       if (args.angular_damp !== undefined) props += `\nangular_damp = ${args.angular_damp}`
       if (args.freeze !== undefined) props += `\nfreeze = ${args.freeze}`
 
-      if (match.index === undefined)
-        throw new GodotMCPError(`Node "${nodeName}" not found`, 'NODE_ERROR', 'Check node name.')
-      const insertPoint = match.index + match[0].length
+      const insertPoint = (match.index as number) + match[0].length
       content = `${content.slice(0, insertPoint)}${props}${content.slice(insertPoint)}`
       writeFileSync(fullPath, content, 'utf-8')
 

@@ -12,6 +12,7 @@
  */
 
 import { readFileSync, writeFileSync } from 'node:fs'
+import { GodotMCPError } from './errors.js'
 
 // Pre-compiled regular expressions for parsing scene sections
 const rxGdSceneFormat = /format=(\d+)/
@@ -391,4 +392,22 @@ export function getNodeProperty(scene: ParsedScene, nodeName: string, property: 
  */
 export function writeScene(filePath: string, content: string): void {
   writeFileSync(filePath, content, 'utf-8')
+}
+
+/**
+ * Create a regular expression for matching a specific node's header in a Godot scene file.
+ */
+export function getNodeHeaderRegex(nodeName: string): RegExp {
+  return new RegExp(`(\\[node name="${escapeRegExp(nodeName)}"[^\\]]*\\])`)
+}
+
+/**
+ * Find a node declaration by name in scene file content, or throw a GodotMCPError if not found.
+ */
+export function matchNodeOrThrow(content: string, nodeName: string): RegExpMatchArray {
+  const match = content.match(getNodeHeaderRegex(nodeName))
+  if (!match || match.index === undefined) {
+    throw new GodotMCPError(`Node "${nodeName}" not found`, 'NODE_ERROR', 'Check node name.')
+  }
+  return match
 }

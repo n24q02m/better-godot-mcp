@@ -8,7 +8,7 @@ import { dirname } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
-import { escapeRegExp, parseScene } from '../helpers/scene-parser.js'
+import { matchNodeOrThrow, parseScene } from '../helpers/scene-parser.js'
 
 const CONTROL_TEMPLATES: Record<string, Record<string, string>> = {
   Button: { text: '"Click"' },
@@ -118,9 +118,7 @@ export async function handleUI(action: string, args: Record<string, unknown>, co
       const fullPath = resolveScene(projectPath, scenePath)
       let content = readFileSync(fullPath, 'utf-8')
 
-      const nodeRegex = new RegExp(`(\\[node name="${escapeRegExp(nodeName)}"[^\\]]*\\])`)
-      const match = content.match(nodeRegex)
-      if (!match) throw new GodotMCPError(`Node "${nodeName}" not found`, 'NODE_ERROR', 'Check node name.')
+      const match = matchNodeOrThrow(content, nodeName)
 
       let layoutProps = ''
       switch (preset) {
@@ -154,9 +152,7 @@ export async function handleUI(action: string, args: Record<string, unknown>, co
           )
       }
 
-      if (match.index === undefined)
-        throw new GodotMCPError(`Node "${nodeName}" not found`, 'NODE_ERROR', 'Check node name.')
-      const insertPoint = match.index + match[0].length
+      const insertPoint = (match.index as number) + match[0].length
       content = `${content.slice(0, insertPoint)}${layoutProps}${content.slice(insertPoint)}`
       writeFileSync(fullPath, content, 'utf-8')
 

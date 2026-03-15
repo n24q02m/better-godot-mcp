@@ -6,7 +6,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
-import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
+import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
 
 export async function handleAudio(action: string, args: Record<string, unknown>, config: GodotConfig) {
@@ -173,10 +173,6 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
     }
 
     default:
-      throw new GodotMCPError(
-        `Unknown action: ${action}`,
-        'INVALID_ACTION',
-        'Valid actions: list_buses, add_bus, add_effect, create_stream. Use help tool for full docs.',
-      )
+      throwUnknownAction(action, ['list_buses', 'add_bus', 'add_effect', 'create_stream'])
   }
 }

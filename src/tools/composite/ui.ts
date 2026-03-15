@@ -6,7 +6,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
-import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
+import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
 import { escapeRegExp, parseScene } from '../helpers/scene-parser.js'
 
@@ -217,10 +217,6 @@ export async function handleUI(action: string, args: Record<string, unknown>, co
     }
 
     default:
-      throw new GodotMCPError(
-        `Unknown action: ${action}`,
-        'INVALID_ACTION',
-        'Valid actions: create_control, set_theme, layout, list_controls. Use help tool for full docs.',
-      )
+      throwUnknownAction(action, ['create_control', 'set_theme', 'layout', 'list_controls'])
   }
 }

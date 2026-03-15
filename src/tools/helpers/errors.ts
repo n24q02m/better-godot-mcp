@@ -85,3 +85,14 @@ export function formatSuccess(text: string): { content: Array<{ type: 'text'; te
 export function formatJSON(data: unknown): { content: Array<{ type: 'text'; text: string }> } {
   return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] }
 }
+
+/**
+ * Throw a standardized error for unknown actions
+ */
+export function throwUnknownAction(action: string, validActions: string[]): never {
+  throw new GodotMCPError(
+    `Unknown action: ${action}`,
+    'INVALID_ACTION',
+    `Valid actions: ${validActions.join(', ')}. Use help tool for full docs.`,
+  )
+}

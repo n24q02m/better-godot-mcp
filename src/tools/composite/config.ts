@@ -4,7 +4,7 @@
  */
 
 import type { GodotConfig } from '../../godot/types.js'
-import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
+import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 
 // Mutable runtime config
 const runtimeConfig: Record<string, string> = {}
@@ -61,10 +61,6 @@ export async function handleConfig(action: string, args: Record<string, unknown>
     }
 
     default:
-      throw new GodotMCPError(
-        `Unknown action: ${action}`,
-        'INVALID_ACTION',
-        'Valid actions: status, set. Use help tool for full docs.',
-      )
+      throwUnknownAction(action, ['status', 'set'])
   }
 }

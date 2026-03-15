@@ -9,7 +9,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { execGodotSync, runGodotProject } from '../../godot/headless.js'
 import type { GodotConfig, ProjectInfo } from '../../godot/types.js'
-import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
+import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
 import { getSetting, parseProjectSettingsAsync, setSettingInContent } from '../helpers/project-settings.js'
 
@@ -173,10 +173,6 @@ export async function handleProject(action: string, args: Record<string, unknown
     }
 
     default:
-      throw new GodotMCPError(
-        `Unknown action: ${action}`,
-        'INVALID_ACTION',
-        'Valid actions: info, version, run, stop, settings_get, settings_set, export. Use help tool for full docs.',
-      )
+      throwUnknownAction(action, ['info', 'version', 'run', 'stop', 'settings_get', 'settings_set', 'export'])
   }
 }

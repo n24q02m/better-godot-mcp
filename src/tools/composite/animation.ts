@@ -5,7 +5,7 @@
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import type { GodotConfig } from '../../godot/types.js'
-import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
+import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
 
 function resolveScene(projectPath: string | null | undefined, scenePath: string): string {
@@ -144,10 +144,6 @@ export async function handleAnimation(action: string, args: Record<string, unkno
     }
 
     default:
-      throw new GodotMCPError(
-        `Unknown action: ${action}`,
-        'INVALID_ACTION',
-        'Valid actions: create_player, add_animation, add_track, add_keyframe, list. Use help tool for full docs.',
-      )
+      throwUnknownAction(action, ['create_player', 'add_animation', 'add_track', 'add_keyframe', 'list'])
   }
 }

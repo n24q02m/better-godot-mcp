@@ -6,7 +6,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
-import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
+import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { escapeRegExp } from '../helpers/scene-parser.js'
 
 /**
@@ -355,10 +355,6 @@ export async function handleInputMap(action: string, args: Record<string, unknow
     }
 
     default:
-      throw new GodotMCPError(
-        `Unknown action: ${action}`,
-        'INVALID_ACTION',
-        'Valid actions: list, add_action, remove_action, add_event. Use help tool for full docs.',
-      )
+      throwUnknownAction(action, ['list', 'add_action', 'remove_action', 'add_event'])
   }
 }

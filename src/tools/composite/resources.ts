@@ -7,7 +7,7 @@ import { existsSync, readFileSync, statSync, unlinkSync } from 'node:fs'
 import { readdir, stat } from 'node:fs/promises'
 import { extname, join, relative, resolve } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
-import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
+import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
 
 const RESOURCE_EXTENSIONS = new Set([
@@ -153,10 +153,6 @@ export async function handleResources(action: string, args: Record<string, unkno
     }
 
     default:
-      throw new GodotMCPError(
-        `Unknown action: ${action}`,
-        'INVALID_ACTION',
-        'Valid actions: list, info, delete, import_config. Use help tool for full docs.',
-      )
+      throwUnknownAction(action, ['list', 'info', 'delete', 'import_config'])
   }
 }

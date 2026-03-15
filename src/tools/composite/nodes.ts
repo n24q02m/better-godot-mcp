@@ -5,7 +5,7 @@
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import type { GodotConfig, SceneNode } from '../../godot/types.js'
-import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
+import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
 import {
   getNodeProperty,
@@ -183,10 +183,6 @@ export async function handleNodes(action: string, args: Record<string, unknown>,
     }
 
     default:
-      throw new GodotMCPError(
-        `Unknown action: ${action}`,
-        'INVALID_ACTION',
-        'Valid actions: add, remove, rename, list, set_property, get_property. Use help tool for full docs.',
-      )
+      throwUnknownAction(action, ['add', 'remove', 'rename', 'list', 'set_property', 'get_property'])
   }
 }

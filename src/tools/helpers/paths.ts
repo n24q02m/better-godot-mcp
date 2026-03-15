@@ -1,3 +1,4 @@
+import { access } from 'node:fs/promises'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
 import { GodotMCPError } from './errors.js'
 
@@ -30,4 +31,19 @@ export function safeResolve(baseDir: string, targetPath: string): string {
   }
 
   return resolvedTarget
+}
+
+/**
+ * Asynchronously checks if a file or directory exists.
+ *
+ * @param fullPath The absolute path to check
+ * @returns True if the path exists, false otherwise
+ */
+export async function pathExists(fullPath: string): Promise<boolean> {
+  try {
+    await access(fullPath)
+    return true
+  } catch {
+    return false
+  }
 }

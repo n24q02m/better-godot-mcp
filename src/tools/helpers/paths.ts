@@ -31,3 +31,19 @@ export function safeResolve(baseDir: string, targetPath: string): string {
 
   return resolvedTarget
 }
+
+import { access } from 'node:fs/promises'
+
+/**
+ * Asynchronously checks if a file or directory exists.
+ * @param path The path to check
+ * @returns true if the path exists, false otherwise
+ */
+export async function pathExists(path: string): Promise<boolean> {
+  try {
+    await access(path)
+    return true
+  } catch {
+    return false
+  }
+}

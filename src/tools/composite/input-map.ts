@@ -356,7 +356,7 @@ export async function handleInputMap(action: string, args: Record<string, unknow
 
     default:
       throw new GodotMCPError(
-        `Unknown action: ${action}`,
+        `Unknown input map action: ${action}`,
         'INVALID_ACTION',
         'Valid actions: list, add_action, remove_action, add_event. Use help tool for full docs.',
       )

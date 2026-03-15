@@ -1,7 +1,7 @@
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { GodotMCPError } from '../../src/tools/helpers/errors.js'
-import { safeResolve } from '../../src/tools/helpers/paths.js'
+import { pathExists, safeResolve } from '../../src/tools/helpers/paths.js'
 
 describe('safeResolve', () => {
   const baseDir = resolve('/mock/base/dir')
@@ -44,5 +44,17 @@ describe('safeResolve', () => {
   it('throws GodotMCPError when path traverses up and outside, even if it tries to go back in', () => {
     const target = '../../mock/base/dir/file.ts'
     expect(() => safeResolve(baseDir, target)).toThrowError(GodotMCPError)
+  })
+})
+
+describe('pathExists', () => {
+  it('returns true if the file exists', async () => {
+    const exists = await pathExists(__filename)
+    expect(exists).toBe(true)
+  })
+
+  it('returns false if the file does not exist', async () => {
+    const exists = await pathExists(`${__filename}.ghost`)
+    expect(exists).toBe(false)
   })
 })

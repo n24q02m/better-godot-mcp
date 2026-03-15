@@ -128,17 +128,21 @@ export function parseSceneContent(content: string): ParsedScene {
           currentNode = null
           currentSubResource = null
 
-          const line = content.slice(start, end)
-          if (line.startsWith('[gd_scene')) {
+          const secondChar = content.charCodeAt(start + 1)
+          if (secondChar === 103) {
+            // 'g' -> [gd_scene
             currentSection = 'header'
+            const line = content.slice(start, end)
             const formatMatch = line.match(rxGdSceneFormat)
             const stepsMatch = line.match(rxGdSceneSteps)
             const uidMatch = line.match(rxUid)
             if (formatMatch) header.format = Number.parseInt(formatMatch[1], 10)
             if (stepsMatch) header.loadSteps = Number.parseInt(stepsMatch[1], 10)
             if (uidMatch) header.uid = uidMatch[1]
-          } else if (line.startsWith('[ext_resource')) {
+          } else if (secondChar === 101) {
+            // 'e' -> [ext_resource
             currentSection = 'ext_resource'
+            const line = content.slice(start, end)
             const typeMatch = line.match(rxType)
             const uidMatch = line.match(rxUid)
             const pathMatch = line.match(rxPath)
@@ -151,15 +155,19 @@ export function parseSceneContent(content: string): ParsedScene {
                 id: idMatch[1],
               })
             }
-          } else if (line.startsWith('[sub_resource')) {
+          } else if (secondChar === 115) {
+            // 's' -> [sub_resource
             currentSection = 'sub_resource'
+            const line = content.slice(start, end)
             const typeMatch = line.match(rxType)
             const idMatch = line.match(rxId)
             if (typeMatch && idMatch) {
               currentSubResource = { type: typeMatch[1], id: idMatch[1], properties: {} }
             }
-          } else if (line.startsWith('[node')) {
+          } else if (secondChar === 110) {
+            // 'n' -> [node
             currentSection = 'node'
+            const line = content.slice(start, end)
             const nameMatch = line.match(rxName)
             const typeMatch = line.match(rxType)
             const parentMatch = line.match(rxParent)
@@ -180,8 +188,10 @@ export function parseSceneContent(content: string): ParsedScene {
                   : undefined,
               }
             }
-          } else if (line.startsWith('[connection')) {
+          } else if (secondChar === 99) {
+            // 'c' -> [connection
             currentSection = 'connection'
+            const line = content.slice(start, end)
             const signalMatch = line.match(rxSignal)
             const fromMatch = line.match(rxFrom)
             const toMatch = line.match(rxTo)
@@ -264,37 +274,50 @@ export function removeNodeFromContent(content: string, nodeName: string): string
     return content
   }
 
-  const lines = content.split('\n')
   const result: string[] = []
+  let pos = 0
+  const len = content.length
   let skipping = false
 
-  for (const line of lines) {
-    const trimmed = line.trim()
+  while (pos < len) {
+    let nextNewline = content.indexOf('\n', pos)
+    if (nextNewline === -1) nextNewline = len
 
-    if (trimmed.startsWith('[node') && trimmed.includes(`name="${nodeName}"`)) {
-      skipping = true
-      continue
-    }
+    let start = pos
+    while (start < nextNewline && content.charCodeAt(start) <= 32) start++
 
-    if (skipping && trimmed.startsWith('[')) {
+    const firstChar = content.charCodeAt(start)
+    const secondChar = content.charCodeAt(start + 1)
+
+    if (skipping && firstChar === 91) {
+      // '['
       skipping = false
     }
 
-    if (!skipping) {
-      result.push(line)
+    const line = content.slice(pos, nextNewline)
+
+    if (!skipping && firstChar === 91 && secondChar === 110) {
+      // '[n'
+      if (line.includes(`name="${nodeName}"`)) {
+        skipping = true
+      }
     }
+
+    if (!skipping) {
+      if (firstChar === 91 && secondChar === 99) {
+        // '[c'
+        if (!line.includes(`from="${nodeName}"`) && !line.includes(`to="${nodeName}"`)) {
+          result.push(line)
+        }
+      } else {
+        result.push(line)
+      }
+    }
+
+    pos = nextNewline + 1
   }
 
-  // Also remove connections referencing this node
-  return result
-    .filter((line) => {
-      const trimmed = line.trim()
-      if (trimmed.startsWith('[connection')) {
-        return !trimmed.includes(`from="${nodeName}"`) && !trimmed.includes(`to="${nodeName}"`)
-      }
-      return true
-    })
-    .join('\n')
+  return result.join('\n')
 }
 
 /**
@@ -337,40 +360,48 @@ export function setNodePropertyInContent(content: string, nodeName: string, prop
     return content
   }
 
-  const lines = content.split('\n')
   const result: string[] = []
+  let pos = 0
+  const len = content.length
   let inTargetNode = false
   let propertySet = false
 
-  for (let i = 0; i < lines.length; i++) {
-    const trimmed = lines[i].trim()
+  while (pos < len) {
+    let nextNewline = content.indexOf('\n', pos)
+    if (nextNewline === -1) nextNewline = len
 
-    if (trimmed.startsWith('[node') && trimmed.includes(`name="${nodeName}"`)) {
-      inTargetNode = true
-      result.push(lines[i])
-      continue
-    }
+    let start = pos
+    while (start < nextNewline && content.charCodeAt(start) <= 32) start++
 
-    if (inTargetNode && trimmed.startsWith('[')) {
-      // Entering new section - add property if not yet set
-      if (!propertySet) {
+    const firstChar = content.charCodeAt(start)
+    const line = content.slice(pos, nextNewline)
+
+    if (firstChar === 91) {
+      // '['
+      if (inTargetNode && !propertySet) {
         result.push(`${property} = ${value}`)
         propertySet = true
       }
       inTargetNode = false
-    }
 
-    if (inTargetNode && trimmed.startsWith(`${property} `)) {
-      // Replace existing property
+      if (content.charCodeAt(start + 1) === 110 && line.includes(`name="${nodeName}"`)) {
+        // '[n'
+        inTargetNode = true
+      }
+      result.push(line)
+    } else if (
+      inTargetNode &&
+      (content.startsWith(`${property} `, start) || content.startsWith(`${property}=`, start))
+    ) {
       result.push(`${property} = ${value}`)
       propertySet = true
-      continue
+    } else {
+      result.push(line)
     }
 
-    result.push(lines[i])
+    pos = nextNewline + 1
   }
 
-  // If node was last section and property wasn't set
   if (inTargetNode && !propertySet) {
     result.push(`${property} = ${value}`)
   }

@@ -98,6 +98,20 @@ describe('nodes', () => {
         ),
       ).rejects.toThrow('not found')
     })
+
+    it('should throw for path traversal in project_path', async () => {
+      await expect(
+        handleNodes(
+          'add',
+          {
+            project_path: '../../',
+            scene_path: 'test.tscn',
+            name: 'Hacker',
+          },
+          config,
+        ),
+      ).rejects.toThrow('Access denied')
+    })
   })
 
   // ==========================================

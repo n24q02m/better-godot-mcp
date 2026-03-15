@@ -91,8 +91,6 @@ export async function handleUI(action: string, args: Record<string, unknown>, co
       const fullPath = safeResolve(projectPath || process.cwd(), themePath)
 
       const fontSize = (args.font_size as number) || 16
-      const _fontColor = (args.font_color as string) || 'Color(1, 1, 1, 1)'
-      const _bgColor = (args.bg_color as string) || 'Color(0.15, 0.15, 0.15, 1)'
 
       const content = [
         '[gd_resource type="Theme" format=3]',

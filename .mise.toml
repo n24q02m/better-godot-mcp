@@ -1,3 +1,4 @@
+# Mise configuration for better-godot-mcp
 [tools]
 node = "24"
 bun = "latest"

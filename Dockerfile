@@ -15,6 +15,7 @@ RUN bun run build
 # Production stage
 FROM node:24.14.0-alpine
 
+LABEL org.opencontainers.image.source="https://github.com/n24q02m/better-godot-mcp"
 LABEL io.modelcontextprotocol.server.name="io.github.n24q02m/better-godot-mcp"
 
 COPY --from=builder /app/build /usr/local/lib/node_modules/@n24q02m/better-godot-mcp/build

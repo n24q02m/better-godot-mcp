@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, type PathLike, readdirSync } from 'node:fs'
+import { type Dirent, existsSync, type PathLike, readdirSync } from 'node:fs'
 /**
  * Tests for Godot binary detector
  */
@@ -301,24 +301,20 @@ describe('detector', () => {
         return false
       })
 
-      // Fix strict type checks by using unknown then casting to expected return type
-      vi.mocked(readdirSync).mockImplementation(((path: PathLike) => {
+      vi.mocked(readdirSync).mockImplementation(((path: PathLike, _options?: unknown) => {
         if (path === packagesDir) {
           return [
             {
               isDirectory: () => true,
               name: 'GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe',
-            },
-          ] as unknown as ReturnType<typeof readdirSync>
+            } as Dirent,
+          ]
         }
         if (path === pkgDir) {
-          return ['Godot_v4.3-stable_win64.exe', 'Godot_v4.3-stable_win64_console.exe'] as unknown as ReturnType<
-            typeof readdirSync
-          >
+          return ['Godot_v4.3-stable_win64.exe', 'Godot_v4.3-stable_win64_console.exe']
         }
-        return [] as unknown as ReturnType<typeof readdirSync>
-        // biome-ignore lint/suspicious/noExplicitAny: mock overload
-      }) as any)
+        return []
+      }) as typeof readdirSync)
 
       vi.mocked(execFileSync).mockImplementation((cmd) => {
         if (typeof cmd === 'string' && cmd.includes('Godot_v4.3-stable_win64.exe'))
@@ -339,8 +335,7 @@ describe('detector', () => {
         throw new Error('not found')
       })
       vi.mocked(existsSync).mockReturnValue(false)
-      // biome-ignore lint/suspicious/noExplicitAny: mock overload
-      vi.mocked(readdirSync).mockImplementation(((_path: PathLike) => []) as any)
+      vi.mocked(readdirSync).mockImplementation(((_path: PathLike, _options?: unknown) => []) as typeof readdirSync)
 
       expect(detectGodot()).toBeNull()
     })

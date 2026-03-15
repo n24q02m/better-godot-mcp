@@ -129,15 +129,30 @@ export function parseSceneContent(content: string): ParsedScene {
           currentSubResource = null
 
           const line = content.slice(start, end)
-          if (line.startsWith('[gd_scene')) {
-            currentSection = 'header'
-            const formatMatch = line.match(rxGdSceneFormat)
-            const stepsMatch = line.match(rxGdSceneSteps)
-            const uidMatch = line.match(rxUid)
-            if (formatMatch) header.format = Number.parseInt(formatMatch[1], 10)
-            if (stepsMatch) header.loadSteps = Number.parseInt(stepsMatch[1], 10)
-            if (uidMatch) header.uid = uidMatch[1]
-          } else if (line.startsWith('[ext_resource')) {
+          // Performance: Fast-path character check for section headers
+          const c1 = content.charCodeAt(start + 1)
+          if (c1 === 110 && line.startsWith('[node')) {
+            // n
+            currentSection = 'node'
+            const nameMatch = line.match(rxName)
+            if (nameMatch) {
+              const groupsMatch = line.match(rxGroups)
+              currentNode = {
+                name: nameMatch[1],
+                type: (line.match(rxType) || [])[1],
+                parent: (line.match(rxParent) || [])[1],
+                instance: (line.match(rxInstance) || [])[1],
+                properties: {},
+                groups: groupsMatch
+                  ? groupsMatch[1]
+                      .split(',')
+                      .map((g) => g.trim().replace(/"/g, ''))
+                      .filter(Boolean)
+                  : undefined,
+              }
+            }
+          } else if (c1 === 101 && line.startsWith('[ext_resource')) {
+            // e
             currentSection = 'ext_resource'
             const typeMatch = line.match(rxType)
             const uidMatch = line.match(rxUid)
@@ -151,36 +166,16 @@ export function parseSceneContent(content: string): ParsedScene {
                 id: idMatch[1],
               })
             }
-          } else if (line.startsWith('[sub_resource')) {
+          } else if (c1 === 115 && line.startsWith('[sub_resource')) {
+            // s
             currentSection = 'sub_resource'
             const typeMatch = line.match(rxType)
             const idMatch = line.match(rxId)
             if (typeMatch && idMatch) {
               currentSubResource = { type: typeMatch[1], id: idMatch[1], properties: {} }
             }
-          } else if (line.startsWith('[node')) {
-            currentSection = 'node'
-            const nameMatch = line.match(rxName)
-            const typeMatch = line.match(rxType)
-            const parentMatch = line.match(rxParent)
-            const instanceMatch = line.match(rxInstance)
-            const groupsMatch = line.match(rxGroups)
-            if (nameMatch) {
-              currentNode = {
-                name: nameMatch[1],
-                type: typeMatch?.[1],
-                parent: parentMatch?.[1],
-                instance: instanceMatch?.[1],
-                properties: {},
-                groups: groupsMatch
-                  ? groupsMatch[1]
-                      .split(',')
-                      .map((g) => g.trim().replace(/"/g, ''))
-                      .filter(Boolean)
-                  : undefined,
-              }
-            }
-          } else if (line.startsWith('[connection')) {
+          } else if (c1 === 99 && line.startsWith('[connection')) {
+            // c
             currentSection = 'connection'
             const signalMatch = line.match(rxSignal)
             const fromMatch = line.match(rxFrom)
@@ -196,6 +191,15 @@ export function parseSceneContent(content: string): ParsedScene {
                 flags: flagsMatch ? Number.parseInt(flagsMatch[1], 10) : undefined,
               })
             }
+          } else if (c1 === 103 && line.startsWith('[gd_scene')) {
+            // g
+            currentSection = 'header'
+            const formatMatch = line.match(rxGdSceneFormat)
+            const stepsMatch = line.match(rxGdSceneSteps)
+            const uidMatch = line.match(rxUid)
+            if (formatMatch) header.format = Number.parseInt(formatMatch[1], 10)
+            if (stepsMatch) header.loadSteps = Number.parseInt(stepsMatch[1], 10)
+            if (uidMatch) header.uid = uidMatch[1]
           }
         } else if (currentSection === 'node' || currentSection === 'sub_resource') {
           // Fast parsing of key-value properties without regex
@@ -268,16 +272,37 @@ export function removeNodeFromContent(content: string, nodeName: string): string
   const result: string[] = []
   let skipping = false
 
-  for (const line of lines) {
-    const trimmed = line.trim()
+  const nodePrefix = '[node'
+  const connPrefix = '[connection'
+  const nameQuery = `name="${nodeName}"`
+  const fromQuery = `from="${nodeName}"`
+  const toQuery = `to="${nodeName}"`
 
-    if (trimmed.startsWith('[node') && trimmed.includes(`name="${nodeName}"`)) {
-      skipping = true
-      continue
-    }
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
 
-    if (skipping && trimmed.startsWith('[')) {
-      skipping = false
+    // Performance: Fast left-trim without allocating intermediate strings via .trim()
+    let start = 0
+    const len = line.length
+    while (start < len && line.charCodeAt(start) <= 32) start++
+
+    // Performance: Check character code 91 for '['
+    if (start < len && line.charCodeAt(start) === 91) {
+      const trimmed = line.slice(start)
+
+      if (trimmed.startsWith(nodePrefix) && trimmed.includes(nameQuery)) {
+        skipping = true
+        continue
+      }
+
+      if (skipping && trimmed.charCodeAt(0) === 91) {
+        skipping = false
+      }
+
+      // Also remove connections referencing this node in a single pass
+      if (!skipping && trimmed.startsWith(connPrefix) && (trimmed.includes(fromQuery) || trimmed.includes(toQuery))) {
+        continue
+      }
     }
 
     if (!skipping) {
@@ -285,16 +310,7 @@ export function removeNodeFromContent(content: string, nodeName: string): string
     }
   }
 
-  // Also remove connections referencing this node
-  return result
-    .filter((line) => {
-      const trimmed = line.trim()
-      if (trimmed.startsWith('[connection')) {
-        return !trimmed.includes(`from="${nodeName}"`) && !trimmed.includes(`to="${nodeName}"`)
-      }
-      return true
-    })
-    .join('\n')
+  return result.join('\n')
 }
 
 /**
@@ -342,32 +358,49 @@ export function setNodePropertyInContent(content: string, nodeName: string, prop
   let inTargetNode = false
   let propertySet = false
 
-  for (let i = 0; i < lines.length; i++) {
-    const trimmed = lines[i].trim()
+  const nodePrefix = '[node'
+  const nameQuery = `name="${nodeName}"`
+  const propertyQuery = `${property} `
 
-    if (trimmed.startsWith('[node') && trimmed.includes(`name="${nodeName}"`)) {
-      inTargetNode = true
-      result.push(lines[i])
-      continue
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+
+    // Performance: Fast left-trim without allocating intermediate strings via .trim()
+    let start = 0
+    const len = line.length
+    while (start < len && line.charCodeAt(start) <= 32) start++
+
+    // Performance: Check character code 91 for '['
+    if (start < len && line.charCodeAt(start) === 91) {
+      const trimmed = line.slice(start)
+
+      if (trimmed.startsWith(nodePrefix) && trimmed.includes(nameQuery)) {
+        inTargetNode = true
+        result.push(line)
+        continue
+      }
+
+      if (inTargetNode && trimmed.charCodeAt(0) === 91) {
+        // Entering new section - add property if not yet set
+        if (!propertySet) {
+          result.push(`${property} = ${value}`)
+          propertySet = true
+        }
+        inTargetNode = false
+      }
     }
 
-    if (inTargetNode && trimmed.startsWith('[')) {
-      // Entering new section - add property if not yet set
-      if (!propertySet) {
+    if (inTargetNode && start < len) {
+      const trimmed = line.slice(start)
+      if (trimmed.startsWith(propertyQuery)) {
+        // Replace existing property
         result.push(`${property} = ${value}`)
         propertySet = true
+        continue
       }
-      inTargetNode = false
     }
 
-    if (inTargetNode && trimmed.startsWith(`${property} `)) {
-      // Replace existing property
-      result.push(`${property} = ${value}`)
-      propertySet = true
-      continue
-    }
-
-    result.push(lines[i])
+    result.push(line)
   }
 
   // If node was last section and property wasn't set

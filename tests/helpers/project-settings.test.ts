@@ -60,6 +60,28 @@ describe('project-settings', () => {
       const settings = parseProjectSettingsContent(SAMPLE_PROJECT_GODOT)
       expect(settings.raw).toBe(SAMPLE_PROJECT_GODOT)
     })
+    it('should ignore malformed section header (missing closing bracket)', () => {
+      const settings = parseProjectSettingsContent('[application\nconfig/name="Test"\n')
+      expect(settings.sections.has('application')).toBe(false)
+    })
+
+    it('should ignore malformed section header (missing opening bracket)', () => {
+      const settings = parseProjectSettingsContent('application]\nconfig/name="Test"\n')
+      expect(settings.sections.has('application')).toBe(false)
+    })
+
+    it('should ignore key-value pair without equals sign', () => {
+      const settings = parseProjectSettingsContent('[application]\nconfig/name "Test"\n')
+      const app = settings.sections.get('application')
+      expect(app?.has('config/name')).toBe(false)
+      expect(app?.size).toBe(0)
+    })
+
+    it('should ignore key-value pair before any section is declared', () => {
+      const settings = parseProjectSettingsContent('config/name="Test"\n[application]\n')
+      const app = settings.sections.get('application')
+      expect(app?.has('config/name')).toBe(false)
+    })
   })
 
   // ==========================================

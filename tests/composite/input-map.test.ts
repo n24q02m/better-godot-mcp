@@ -248,7 +248,10 @@ describe('input-map', () => {
   })
 
   it('should throw for unknown action', async () => {
-    await expect(handleInputMap('invalid', {}, config)).rejects.toThrow('Unknown action')
+    await expect(handleInputMap('invalid_action', {}, config)).rejects.toMatchObject({
+      message: 'Unknown input map action: invalid_action',
+      code: 'INVALID_ACTION',
+    })
   })
 
   // ==========================================

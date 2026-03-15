@@ -12,12 +12,12 @@ import { parseProjectSettings, setSettingInContent } from '../helpers/project-se
 import { escapeRegExp } from '../helpers/scene-parser.js'
 
 export async function handlePhysics(action: string, args: Record<string, unknown>, config: GodotConfig) {
-  const projectPath = (args.project_path as string) || config.projectPath
+  const projectPath = (args.project_path as string) || config.projectPath || ''
 
   switch (action) {
     case 'layers': {
       if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
-      const configPath = join(safeResolve(config.projectPath, projectPath), 'project.godot')
+      const configPath = join(safeResolve(config.projectPath || process.cwd(), projectPath), 'project.godot')
       if (!(await pathExists(configPath)))
         throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify project path.')
 
@@ -45,7 +45,7 @@ export async function handlePhysics(action: string, args: Record<string, unknown
       const collisionLayer = args.collision_layer as number
       const collisionMask = args.collision_mask as number
 
-      const fullPath = safeResolve(safeResolve(config.projectPath, projectPath), scenePath)
+      const fullPath = safeResolve(safeResolve(config.projectPath || process.cwd(), projectPath), scenePath)
       if (!(await pathExists(fullPath)))
         throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check file path.')
 
@@ -76,7 +76,7 @@ export async function handlePhysics(action: string, args: Record<string, unknown
       const nodeName = args.name as string
       if (!nodeName) throw new GodotMCPError('No node name specified', 'INVALID_ARGS', 'Provide node name.')
 
-      const fullPath = safeResolve(safeResolve(config.projectPath, projectPath), scenePath)
+      const fullPath = safeResolve(safeResolve(config.projectPath || process.cwd(), projectPath), scenePath)
       if (!(await pathExists(fullPath)))
         throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check file path.')
 
@@ -108,7 +108,7 @@ export async function handlePhysics(action: string, args: Record<string, unknown
       const name = args.name as string
       if (!name) throw new GodotMCPError('No name specified', 'INVALID_ARGS', 'Provide layer name.')
 
-      const configPath = join(safeResolve(config.projectPath, projectPath), 'project.godot')
+      const configPath = join(safeResolve(config.projectPath || process.cwd(), projectPath), 'project.godot')
       if (!(await pathExists(configPath)))
         throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify project path.')
 

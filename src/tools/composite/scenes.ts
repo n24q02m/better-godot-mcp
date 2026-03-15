@@ -13,7 +13,6 @@ import { setSettingInContent } from '../helpers/project-settings.js'
 
 // Pre-compiled regex for parsing scene metadata without splitting lines
 const rxNode = /^\[node\s+name="([^"]+)"\s+type="([^"]+)"(?:\s+parent="([^"]*)")?/
-const _rxRes = /^\[(?:ext_resource|sub_resource)\s+(.+)\]$/
 const rxScript = /^script\s*=\s*(.+)$/
 
 /**

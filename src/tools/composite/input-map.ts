@@ -235,7 +235,7 @@ export async function handleInputMap(action: string, args: Record<string, unknow
       const configPath = getProjectGodotPath(projectPath)
       const actionName = args.action_name as string
       if (!actionName) throw new GodotMCPError('No action_name specified', 'INVALID_ARGS', 'Provide action_name.')
-      if (!/^[a-zA-Z0-9_-]+$/.test(actionName)) {
+      if (typeof actionName !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(actionName)) {
         throw new GodotMCPError(
           `Invalid action name: ${actionName}`,
           'INVALID_ARGS',
@@ -268,7 +268,7 @@ export async function handleInputMap(action: string, args: Record<string, unknow
       const configPath = getProjectGodotPath(projectPath)
       const actionName = args.action_name as string
       if (!actionName) throw new GodotMCPError('No action_name specified', 'INVALID_ARGS', 'Provide action_name.')
-      if (!/^[a-zA-Z0-9_-]+$/.test(actionName)) {
+      if (typeof actionName !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(actionName)) {
         throw new GodotMCPError(
           `Invalid action name: ${actionName}`,
           'INVALID_ARGS',
@@ -301,7 +301,7 @@ export async function handleInputMap(action: string, args: Record<string, unknow
           'Provide action_name, event_type (key/mouse/joypad), and event_value (e.g., "KEY_SPACE").',
         )
       }
-      if (!/^[a-zA-Z0-9_-]+$/.test(actionName)) {
+      if (typeof actionName !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(actionName)) {
         throw new GodotMCPError(
           `Invalid action name: ${actionName}`,
           'INVALID_ARGS',

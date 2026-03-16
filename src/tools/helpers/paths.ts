@@ -1,3 +1,4 @@
+import { access } from 'node:fs/promises'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
 import { GodotMCPError } from './errors.js'
 
@@ -30,4 +31,17 @@ export function safeResolve(baseDir: string, targetPath: string): string {
   }
 
   return resolvedTarget
+}
+
+/**
+ * Asynchronously checks if a file or directory exists.
+ * Does not block the Node.js event loop like existsSync.
+ */
+export async function pathExists(path: string): Promise<boolean> {
+  try {
+    await access(path)
+    return true
+  } catch {
+    return false
+  }
 }

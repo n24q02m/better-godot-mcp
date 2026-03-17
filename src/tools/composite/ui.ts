@@ -3,11 +3,11 @@
  * Actions: create_control | set_theme | layout | list_controls
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
-import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
-import { safeResolve } from '../helpers/paths.js'
+import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
+import { pathExists, safeResolve } from '../helpers/paths.js'
 import { escapeRegExp, parseScene } from '../helpers/scene-parser.js'
 
 const CONTROL_TEMPLATES: Record<string, Record<string, string>> = {
@@ -31,9 +31,9 @@ const CONTROL_TEMPLATES: Record<string, Record<string, string>> = {
   GridContainer: { columns: '2' },
 }
 
-function resolveScene(projectPath: string | null | undefined, scenePath: string): string {
+async function resolveScene(projectPath: string | null | undefined, scenePath: string): Promise<string> {
   const fullPath = safeResolve(projectPath || process.cwd(), scenePath)
-  if (!existsSync(fullPath))
+  if (!(await pathExists(fullPath)))
     throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
   return fullPath
 }
@@ -51,8 +51,8 @@ export async function handleUI(action: string, args: Record<string, unknown>, co
 
       if (!controlName) throw new GodotMCPError('No name specified', 'INVALID_ARGS', 'Provide control node name.')
 
-      const fullPath = resolveScene(projectPath, scenePath)
-      let content = readFileSync(fullPath, 'utf-8')
+      const fullPath = await resolveScene(projectPath, scenePath)
+      let content = await readFile(fullPath, 'utf-8')
 
       const parentAttr = parent === '.' ? '' : ` parent="${parent}"`
       let nodeDecl = `\n[node name="${controlName}" type="${controlType}"${parentAttr}]\n`
@@ -74,7 +74,7 @@ export async function handleUI(action: string, args: Record<string, unknown>, co
       }
 
       content = `${content.trimEnd()}\n${nodeDecl}`
-      writeFileSync(fullPath, content, 'utf-8')
+      await writeFile(fullPath, content, 'utf-8')
 
       return formatSuccess(`Created UI control: ${controlName} (${controlType}) under ${parent}`)
     }
@@ -100,8 +100,8 @@ export async function handleUI(action: string, args: Record<string, unknown>, co
         '',
       ].join('\n')
 
-      mkdirSync(dirname(fullPath), { recursive: true })
-      writeFileSync(fullPath, content, 'utf-8')
+      await mkdir(dirname(fullPath), { recursive: true })
+      await writeFile(fullPath, content, 'utf-8')
 
       return formatSuccess(`Created theme: ${themePath} (font size: ${fontSize})`)
     }
@@ -113,8 +113,8 @@ export async function handleUI(action: string, args: Record<string, unknown>, co
       if (!nodeName) throw new GodotMCPError('No name specified', 'INVALID_ARGS', 'Provide node name.')
       const preset = (args.preset as string) || 'full_rect'
 
-      const fullPath = resolveScene(projectPath, scenePath)
-      let content = readFileSync(fullPath, 'utf-8')
+      const fullPath = await resolveScene(projectPath, scenePath)
+      let content = await readFile(fullPath, 'utf-8')
 
       const nodeRegex = new RegExp(`(\\[node name="${escapeRegExp(nodeName)}"[^\\]]*\\])`)
       const match = content.match(nodeRegex)
@@ -156,7 +156,7 @@ export async function handleUI(action: string, args: Record<string, unknown>, co
         throw new GodotMCPError(`Node "${nodeName}" not found`, 'NODE_ERROR', 'Check node name.')
       const insertPoint = match.index + match[0].length
       content = `${content.slice(0, insertPoint)}${layoutProps}${content.slice(insertPoint)}`
-      writeFileSync(fullPath, content, 'utf-8')
+      await writeFile(fullPath, content, 'utf-8')
 
       return formatSuccess(`Set layout preset "${preset}" on ${nodeName}`)
     }
@@ -165,8 +165,8 @@ export async function handleUI(action: string, args: Record<string, unknown>, co
       const scenePath = args.scene_path as string
       if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
 
-      const fullPath = resolveScene(projectPath, scenePath)
-      const scene = parseScene(fullPath)
+      const fullPath = await resolveScene(projectPath, scenePath)
+      const scene = await parseScene(fullPath)
 
       const controlTypes = new Set([
         'Control',
@@ -215,10 +215,6 @@ export async function handleUI(action: string, args: Record<string, unknown>, co
     }
 
     default:
-      throw new GodotMCPError(
-        `Unknown action: ${action}`,
-        'INVALID_ACTION',
-        'Valid actions: create_control, set_theme, layout, list_controls. Use help tool for full docs.',
-      )
+      throwUnknownAction(action, ['create_control', 'set_theme', 'layout', 'list_controls'])
   }
 }

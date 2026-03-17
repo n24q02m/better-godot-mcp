@@ -7,7 +7,7 @@ import { constants } from 'node:fs'
 import { access, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
-import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
+import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
 
 /**
@@ -132,10 +132,6 @@ export async function handleTilemap(action: string, args: Record<string, unknown
     }
 
     default:
-      throw new GodotMCPError(
-        `Unknown action: ${action}`,
-        'INVALID_ACTION',
-        'Valid actions: create_tileset, add_source, set_tile, paint, list. Use help tool for full docs.',
-      )
+      throwUnknownAction(action, ['create_tileset', 'add_source', 'set_tile', 'paint', 'list'])
   }
 }

@@ -163,9 +163,9 @@ radius = 16.0`
   })
 
   describe('writeScene', () => {
-    it('should write scene content to file', () => {
+    it('should write scene content to file', async () => {
       const filePath = join(tmpDir, 'test.tscn')
-      writeScene(filePath, '[gd_scene format=3]\n[node name="Root" type="Node2D"]\n')
+      await writeScene(filePath, '[gd_scene format=3]\n[node name="Root" type="Node2D"]\n')
       const { readFileSync } = require('node:fs') as typeof import('node:fs')
       expect(readFileSync(filePath, 'utf-8')).toContain('name="Root"')
     })

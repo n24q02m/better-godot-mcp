@@ -3,14 +3,14 @@
  * Actions: create_region | add_agent | add_obstacle
  */
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { readFile, writeFile } from 'node:fs/promises'
 import type { GodotConfig } from '../../godot/types.js'
-import { formatSuccess, GodotMCPError } from '../helpers/errors.js'
-import { safeResolve } from '../helpers/paths.js'
+import { formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
+import { pathExists, safeResolve } from '../helpers/paths.js'
 
-function resolveScene(projectPath: string | null | undefined, scenePath: string): string {
+async function resolveScene(projectPath: string | null | undefined, scenePath: string): Promise<string> {
   const fullPath = safeResolve(projectPath || process.cwd(), scenePath)
-  if (!existsSync(fullPath))
+  if (!(await pathExists(fullPath)))
     throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
   return fullPath
 }
@@ -33,13 +33,13 @@ export async function handleNavigation(action: string, args: Record<string, unkn
       const parent = (args.parent as string) || '.'
       const dimension = (args.dimension as string) || '3D'
 
-      const fullPath = resolveScene(projectPath, scenePath)
-      let content = readFileSync(fullPath, 'utf-8')
+      const fullPath = await resolveScene(projectPath, scenePath)
+      let content = await readFile(fullPath, 'utf-8')
 
       const nodeType = dimension === '2D' ? 'NavigationRegion2D' : 'NavigationRegion3D'
       content = appendNode(content, regionName, nodeType, parent)
 
-      writeFileSync(fullPath, content, 'utf-8')
+      await writeFile(fullPath, content, 'utf-8')
       return formatSuccess(`Created navigation region: ${regionName} (${nodeType})`)
     }
 
@@ -50,8 +50,8 @@ export async function handleNavigation(action: string, args: Record<string, unkn
       const parent = (args.parent as string) || '.'
       const dimension = (args.dimension as string) || '3D'
 
-      const fullPath = resolveScene(projectPath, scenePath)
-      let content = readFileSync(fullPath, 'utf-8')
+      const fullPath = await resolveScene(projectPath, scenePath)
+      let content = await readFile(fullPath, 'utf-8')
 
       const nodeType = dimension === '2D' ? 'NavigationAgent2D' : 'NavigationAgent3D'
       let extraProps = ''
@@ -62,7 +62,7 @@ export async function handleNavigation(action: string, args: Record<string, unkn
 
       content = appendNode(content, agentName, nodeType, parent, extraProps || undefined)
 
-      writeFileSync(fullPath, content, 'utf-8')
+      await writeFile(fullPath, content, 'utf-8')
       return formatSuccess(`Added navigation agent: ${agentName} (${nodeType})`)
     }
 
@@ -73,8 +73,8 @@ export async function handleNavigation(action: string, args: Record<string, unkn
       const parent = (args.parent as string) || '.'
       const dimension = (args.dimension as string) || '3D'
 
-      const fullPath = resolveScene(projectPath, scenePath)
-      let content = readFileSync(fullPath, 'utf-8')
+      const fullPath = await resolveScene(projectPath, scenePath)
+      let content = await readFile(fullPath, 'utf-8')
 
       const nodeType = dimension === '2D' ? 'NavigationObstacle2D' : 'NavigationObstacle3D'
       let extraProps = ''
@@ -83,15 +83,11 @@ export async function handleNavigation(action: string, args: Record<string, unkn
 
       content = appendNode(content, obstacleName, nodeType, parent, extraProps || undefined)
 
-      writeFileSync(fullPath, content, 'utf-8')
+      await writeFile(fullPath, content, 'utf-8')
       return formatSuccess(`Added navigation obstacle: ${obstacleName} (${nodeType})`)
     }
 
     default:
-      throw new GodotMCPError(
-        `Unknown action: ${action}`,
-        'INVALID_ACTION',
-        'Valid actions: create_region, add_agent, add_obstacle. Use help tool for full docs.',
-      )
+      throwUnknownAction(action, ['create_region', 'add_agent', 'add_obstacle'])
   }
 }

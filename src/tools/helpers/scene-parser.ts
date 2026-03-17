@@ -11,7 +11,7 @@
  * [connection signal="..." from="..." to="..." method="..."]
  */
 
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readFile, writeFile } from 'node:fs/promises'
 
 // Pre-compiled regular expressions for parsing scene sections
 const rxGdSceneFormat = /format=(\d+)/
@@ -78,8 +78,8 @@ export interface ParsedScene {
 /**
  * Parse a .tscn file into structured data
  */
-export function parseScene(filePath: string): ParsedScene {
-  const raw = readFileSync(filePath, 'utf-8')
+export async function parseScene(filePath: string): Promise<ParsedScene> {
+  const raw = await readFile(filePath, 'utf-8')
   return parseSceneContent(raw)
 }
 
@@ -420,6 +420,6 @@ export function getNodeProperty(scene: ParsedScene, nodeName: string, property: 
 /**
  * Write a parsed scene back to file (using raw content)
  */
-export function writeScene(filePath: string, content: string): void {
-  writeFileSync(filePath, content, 'utf-8')
+export async function writeScene(filePath: string, content: string): Promise<void> {
+  await writeFile(filePath, content, 'utf-8')
 }

@@ -3,12 +3,11 @@
  * Actions: list | info | delete | import_config
  */
 
-import { existsSync, readFileSync, statSync, unlinkSync } from 'node:fs'
-import { readdir, stat } from 'node:fs/promises'
+import { readdir, readFile, stat, unlink } from 'node:fs/promises'
 import { extname, join, relative, resolve } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
-import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
-import { safeResolve } from '../helpers/paths.js'
+import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
+import { pathExists, safeResolve } from '../helpers/paths.js'
 
 const RESOURCE_EXTENSIONS = new Set([
   '.tres',
@@ -99,21 +98,21 @@ export async function handleResources(action: string, args: Record<string, unkno
       const resPath = args.resource_path as string
       if (!resPath) throw new GodotMCPError('No resource_path specified', 'INVALID_ARGS', 'Provide resource_path.')
       const fullPath = safeResolve(projectPath || process.cwd(), resPath)
-      if (!existsSync(fullPath))
+      if (!(await pathExists(fullPath)))
         throw new GodotMCPError(`Resource not found: ${resPath}`, 'RESOURCE_ERROR', 'Check the file path.')
 
-      const stat = statSync(fullPath)
+      const fileStat = await stat(fullPath)
       const ext = extname(fullPath)
       const info: Record<string, unknown> = {
         path: resPath,
         extension: ext,
-        size: stat.size,
-        modified: stat.mtime.toISOString(),
+        size: fileStat.size,
+        modified: fileStat.mtime.toISOString(),
       }
 
       // Parse .tres/.import files for metadata
       if (ext === '.tres' || ext === '.import') {
-        const content = readFileSync(fullPath, 'utf-8')
+        const content = await readFile(fullPath, 'utf-8')
         const typeMatch = content.match(/type="([^"]*)"/)
         if (typeMatch) info.type = typeMatch[1]
         const pathMatch = content.match(/path="([^"]*)"/)
@@ -127,13 +126,13 @@ export async function handleResources(action: string, args: Record<string, unkno
       const resPath = args.resource_path as string
       if (!resPath) throw new GodotMCPError('No resource_path specified', 'INVALID_ARGS', 'Provide resource_path.')
       const fullPath = safeResolve(projectPath || process.cwd(), resPath)
-      if (!existsSync(fullPath))
+      if (!(await pathExists(fullPath)))
         throw new GodotMCPError(`Resource not found: ${resPath}`, 'RESOURCE_ERROR', 'Check the file path.')
 
-      unlinkSync(fullPath)
+      await unlink(fullPath)
       // Also delete .import file if exists
       const importFile = `${fullPath}.import`
-      if (existsSync(importFile)) unlinkSync(importFile)
+      if (await pathExists(importFile)) await unlink(importFile)
 
       return formatSuccess(`Deleted resource: ${resPath}`)
     }
@@ -144,19 +143,15 @@ export async function handleResources(action: string, args: Record<string, unkno
 
       const importPath = safeResolve(projectPath || process.cwd(), `${resPath}.import`)
 
-      if (!existsSync(importPath)) {
+      if (!(await pathExists(importPath))) {
         return formatJSON({ path: resPath, imported: false, message: 'No .import file found.' })
       }
 
-      const content = readFileSync(importPath, 'utf-8')
+      const content = await readFile(importPath, 'utf-8')
       return formatSuccess(`Import config for ${resPath}:\n\n${content}`)
     }
 
     default:
-      throw new GodotMCPError(
-        `Unknown action: ${action}`,
-        'INVALID_ACTION',
-        'Valid actions: list, info, delete, import_config. Use help tool for full docs.',
-      )
+      throwUnknownAction(action, ['list', 'info', 'delete', 'import_config'])
   }
 }

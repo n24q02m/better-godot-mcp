@@ -3,10 +3,11 @@
  * Actions: list | add_action | remove_action | add_event
  */
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { readFile, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
-import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
+import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
+import { pathExists } from '../helpers/paths.js'
 import { escapeRegExp } from '../helpers/scene-parser.js'
 
 /**
@@ -134,10 +135,10 @@ function resolveMouseCode(value: string): number {
   )
 }
 
-function getProjectGodotPath(projectPath: string | null | undefined): string {
+async function getProjectGodotPath(projectPath: string | null | undefined): Promise<string> {
   if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
   const configPath = join(resolve(projectPath), 'project.godot')
-  if (!existsSync(configPath))
+  if (!(await pathExists(configPath)))
     throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
   return configPath
 }
@@ -219,8 +220,8 @@ export async function handleInputMap(action: string, args: Record<string, unknow
 
   switch (action) {
     case 'list': {
-      const configPath = getProjectGodotPath(projectPath)
-      const content = readFileSync(configPath, 'utf-8')
+      const configPath = await getProjectGodotPath(projectPath)
+      const content = await readFile(configPath, 'utf-8')
       const actions = parseInputActions(content)
 
       const actionList = Array.from(actions.entries()).map(([name, events]) => ({
@@ -232,7 +233,7 @@ export async function handleInputMap(action: string, args: Record<string, unknow
     }
 
     case 'add_action': {
-      const configPath = getProjectGodotPath(projectPath)
+      const configPath = await getProjectGodotPath(projectPath)
       const actionName = args.action_name as string
       if (!actionName) throw new GodotMCPError('No action_name specified', 'INVALID_ARGS', 'Provide action_name.')
       if (typeof actionName !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(actionName)) {
@@ -244,7 +245,7 @@ export async function handleInputMap(action: string, args: Record<string, unknow
       }
       const deadzone = (args.deadzone as number) || 0.5
 
-      let content = readFileSync(configPath, 'utf-8')
+      let content = await readFile(configPath, 'utf-8')
 
       // Check if [input] section exists
       if (!content.includes('[input]')) {
@@ -260,12 +261,12 @@ export async function handleInputMap(action: string, args: Record<string, unknow
       const actionLine = `${actionName}={\n"deadzone": ${deadzone},\n"events": []\n}`
       content = content.replace('[input]', `[input]\n${actionLine}`)
 
-      writeFileSync(configPath, content, 'utf-8')
+      await writeFile(configPath, content, 'utf-8')
       return formatSuccess(`Added input action: ${actionName} (deadzone: ${deadzone})`)
     }
 
     case 'remove_action': {
-      const configPath = getProjectGodotPath(projectPath)
+      const configPath = await getProjectGodotPath(projectPath)
       const actionName = args.action_name as string
       if (!actionName) throw new GodotMCPError('No action_name specified', 'INVALID_ARGS', 'Provide action_name.')
       if (typeof actionName !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(actionName)) {
@@ -276,7 +277,7 @@ export async function handleInputMap(action: string, args: Record<string, unknow
         )
       }
 
-      const content = readFileSync(configPath, 'utf-8')
+      const content = await readFile(configPath, 'utf-8')
       // Remove the action line(s) - handles multi-line format
       const pattern = new RegExp(`${escapeRegExp(actionName)}=\\{[^}]*\\}\\n?`, 'g')
       const updated = content.replace(pattern, '')
@@ -285,12 +286,12 @@ export async function handleInputMap(action: string, args: Record<string, unknow
         throw new GodotMCPError(`Action "${actionName}" not found`, 'INPUT_ERROR', 'Check action name with list.')
       }
 
-      writeFileSync(configPath, updated, 'utf-8')
+      await writeFile(configPath, updated, 'utf-8')
       return formatSuccess(`Removed input action: ${actionName}`)
     }
 
     case 'add_event': {
-      const configPath = getProjectGodotPath(projectPath)
+      const configPath = await getProjectGodotPath(projectPath)
       const actionName = args.action_name as string
       const eventType = args.event_type as string
       const eventValue = args.event_value as string
@@ -309,7 +310,7 @@ export async function handleInputMap(action: string, args: Record<string, unknow
         )
       }
 
-      const content = readFileSync(configPath, 'utf-8')
+      const content = await readFile(configPath, 'utf-8')
 
       // Build event object based on type
       let eventObj: string
@@ -350,15 +351,11 @@ export async function handleInputMap(action: string, args: Record<string, unknow
       const newEvents = existingEvents ? `${existingEvents}, ${eventObj}` : eventObj
       const updated = content.replace(actionRegex, `$1${newEvents}]`)
 
-      writeFileSync(configPath, updated, 'utf-8')
+      await writeFile(configPath, updated, 'utf-8')
       return formatSuccess(`Added ${eventType} event to action: ${actionName}`)
     }
 
     default:
-      throw new GodotMCPError(
-        `Unknown input map action: ${action}`,
-        'INVALID_ACTION',
-        'Valid actions: list, add_action, remove_action, add_event. Use help tool for full docs.',
-      )
+      throwUnknownAction(action, ['list', 'add_action', 'remove_action', 'add_event'])
   }
 }

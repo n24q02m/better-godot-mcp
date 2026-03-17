@@ -1,15 +1,18 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { handleHelp } from '../../src/tools/composite/help.js'
 import { GodotMCPError } from '../../src/tools/helpers/errors.js'
+import { pathExists } from '../../src/tools/helpers/paths.js'
 
-// Mock node:fs
-vi.mock('node:fs', () => {
+// Mock node:fs/promises and paths helper
+vi.mock('node:fs/promises', () => {
   return {
-    existsSync: vi.fn(),
-    readFileSync: vi.fn(),
+    readFile: vi.fn(),
   }
 })
+vi.mock('../../src/tools/helpers/paths.js', () => ({
+  pathExists: vi.fn(),
+}))
 
 describe('handleHelp', () => {
   beforeEach(() => {
@@ -18,25 +21,25 @@ describe('handleHelp', () => {
 
   it('should return documentation for valid topic', async () => {
     // Mock valid documentation file
-    vi.mocked(existsSync).mockReturnValue(true)
-    vi.mocked(readFileSync).mockReturnValue('# Test Documentation')
+    vi.mocked(pathExists).mockResolvedValue(true)
+    vi.mocked(readFile).mockResolvedValue('# Test Documentation')
 
     const result = await handleHelp('project', {})
 
     expect(result.content[0].text).toContain('# Test Documentation')
-    expect(existsSync).toHaveBeenCalled()
-    expect(readFileSync).toHaveBeenCalled()
+    expect(pathExists).toHaveBeenCalled()
+    expect(readFile).toHaveBeenCalled()
   })
 
   it('should use tool_name from arguments if provided', async () => {
-    vi.mocked(existsSync).mockReturnValue(true)
-    vi.mocked(readFileSync).mockReturnValue('# Scenes Documentation')
+    vi.mocked(pathExists).mockResolvedValue(true)
+    vi.mocked(readFile).mockResolvedValue('# Scenes Documentation')
 
     const result = await handleHelp('help', { tool_name: 'scenes' })
 
     expect(result.content[0].text).toContain('# Scenes Documentation')
     // Verify it looked for scenes.md, not help.md
-    const calledPath = vi.mocked(readFileSync).mock.calls[0][0] as string
+    const calledPath = vi.mocked(readFile).mock.calls[0][0] as string
     expect(calledPath).toContain('scenes.md')
   })
 
@@ -47,7 +50,7 @@ describe('handleHelp', () => {
 
   it('should return fallback message if documentation file is missing', async () => {
     // Mock file not found
-    vi.mocked(existsSync).mockReturnValue(false)
+    vi.mocked(pathExists).mockResolvedValue(false)
 
     const result = await handleHelp('project', {})
 

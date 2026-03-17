@@ -3,9 +3,10 @@
  * Loads docs from src/docs/*.md files
  */
 
-import { existsSync, readFileSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { formatSuccess, GodotMCPError } from '../helpers/errors.js'
+import { pathExists } from '../helpers/paths.js'
 
 const VALID_TOPICS = [
   'project',
@@ -32,7 +33,7 @@ type TopicName = (typeof VALID_TOPICS)[number]
 /**
  * Get the docs directory path
  */
-function getDocsDir(): string {
+async function getDocsDir(): Promise<string> {
   const candidates = [
     join(import.meta.dirname || '', '..', '..', 'docs'),
     // Bundled CLI at bin/cli.mjs -> ../src/docs/
@@ -42,7 +43,9 @@ function getDocsDir(): string {
   ]
 
   for (const candidate of candidates) {
-    if (existsSync(candidate)) return candidate
+    // Performance optimization: using async pathExists instead of existsSync
+    // to avoid blocking the Node.js event loop during I/O operations
+    if (await pathExists(candidate)) return candidate
   }
 
   return join(process.cwd(), 'src', 'docs')
@@ -51,12 +54,14 @@ function getDocsDir(): string {
 /**
  * Load documentation for a specific tool
  */
-function loadDoc(topic: string): string {
-  const docsDir = getDocsDir()
+async function loadDoc(topic: string): Promise<string> {
+  const docsDir = await getDocsDir()
   const docPath = join(docsDir, `${topic}.md`)
 
-  if (existsSync(docPath)) {
-    return readFileSync(docPath, 'utf-8')
+  // Performance optimization: using async file reading instead of sync
+  // to avoid blocking the Node.js event loop during I/O operations
+  if (await pathExists(docPath)) {
+    return await readFile(docPath, 'utf-8')
   }
 
   return `No documentation available for: ${topic}. This tool may not be implemented yet.`
@@ -69,6 +74,6 @@ export async function handleHelp(action: string, args: Record<string, unknown>) 
     throw new GodotMCPError(`Unknown tool: ${toolName}`, 'INVALID_ARGS', `Valid topics: ${VALID_TOPICS.join(', ')}`)
   }
 
-  const doc = loadDoc(toolName)
+  const doc = await loadDoc(toolName)
   return formatSuccess(doc)
 }

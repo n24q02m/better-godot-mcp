@@ -4,18 +4,19 @@
  */
 
 import { execFileSync } from 'node:child_process'
-import { existsSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { execGodotSync, runGodotProject } from '../../godot/headless.js'
 import type { GodotConfig, ProjectInfo } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
-import { safeResolve } from '../helpers/paths.js'
+import { pathExists, safeResolve } from '../helpers/paths.js'
 import { getSetting, parseProjectSettingsAsync, setSettingInContent } from '../helpers/project-settings.js'
 
 async function parseProjectGodot(projectPath: string): Promise<ProjectInfo> {
   const configPath = join(projectPath, 'project.godot')
-  if (!existsSync(configPath)) {
+  // Performance optimization: using async pathExists instead of existsSync
+  // to avoid blocking the Node.js event loop during I/O operations
+  if (!(await pathExists(configPath))) {
     throw new GodotMCPError(
       `No project.godot found at ${projectPath}`,
       'PROJECT_NOT_FOUND',
@@ -116,7 +117,9 @@ export async function handleProject(action: string, args: Record<string, unknown
         throw new GodotMCPError('No key specified', 'INVALID_ARGS', 'Provide key (e.g., "application/config/name").')
 
       const configPath = join(safeResolve(config.projectPath || process.cwd(), projectPath), 'project.godot')
-      if (!existsSync(configPath))
+      // Performance optimization: using async pathExists instead of existsSync
+      // to avoid blocking the Node.js event loop during I/O operations
+      if (!(await pathExists(configPath)))
         throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
 
       const settings = await parseProjectSettingsAsync(configPath)
@@ -134,7 +137,7 @@ export async function handleProject(action: string, args: Record<string, unknown
         throw new GodotMCPError('key and value required', 'INVALID_ARGS', 'Provide key and value.')
 
       const configPath = join(safeResolve(config.projectPath || process.cwd(), projectPath), 'project.godot')
-      if (!existsSync(configPath))
+      if (!(await pathExists(configPath)))
         throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
 
       const content = await readFile(configPath, 'utf-8')

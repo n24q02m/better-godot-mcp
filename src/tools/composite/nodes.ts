@@ -37,12 +37,13 @@ function mapToSceneNode(node: SceneNodeInfo): SceneNode {
   }
 }
 
-function resolveScenePath(projectPath: string | null | undefined, scenePath: string): string {
-  return safeResolve(projectPath || process.cwd(), scenePath)
+function resolveScenePath(projectPath: string, scenePath: string): string {
+  return safeResolve(projectPath, scenePath)
 }
 
 export async function handleNodes(action: string, args: Record<string, unknown>, config: GodotConfig) {
-  const projectPath = (args.project_path as string) || config.projectPath
+  const baseProjectPath = config.projectPath || process.cwd()
+  const projectPath = args.project_path ? safeResolve(baseProjectPath, args.project_path as string) : baseProjectPath
 
   switch (action) {
     case 'add': {

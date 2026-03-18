@@ -123,8 +123,9 @@ async function findScriptFiles(dir: string): Promise<string[]> {
 }
 
 export async function handleScripts(action: string, args: Record<string, unknown>, config: GodotConfig) {
-  const projectPath = (args.project_path as string) || config.projectPath
   const baseDir = config.projectPath || process.cwd()
+  // Validate args.project_path against the trusted baseDir to prevent path traversal vulnerabilities
+  const projectPath = args.project_path ? safeResolve(baseDir, args.project_path as string) : config.projectPath
 
   if (!projectPath && action !== 'list') {
     // List handles missing projectPath internally, but others need it for safeResolve base

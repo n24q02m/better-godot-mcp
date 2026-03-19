@@ -119,18 +119,24 @@ describe('project', () => {
   // ==========================================
   describe('stop', () => {
     it('should stop godot processes', async () => {
+      config.activePids = [1234]
+      const processKillSpy = vi.spyOn(process, 'kill').mockImplementation(() => true)
+
       const result = await handleProject('stop', {}, config)
       expect(result.content[0].text).toContain('Godot processes stopped')
-      expect(execFileSync).toHaveBeenCalled()
+      if (process.platform === 'win32') {
+        expect(execFileSync).toHaveBeenCalled()
+      } else {
+        expect(processKillSpy).toHaveBeenCalledWith(1234, 'SIGTERM')
+      }
+      expect(config.activePids).toHaveLength(0)
+
+      processKillSpy.mockRestore()
     })
 
     it('should handle no running processes gracefully', async () => {
-      vi.mocked(execFileSync).mockImplementation(() => {
-        throw new Error('Command failed')
-      })
-
       const result = await handleProject('stop', {}, config)
-      expect(result.content[0].text).toContain('No running Godot processes found')
+      expect(result.content[0].text).toContain('No running Godot processes found (tracked by this server)')
     })
   })
 

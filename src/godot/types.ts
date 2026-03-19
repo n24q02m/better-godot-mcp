@@ -20,6 +20,7 @@ export interface GodotConfig {
   godotPath: string | null
   godotVersion: GodotVersion | null
   projectPath: string | null
+  activePids: number[]
 }
 
 export interface HeadlessResult {

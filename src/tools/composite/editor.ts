@@ -61,6 +61,9 @@ export async function handleEditor(action: string, args: Record<string, unknown>
       }
 
       const { pid } = launchGodotEditor(config.godotPath, safeResolve(config.projectPath || process.cwd(), projectPath))
+      if (pid) {
+        config.activePids.push(pid)
+      }
       return formatSuccess(`Godot editor launched (PID: ${pid})`)
     }
 

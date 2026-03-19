@@ -4,7 +4,7 @@
  */
 
 import { copyFile, mkdir, readdir, readFile, unlink, writeFile } from 'node:fs/promises'
-import { basename, dirname, extname, join, relative } from 'node:path'
+import { basename, dirname, join, relative } from 'node:path'
 import type { GodotConfig, SceneInfo, SceneNode } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
@@ -98,7 +98,7 @@ async function findSceneFiles(dir: string): Promise<string[]> {
       const fullPath = join(dir, name)
       if (entry.isDirectory()) {
         return findSceneFiles(fullPath)
-      } else if (extname(name) === '.tscn') {
+      } else if (name.endsWith('.tscn')) {
         return [fullPath]
       }
       return []

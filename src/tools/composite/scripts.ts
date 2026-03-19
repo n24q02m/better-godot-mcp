@@ -4,7 +4,7 @@
  */
 
 import { mkdir, readdir, readFile, unlink, writeFile } from 'node:fs/promises'
-import { dirname, extname, join, relative } from 'node:path'
+import { dirname, join, relative } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
@@ -108,7 +108,7 @@ async function findScriptFiles(dir: string): Promise<string[]> {
       const fullPath = join(dir, name)
       if (entry.isDirectory()) {
         return findScriptFiles(fullPath)
-      } else if (extname(name) === '.gd') {
+      } else if (name.endsWith('.gd')) {
         return [fullPath]
       }
       return []

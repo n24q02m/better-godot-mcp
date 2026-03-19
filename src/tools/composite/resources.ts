@@ -44,7 +44,7 @@ async function findResourceFiles(dir: string, extensions?: Set<string>): Promise
       const fullPath = join(dir, name)
       if (entry.isDirectory()) {
         return findResourceFiles(fullPath, exts)
-      } else if (exts.has(extname(name).toLowerCase())) {
+      } else if (name.includes('.') && exts.has(name.slice(name.lastIndexOf('.')).toLowerCase())) {
         try {
           const fileStat = await stat(fullPath)
           return [{ path: fullPath, size: fileStat.size }]

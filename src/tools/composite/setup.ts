@@ -3,11 +3,11 @@
  * Actions: detect_godot | check
  */
 
-import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { detectGodot } from '../../godot/detector.js'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, throwUnknownAction } from '../helpers/errors.js'
+import { pathExists } from '../helpers/paths.js'
 
 export async function handleSetup(action: string, _args: Record<string, unknown>, config: GodotConfig) {
   switch (action) {
@@ -44,7 +44,9 @@ export async function handleSetup(action: string, _args: Record<string, unknown>
         project: projectPath
           ? {
               path: projectPath,
-              valid: existsSync(join(projectPath, 'project.godot')),
+              // Performance optimization: using async pathExists instead of existsSync
+              // to avoid blocking the Node.js event loop during I/O operations
+              valid: await pathExists(join(projectPath, 'project.godot')),
             }
           : { path: null },
       }

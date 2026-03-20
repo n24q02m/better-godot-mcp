@@ -41,6 +41,24 @@ function resolveScenePath(projectPath: string, scenePath: string): string {
   return safeResolve(projectPath, scenePath)
 }
 
+/**
+ * Normalize node path: strip common LLM mistakes like "/root/SceneName/" prefix.
+ * Returns the corrected path and whether it was auto-corrected.
+ */
+function normalizeNodePath(path: string): { path: string; corrected: boolean } {
+  if (!path || path === '.') return { path, corrected: false }
+  // Strip /root/ or /root/SceneName/ prefix that LLMs commonly generate
+  const rootMatch = path.match(/^\/root\/(?:[^/]+\/)?(.+)$/)
+  if (rootMatch) {
+    return { path: rootMatch[1], corrected: true }
+  }
+  // Strip leading slash
+  if (path.startsWith('/')) {
+    return { path: path.slice(1), corrected: false }
+  }
+  return { path, corrected: false }
+}
+
 export async function handleNodes(action: string, args: Record<string, unknown>, config: GodotConfig) {
   const baseProjectPath = config.projectPath || process.cwd()
   const projectPath = args.project_path ? safeResolve(baseProjectPath, args.project_path as string) : baseProjectPath
@@ -52,7 +70,8 @@ export async function handleNodes(action: string, args: Record<string, unknown>,
       const nodeName = args.name as string
       if (!nodeName) throw new GodotMCPError('No node name specified', 'INVALID_ARGS', 'Provide name for the new node.')
       const nodeType = (args.type as string) || 'Node'
-      const parent = (args.parent as string) || '.'
+      const rawParent = (args.parent as string) || '.'
+      const { path: parent } = normalizeNodePath(rawParent)
 
       const fullPath = resolveScenePath(projectPath, scenePath)
       if (!(await pathExists(fullPath)))

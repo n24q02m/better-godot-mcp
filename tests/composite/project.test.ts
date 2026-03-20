@@ -12,6 +12,7 @@ import { createTmpProject, makeConfig } from '../fixtures.js'
 
 // Mock headless execution
 vi.mock('../../src/godot/headless.js', () => ({
+  execGodotAsync: vi.fn().mockResolvedValue({ success: true, stdout: '', stderr: '', exitCode: 0 }),
   execGodotSync: vi.fn(),
   runGodotProject: vi.fn(),
 }))
@@ -21,7 +22,7 @@ vi.mock('node:child_process', () => ({
   execFileSync: vi.fn(),
 }))
 
-import { execGodotSync, runGodotProject } from '../../src/godot/headless.js'
+import { execGodotAsync, runGodotProject } from '../../src/godot/headless.js'
 
 describe('project', () => {
   let projectPath: string
@@ -78,11 +79,11 @@ describe('project', () => {
   // ==========================================
   describe('version', () => {
     it('should return godot version', async () => {
-      vi.mocked(execGodotSync).mockReturnValue({ stdout: '4.4.stable', stderr: '', exitCode: 0 })
+      vi.mocked(execGodotAsync).mockResolvedValue({ stdout: '4.4.stable', stderr: '', exitCode: 0 })
 
       const result = await handleProject('version', {}, config)
       expect(result.content[0].text).toContain('Godot version: 4.4.stable')
-      expect(execGodotSync).toHaveBeenCalledWith('/path/to/godot', ['--version'])
+      expect(execGodotAsync).toHaveBeenCalledWith('/path/to/godot', ['--version'])
     })
 
     it('should throw if godot not found', async () => {
@@ -230,7 +231,7 @@ describe('project', () => {
   // ==========================================
   describe('export', () => {
     it('should export project', async () => {
-      vi.mocked(execGodotSync).mockReturnValue({ stdout: 'Export successful', stderr: '', exitCode: 0 })
+      vi.mocked(execGodotAsync).mockResolvedValue({ stdout: 'Export successful', stderr: '', exitCode: 0 })
 
       const result = await handleProject(
         'export',
@@ -243,7 +244,7 @@ describe('project', () => {
       )
 
       expect(result.content[0].text).toContain('Export complete')
-      expect(execGodotSync).toHaveBeenCalledWith(
+      expect(execGodotAsync).toHaveBeenCalledWith(
         '/path/to/godot',
         expect.arrayContaining(['--export-release', 'Linux/X11']),
       )

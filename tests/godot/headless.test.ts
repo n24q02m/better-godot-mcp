@@ -7,6 +7,7 @@ vi.mock('node:child_process', () => {
   return {
     spawnSync: vi.fn(),
     spawn: vi.fn(),
+    execFile: vi.fn(),
   }
 })
 

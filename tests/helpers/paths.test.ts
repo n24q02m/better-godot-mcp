@@ -1,7 +1,9 @@
-import { resolve } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { GodotMCPError } from '../../src/tools/helpers/errors.js'
-import { safeResolve } from '../../src/tools/helpers/paths.js'
+import { pathExists, safeResolve } from '../../src/tools/helpers/paths.js'
 
 describe('safeResolve', () => {
   const baseDir = resolve('/mock/base/dir')
@@ -68,5 +70,37 @@ describe('safeResolve', () => {
     const target = '/mock/base/dir-secret/file.ts'
     expect(() => safeResolve(baseDir, target)).toThrowError(GodotMCPError)
     expect(() => safeResolve(baseDir, target)).toThrow(/Access denied/)
+  })
+})
+
+describe('pathExists', () => {
+  let testDir: string
+
+  beforeAll(async () => {
+    testDir = await mkdtemp(join(tmpdir(), 'godot-mcp-paths-test-'))
+  })
+
+  afterAll(async () => {
+    await rm(testDir, { recursive: true, force: true })
+  })
+
+  it('returns true when checking an existing directory', async () => {
+    const dirPath = join(testDir, 'existing-dir')
+    await mkdir(dirPath)
+
+    expect(await pathExists(dirPath)).toBe(true)
+  })
+
+  it('returns true when checking an existing file', async () => {
+    const filePath = join(testDir, 'existing-file.txt')
+    await writeFile(filePath, 'test content')
+
+    expect(await pathExists(filePath)).toBe(true)
+  })
+
+  it('returns false when checking a non-existent path', async () => {
+    const nonExistentPath = join(testDir, 'does-not-exist')
+
+    expect(await pathExists(nonExistentPath)).toBe(false)
   })
 })

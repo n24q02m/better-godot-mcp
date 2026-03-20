@@ -565,6 +565,32 @@ const P3_TOOLS = [
 
 const TOOLS = [...P0_TOOLS, ...P1_TOOLS, ...P2_TOOLS, ...P3_TOOLS]
 
+type ToolHandler = (
+  action: string,
+  args: Record<string, unknown>,
+  config: GodotConfig,
+) => Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }>
+
+const TOOL_HANDLERS: Record<string, ToolHandler> = {
+  project: handleProject,
+  scenes: handleScenes,
+  nodes: handleNodes,
+  scripts: handleScripts,
+  editor: handleEditor,
+  setup: handleSetup,
+  config: handleConfig,
+  resources: handleResources,
+  input_map: handleInputMap,
+  signals: handleSignals,
+  animation: handleAnimation,
+  tilemap: handleTilemap,
+  shader: handleShader,
+  physics: handlePhysics,
+  audio: handleAudio,
+  navigation: handleNavigation,
+  ui: handleUI,
+}
+
 /**
  * Register all tools with the MCP server
  */
@@ -578,78 +604,21 @@ export function registerTools(server: Server, config: GodotConfig): void {
 
     try {
       let result: { content: Array<{ type: string; text: string }>; isError?: boolean }
-      switch (name) {
-        // P0 - Core
-        case 'project':
-          result = await handleProject(args.action as string, args as Record<string, unknown>, config)
-          break
-        case 'scenes':
-          result = await handleScenes(args.action as string, args as Record<string, unknown>, config)
-          break
-        case 'nodes':
-          result = await handleNodes(args.action as string, args as Record<string, unknown>, config)
-          break
-        case 'scripts':
-          result = await handleScripts(args.action as string, args as Record<string, unknown>, config)
-          break
-        case 'editor':
-          result = await handleEditor(args.action as string, args as Record<string, unknown>, config)
-          break
-        case 'setup':
-          result = await handleSetup(args.action as string, args as Record<string, unknown>, config)
-          break
-        case 'config':
-          result = await handleConfig(args.action as string, args as Record<string, unknown>, config)
-          break
-        case 'help':
-          result = await handleHelp(
-            (args.action as string) || (args.tool_name as string),
-            args as Record<string, unknown>,
-          )
-          break
-
-        // P1 - Extended
-        case 'resources':
-          result = await handleResources(args.action as string, args as Record<string, unknown>, config)
-          break
-        case 'input_map':
-          result = await handleInputMap(args.action as string, args as Record<string, unknown>, config)
-          break
-        case 'signals':
-          result = await handleSignals(args.action as string, args as Record<string, unknown>, config)
-          break
-
-        // P2 - Specialized
-        case 'animation':
-          result = await handleAnimation(args.action as string, args as Record<string, unknown>, config)
-          break
-        case 'tilemap':
-          result = await handleTilemap(args.action as string, args as Record<string, unknown>, config)
-          break
-        case 'shader':
-          result = await handleShader(args.action as string, args as Record<string, unknown>, config)
-          break
-        case 'physics':
-          result = await handlePhysics(args.action as string, args as Record<string, unknown>, config)
-          break
-
-        // P3 - Advanced
-        case 'audio':
-          result = await handleAudio(args.action as string, args as Record<string, unknown>, config)
-          break
-        case 'navigation':
-          result = await handleNavigation(args.action as string, args as Record<string, unknown>, config)
-          break
-        case 'ui':
-          result = await handleUI(args.action as string, args as Record<string, unknown>, config)
-          break
-
-        default:
+      if (name === 'help') {
+        result = await handleHelp(
+          (args.action as string) || (args.tool_name as string),
+          args as Record<string, unknown>,
+        )
+      } else {
+        const handler = TOOL_HANDLERS[name]
+        if (!handler) {
           throw new GodotMCPError(
             `Unknown tool: ${name}`,
             'INVALID_ACTION',
             `Available tools: ${TOOLS.map((t) => t.name).join(', ')}`,
           )
+        }
+        result = await handler(args.action as string, args as Record<string, unknown>, config)
       }
       return wrapToolResult(name, result)
     } catch (error) {

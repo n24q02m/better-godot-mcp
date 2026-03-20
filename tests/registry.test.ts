@@ -107,7 +107,7 @@ describe('registry', () => {
   // Tool routing via switch
   // ==========================================
   describe('routing', () => {
-    it('should have case handlers for all 18 tools', async () => {
+    it('should map handlers for all 18 tools', async () => {
       const { readFileSync } = await import('node:fs')
       const { resolve } = await import('node:path')
       const source = readFileSync(resolve(import.meta.dirname, '../src/tools/registry.ts'), 'utf-8')
@@ -123,6 +123,7 @@ describe('registry', () => {
         'help',
         'resources',
         'input_map',
+        'help',
         'signals',
         'animation',
         'tilemap',
@@ -134,7 +135,11 @@ describe('registry', () => {
       ]
 
       for (const toolName of expectedCases) {
-        expect(source).toContain(`case '${toolName}':`)
+        if (toolName === 'help') {
+          expect(source).toContain("if (name === 'help')")
+        } else {
+          expect(source).toContain(`${toolName}: handle`)
+        }
       }
     })
 

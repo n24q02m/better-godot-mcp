@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[better-godot-mcp] Godot integration ready. 18 tools in 4 tiers (P0-P3). Use help tool for full reference.'"
+          }
+        ]
+      }
+    ]
+  }
+}

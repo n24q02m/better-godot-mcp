@@ -139,6 +139,12 @@ describe('config', () => {
       ).rejects.toThrow('Invalid characters')
     })
 
+    it('should reject paths with backslash escape sequences', async () => {
+      await expect(
+        handleConfig('set', { key: 'godot_path', value: '/usr/bin/godot\\n--script' }, config),
+      ).rejects.toThrow('Invalid characters')
+    })
+
     it('should reject paths with newlines', async () => {
       await expect(
         handleConfig('set', { key: 'godot_path', value: '/usr/bin/godot\nrm -rf /' }, config),

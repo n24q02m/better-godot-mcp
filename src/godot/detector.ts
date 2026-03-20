@@ -21,7 +21,7 @@ const MIN_VERSION = { major: 4, minor: 1 }
  */
 export function parseGodotVersion(versionOutput: string): GodotVersion | null {
   // Match patterns like "Godot Engine v4.6.stable" or "4.6.1.stable"
-  const match = versionOutput.match(/v?(\d+)\.(\d+)(?:\.(\d+))?[.\s-]*(\S*)/)
+  const match = versionOutput.match(/v?(\d+)\.(\d+)(?:\.(\d+))?(?:[.\s-]+([^\s.-]\S*))?/)
   if (!match) return null
 
   return {

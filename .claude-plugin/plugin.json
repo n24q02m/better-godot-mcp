@@ -12,6 +12,5 @@
       "command": "npx",
       "args": ["-y", "@n24q02m/better-godot-mcp"]
     }
-  },
-  "skills": "../.agents/skills/"
+  }
 }

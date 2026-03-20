@@ -4,7 +4,7 @@
  */
 
 import { readdir, readFile, stat, unlink } from 'node:fs/promises'
-import { extname, join, relative } from 'node:path'
+import { extname, join, relative, sep } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
@@ -86,11 +86,37 @@ export async function handleResources(action: string, args: Record<string, unkno
       }
 
       const resources = await findResourceFiles(resolvedPath, exts)
-      const relativePaths = resources.map((r) => ({
-        path: relative(resolvedPath, r.path).replace(/\\/g, '/'),
-        ext: extname(r.path),
-        size: r.size,
-      }))
+
+      const resourcesLength = resources.length
+      const relativePaths = new Array(resourcesLength)
+      const prefixLen = resolvedPath.length + 1 // including separator
+
+      for (let i = 0; i < resourcesLength; i++) {
+        const r = resources[i]
+        const p = r.path
+
+        // Fast path for relative path creation
+        let relPath: string
+        if (p.startsWith(resolvedPath) && (p.length === resolvedPath.length || p[resolvedPath.length] === sep)) {
+          relPath = p.length === resolvedPath.length ? '' : p.substring(prefixLen)
+          if (sep === '\\') {
+            relPath = relPath.replace(/\\/g, '/')
+          }
+        } else {
+          relPath = relative(resolvedPath, p).replace(/\\/g, '/')
+        }
+
+        // Fast extname
+        const dotIndex = p.lastIndexOf('.')
+        const slashIndex = p.lastIndexOf(sep)
+        const ext = dotIndex > slashIndex && dotIndex !== -1 ? p.substring(dotIndex) : ''
+
+        relativePaths[i] = {
+          path: relPath,
+          ext,
+          size: r.size,
+        }
+      }
 
       return formatJSON({ project: resolvedPath, count: relativePaths.length, resources: relativePaths })
     }

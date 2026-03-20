@@ -26,8 +26,13 @@ async function getGodotProcessesAsync(): Promise<Array<{ pid: string; name: stri
         .filter((line) => line.includes('godot'))
         .map((line) => {
           const parts = line.split(',').map((p) => p.replace(/"/g, '').trim())
-          return { pid: parts[1] || 'unknown', name: parts[0] || 'godot' }
+          const pidMatch = parts[1]?.match(/^\d+$/)
+          if (!pidMatch) return null
+
+          const name = parts[0] ? parts[0].replace(/[^\w.-]/g, '_') : 'godot'
+          return { pid: pidMatch[0], name }
         })
+        .filter((item): item is { pid: string; name: string } => item !== null)
     }
 
     const { stdout } = await execFileAsync('pgrep', ['-la', 'godot'], {
@@ -38,8 +43,17 @@ async function getGodotProcessesAsync(): Promise<Array<{ pid: string; name: stri
       .filter(Boolean)
       .map((line) => {
         const parts = line.trim().split(/\s+/)
-        return { pid: parts[0], name: parts.slice(1).join(' ') }
+        const pidMatch = parts[0]?.match(/^\d+$/)
+        if (!pidMatch) return null
+
+        const fullCmd = parts.slice(1).join(' ')
+        // Extract basic process name without path or arguments, sanitize to safe characters
+        const baseNameMatch = fullCmd.match(/([^/\\]+?)(?:\s|$)/)
+        const name = baseNameMatch ? baseNameMatch[1].replace(/[^\w.-]/g, '_') : 'godot'
+
+        return { pid: pidMatch[0], name }
       })
+      .filter((item): item is { pid: string; name: string } => item !== null)
   } catch {
     return []
   }

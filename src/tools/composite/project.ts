@@ -6,7 +6,7 @@
 import { execFileSync } from 'node:child_process'
 import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { execGodotSync, runGodotProject } from '../../godot/headless.js'
+import { execGodotAsync, runGodotProject } from '../../godot/headless.js'
 import type { GodotConfig, ProjectInfo } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
@@ -82,7 +82,7 @@ export async function handleProject(action: string, args: Record<string, unknown
       if (!config.godotPath) {
         throw new GodotMCPError('Godot not found', 'GODOT_NOT_FOUND', 'Set GODOT_PATH env var or install Godot.')
       }
-      const result = execGodotSync(config.godotPath, ['--version'])
+      const result = await execGodotAsync(config.godotPath, ['--version'])
       return formatSuccess(`Godot version: ${result.stdout}`)
     }
 
@@ -176,7 +176,7 @@ export async function handleProject(action: string, args: Record<string, unknown
       }
 
       const resolvedProjectPath = safeResolve(config.projectPath || process.cwd(), projectPath)
-      const result = execGodotSync(config.godotPath, [
+      const result = await execGodotAsync(config.godotPath, [
         '--headless',
         '--path',
         resolvedProjectPath,

@@ -9,6 +9,7 @@ import { execGodotScript, execGodotSync, launchGodotEditor, runGodotProject } fr
 vi.mock('node:child_process', () => ({
   spawnSync: vi.fn(),
   spawn: vi.fn(),
+  execFile: vi.fn(),
 }))
 
 describe('headless', () => {

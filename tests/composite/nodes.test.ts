@@ -70,6 +70,28 @@ describe('nodes', () => {
       expect(content).toContain('parent="UI"')
     })
 
+    it('should auto-correct /root/ prefix in parent path', async () => {
+      createTmpScene(projectPath, 'test.tscn', COMPLEX_TSCN)
+
+      const result = await handleNodes(
+        'add',
+        {
+          project_path: projectPath,
+          scene_path: 'test.tscn',
+          name: 'Marker',
+          type: 'Marker2D',
+          parent: '/root/Player/Sprite',
+        },
+        config,
+      )
+
+      expect(result.content[0].text).toContain('Added node')
+      const content = readFileSync(join(projectPath, 'test.tscn'), 'utf-8')
+      expect(content).toContain('name="Marker"')
+      // Should strip /root/Player/ and keep just "Sprite"
+      expect(content).toContain('parent="Sprite"')
+    })
+
     it('should add node with properties', async () => {
       createTmpScene(projectPath, 'test.tscn', MINIMAL_TSCN)
 

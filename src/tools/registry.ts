@@ -39,7 +39,7 @@ const P0_TOOLS = [
   {
     name: 'project',
     description:
-      'Godot project ops. Actions: info|version|run|stop|settings_get|settings_set|export. Use help tool for full docs.',
+      'Godot project ops. Actions: info|version|run|stop|settings_get|settings_set|export. Use this for project-level operations (not scene/node editing). Use help tool for full docs.',
     annotations: {
       title: 'Project',
       readOnlyHint: false,
@@ -66,7 +66,8 @@ const P0_TOOLS = [
   },
   {
     name: 'scenes',
-    description: 'Scene file ops. Actions: create|list|info|delete|duplicate|set_main. Use help tool for full docs.',
+    description:
+      'Scene file (.tscn) ops. Actions: create|list|info|delete|duplicate|set_main. scene_path is relative to project root (e.g., "scenes/main.tscn"), not res:// prefix. Use this for scene-level CRUD; use nodes tool to edit nodes within a scene. Use help tool for full docs.',
     annotations: {
       title: 'Scenes',
       readOnlyHint: false,
@@ -83,7 +84,10 @@ const P0_TOOLS = [
           description: 'Action to perform',
         },
         project_path: { type: 'string', description: 'Path to Godot project directory' },
-        scene_path: { type: 'string', description: 'Relative scene file path' },
+        scene_path: {
+          type: 'string',
+          description: 'Relative scene file path from project root (e.g., "scenes/main.tscn"), not res:// prefix',
+        },
         root_type: { type: 'string', description: 'Root node type for create (default: Node2D)' },
         root_name: { type: 'string', description: 'Root node name for create' },
         new_path: { type: 'string', description: 'Destination path (for duplicate)' },
@@ -94,7 +98,7 @@ const P0_TOOLS = [
   {
     name: 'nodes',
     description:
-      'Scene node ops. Actions: add|remove|rename|list|set_property|get_property. Use help tool for full docs.',
+      'Scene node ops. Actions: add|remove|rename|list|set_property|get_property. Node paths are relative to scene root using "/" separator (e.g., "Player/Sprite2D" not "/root/Main/Player/Sprite2D"). Use "." for the root node. Use help tool for full docs.',
     annotations: {
       title: 'Nodes',
       readOnlyHint: false,
@@ -114,7 +118,11 @@ const P0_TOOLS = [
         scene_path: { type: 'string', description: 'Path to scene file' },
         name: { type: 'string', description: 'Node name' },
         type: { type: 'string', description: 'Node type (for add, default: Node)' },
-        parent: { type: 'string', description: 'Parent node path (for add, default: .)' },
+        parent: {
+          type: 'string',
+          description:
+            'Parent node path relative to scene root (for add, default: "." = root). Use "/" separator, e.g., "Player/Sprite2D"',
+        },
         new_name: { type: 'string', description: 'New name (for rename)' },
         property: { type: 'string', description: 'Property name (for get/set_property)' },
         value: { type: 'string', description: 'Property value (for set_property)' },
@@ -124,7 +132,8 @@ const P0_TOOLS = [
   },
   {
     name: 'scripts',
-    description: 'GDScript CRUD. Actions: create|read|write|attach|list|delete. Use help tool for full docs.',
+    description:
+      'GDScript file CRUD. Actions: create|read|write|attach|list|delete. script_path is relative to project root (e.g., "scripts/player.gd"). create generates a template from extends type; write replaces entire file content. attach links a script to a scene node. Use help tool for full docs.',
     annotations: {
       title: 'Scripts',
       readOnlyHint: false,
@@ -152,7 +161,8 @@ const P0_TOOLS = [
   },
   {
     name: 'editor',
-    description: 'Godot editor control. Actions: launch|status. Use help tool for full docs.',
+    description:
+      'Godot editor control. Actions: launch|status. Use this to open the Godot editor or check if it is running. For running the game, use project(action="run") instead. Use help tool for full docs.',
     annotations: {
       title: 'Editor',
       readOnlyHint: false,

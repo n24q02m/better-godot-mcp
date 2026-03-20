@@ -30,4 +30,18 @@ describe('project-settings async', () => {
 
     expect(fsPromises.writeFile).toHaveBeenCalledWith('project.godot', mockContent, 'utf-8')
   })
+
+  it('should propagate readFile errors', async () => {
+    const error = new Error('File not found')
+    vi.mocked(fsPromises.readFile).mockRejectedValue(error)
+
+    await expect(parseProjectSettingsAsync('missing.godot')).rejects.toThrow('File not found')
+  })
+
+  it('should propagate writeFile errors', async () => {
+    const error = new Error('Permission denied')
+    vi.mocked(fsPromises.writeFile).mockRejectedValue(error)
+
+    await expect(writeProjectSettingsAsync('readonly.godot', 'content')).rejects.toThrow('Permission denied')
+  })
 })

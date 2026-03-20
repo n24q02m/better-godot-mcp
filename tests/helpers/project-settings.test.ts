@@ -2,20 +2,42 @@
  * Tests for project.godot settings parser and manipulation
  */
 
-import { describe, expect, it } from 'vitest'
+import * as fs from 'node:fs'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   getInputActions,
   getSetting,
+  parseProjectSettings,
   parseProjectSettingsContent,
   setSettingInContent,
+  writeProjectSettings,
 } from '../../src/tools/helpers/project-settings.js'
 import { SAMPLE_PROJECT_GODOT } from '../fixtures.js'
 
+vi.mock('node:fs', () => ({
+  readFileSync: vi.fn(),
+  writeFileSync: vi.fn(),
+}))
+
 describe('project-settings', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
   // ==========================================
   // parseProjectSettingsContent
   // ==========================================
   describe('parseProjectSettingsContent', () => {
+    it('should handle duplicate sections', () => {
+      const settings = parseProjectSettingsContent('[application]\nconfig/name="1"\n[application]\nconfig/icon="2"')
+      expect(settings.sections.get('application')?.get('config/name')).toBe('"1"')
+      expect(settings.sections.get('application')?.get('config/icon')).toBe('"2"')
+    })
+
+    it('should handle comment at end of file without newline', () => {
+      const settings = parseProjectSettingsContent('; final comment')
+      expect(settings.sections.size).toBe(0)
+    })
+
     it('should parse sections', () => {
       const settings = parseProjectSettingsContent(SAMPLE_PROJECT_GODOT)
       expect(settings.sections.has('application')).toBe(true)
@@ -118,6 +140,12 @@ describe('project-settings', () => {
   // setSettingInContent
   // ==========================================
   describe('setSettingInContent', () => {
+    it('should add key to the last section', () => {
+      const result = setSettingInContent(SAMPLE_PROJECT_GODOT, 'rendering/new_key', '123')
+      expect(result).toContain('new_key=123')
+      expect(result.endsWith('new_key=123')).toBe(true)
+    })
+
     it('should replace existing value', () => {
       const result = setSettingInContent(SAMPLE_PROJECT_GODOT, 'display/window/size/viewport_width', '1920')
       expect(result).toContain('window/size/viewport_width=1920')
@@ -163,6 +191,35 @@ describe('project-settings', () => {
       const settings = parseProjectSettingsContent('[application]\nconfig/name="Test"\n')
       const actions = getInputActions(settings)
       expect(actions.size).toBe(0)
+    })
+  })
+
+  // ==========================================
+  // parseProjectSettings
+  // ==========================================
+  describe('parseProjectSettings', () => {
+    it('should parse project settings synchronously', () => {
+      const mockContent = '[application]\nconfig/name="Test"'
+      vi.mocked(fs.readFileSync).mockReturnValue(mockContent)
+
+      const settings = parseProjectSettings('project.godot')
+
+      expect(fs.readFileSync).toHaveBeenCalledWith('project.godot', 'utf-8')
+      expect(settings.sections.get('application')?.get('config/name')).toBe('"Test"')
+    })
+  })
+
+  // ==========================================
+  // writeProjectSettings
+  // ==========================================
+  describe('writeProjectSettings', () => {
+    it('should write project settings synchronously', () => {
+      const mockContent = 'some content'
+      vi.mocked(fs.writeFileSync).mockReturnValue(undefined)
+
+      writeProjectSettings('project.godot', mockContent)
+
+      expect(fs.writeFileSync).toHaveBeenCalledWith('project.godot', mockContent, 'utf-8')
     })
   })
 })

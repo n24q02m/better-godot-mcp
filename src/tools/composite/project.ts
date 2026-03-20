@@ -92,20 +92,33 @@ export async function handleProject(action: string, args: Record<string, unknown
       if (!projectPath)
         throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path argument.')
       const { pid } = runGodotProject(config.godotPath, safeResolve(config.projectPath || process.cwd(), projectPath))
+      if (pid) {
+        config.activePids.push(pid)
+      }
       return formatSuccess(`Godot project started (PID: ${pid})`)
     }
 
     case 'stop': {
-      try {
-        if (process.platform === 'win32') {
-          execFileSync('taskkill', ['/F', '/IM', 'godot.exe', '/T'], { stdio: 'pipe' })
-        } else {
-          execFileSync('pkill', ['-f', 'godot'], { stdio: 'pipe' })
-        }
-        return formatSuccess('Godot processes stopped')
-      } catch {
-        return formatSuccess('No running Godot processes found')
+      if (config.activePids.length === 0) {
+        return formatSuccess('No running Godot processes found (tracked by this server)')
       }
+
+      let stoppedCount = 0
+      for (const pid of config.activePids) {
+        try {
+          if (process.platform === 'win32') {
+            execFileSync('taskkill', ['/F', '/PID', pid.toString(), '/T'], { stdio: 'pipe' })
+          } else {
+            process.kill(pid, 'SIGTERM')
+          }
+          stoppedCount++
+        } catch {
+          // Process might have already terminated
+        }
+      }
+
+      config.activePids = []
+      return formatSuccess(`Godot processes stopped (Stopped ${stoppedCount} tracked processes)`)
     }
 
     case 'settings_get': {

@@ -10,7 +10,7 @@ async function runBench() {
   mkdirSync(tmpDir, { recursive: true })
 
   const scenePath = join(tmpDir, 'bench.tscn')
-  const config: GodotConfig = { projectPath: tmpDir, godotPath: 'godot', godotVersion: null }
+  const config: GodotConfig = { projectPath: tmpDir, godotPath: 'godot', godotVersion: null, activePids: [] }
 
   // Create a large scene file (10k nodes)
   const lines = ['[gd_scene format=3]', '[node name="Root" type="Node2D"]']

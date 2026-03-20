@@ -170,6 +170,7 @@ export function makeConfig(overrides: Partial<GodotConfig> = {}): GodotConfig {
     godotPath: null,
     godotVersion: null,
     projectPath: null,
+    activePids: [],
     ...overrides,
   }
 }

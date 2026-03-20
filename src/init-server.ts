@@ -49,6 +49,7 @@ export async function initServer(): Promise<void> {
     godotPath: detection?.path ?? null,
     godotVersion: detection?.version ?? null,
     projectPath: process.env.GODOT_PROJECT_PATH ?? null,
+    activePids: [],
   }
 
   // Create MCP server

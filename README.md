@@ -100,7 +100,7 @@ Other runners: `bun x`, `pnpm dlx`, `yarn dlx` also work.
 | `GODOT_PROJECT_PATH` | No | - | Default project path (tools also accept `project_path` param) |
 | `GODOT_PATH` | No | Auto-detected | Path to Godot binary |
 
-## Limitations
+### Limitations
 
 - Requires Godot 4.x project structure
 - Scene files (`.tscn`) are parsed/modified via text manipulation, not Godot's internal API
@@ -131,12 +131,13 @@ npm start
 ## Also by n24q02m
 
 | Server | Description |
-|:-------|:------------|
-| [wet-mcp](https://github.com/n24q02m/wet-mcp) | Web Extraction Tool -- search, extract, and process web content |
-| [mnemo-mcp](https://github.com/n24q02m/mnemo-mcp) | Memory and knowledge management for AI agents |
-| [better-notion-mcp](https://github.com/n24q02m/better-notion-mcp) | Enhanced Notion API integration with 9 composite tools |
-| [better-email-mcp](https://github.com/n24q02m/better-email-mcp) | Email management via IMAP/SMTP |
-| [better-telegram-mcp](https://github.com/n24q02m/better-telegram-mcp) | Telegram messaging and bot management |
+|--------|-------------|
+| [wet-mcp](https://github.com/n24q02m/wet-mcp) | Web search, content extraction, and documentation indexing |
+| [mnemo-mcp](https://github.com/n24q02m/mnemo-mcp) | Persistent AI memory with hybrid search and cross-machine sync |
+| [better-notion-mcp](https://github.com/n24q02m/better-notion-mcp) | Markdown-first Notion API with 9 composite tools |
+| [better-email-mcp](https://github.com/n24q02m/better-email-mcp) | Email (IMAP/SMTP) with multi-account and auto-discovery |
+| [better-telegram-mcp](https://github.com/n24q02m/better-telegram-mcp) | Telegram dual-mode (Bot API + MTProto) with 6 composite tools |
+| [better-code-review-graph](https://github.com/n24q02m/better-code-review-graph) | Knowledge graph for token-efficient code reviews |
 
 ## Contributing
 

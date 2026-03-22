@@ -4,7 +4,7 @@
  */
 
 import { mkdir, readdir, readFile, unlink, writeFile } from 'node:fs/promises'
-import { dirname, join, relative } from 'node:path'
+import { dirname, join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
@@ -98,27 +98,31 @@ function getTemplate(extendsType: string): string {
   return SCRIPT_TEMPLATES[extendsType] || `extends ${extendsType}\n\n\nfunc _ready() -> void:\n\tpass\n`
 }
 
-async function findScriptFiles(dir: string): Promise<string[]> {
+async function findScriptFiles(dir: string, results: string[] = []): Promise<string[]> {
   try {
     const entries = await readdir(dir, { withFileTypes: true })
-    const promises = entries.map(async (entry) => {
+    const promises: Promise<string[]>[] = []
+
+    for (let i = 0; i < entries.length; i++) {
+      const entry = entries[i]
       const name = entry.name
-      if (name.startsWith('.') || name === 'node_modules' || name === 'build' || name === 'addons') return []
+      if (name.startsWith('.') || name === 'node_modules' || name === 'build' || name === 'addons') continue
 
       const fullPath = join(dir, name)
       if (entry.isDirectory()) {
-        return findScriptFiles(fullPath)
+        promises.push(findScriptFiles(fullPath, results))
       } else if (name.endsWith('.gd')) {
-        return [fullPath]
+        results.push(fullPath)
       }
-      return []
-    })
+    }
 
-    const nestedResults = await Promise.all(promises)
-    return nestedResults.flat()
+    if (promises.length > 0) {
+      await Promise.all(promises)
+    }
+    return results
   } catch {
     // Skip inaccessible
-    return []
+    return results
   }
 }
 
@@ -232,7 +236,14 @@ export async function handleScripts(action: string, args: Record<string, unknown
 
       const resolvedPath = safeResolve(baseDir, projectPath)
       const scripts = await findScriptFiles(resolvedPath)
-      const relativePaths = scripts.map((s) => relative(resolvedPath, s).replace(/\\/g, '/'))
+
+      // OPTIMIZATION: Use substring and a pre-allocated array instead of .map() and node:path.relative
+      // for significantly faster execution on large arrays of prefixed paths.
+      const prefixLen = resolvedPath.length + (resolvedPath.endsWith('/') || resolvedPath.endsWith('\\') ? 0 : 1)
+      const relativePaths = new Array(scripts.length)
+      for (let i = 0; i < scripts.length; i++) {
+        relativePaths[i] = scripts[i].substring(prefixLen).replace(/\\/g, '/')
+      }
 
       return formatJSON({ project: resolvedPath, count: relativePaths.length, scripts: relativePaths })
     }

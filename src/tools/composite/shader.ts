@@ -4,7 +4,7 @@
  */
 
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
-import { dirname, join, relative } from 'node:path'
+import { dirname, join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
@@ -49,27 +49,31 @@ void fog() {
 `,
 }
 
-async function findShaderFiles(dir: string): Promise<string[]> {
+async function findShaderFiles(dir: string, results: string[] = []): Promise<string[]> {
   try {
     const entries = await readdir(dir, { withFileTypes: true })
-    const promises = entries.map(async (entry) => {
+    const promises: Promise<string[]>[] = []
+
+    for (let i = 0; i < entries.length; i++) {
+      const entry = entries[i]
       const name = entry.name
-      if (name.startsWith('.') || name === 'node_modules' || name === 'build') return []
+      if (name.startsWith('.') || name === 'node_modules' || name === 'build') continue
+
       const fullPath = join(dir, name)
-
       if (entry.isDirectory()) {
-        return findShaderFiles(fullPath)
+        promises.push(findShaderFiles(fullPath, results))
       } else if (entry.isFile() && (name.endsWith('.gdshader') || name.endsWith('.gdshaderinc'))) {
-        return [fullPath]
+        results.push(fullPath)
       }
-      return []
-    })
+    }
 
-    const nestedResults = await Promise.all(promises)
-    return nestedResults.flat()
+    if (promises.length > 0) {
+      await Promise.all(promises)
+    }
+    return results
   } catch {
     // Skip inaccessible
-    return []
+    return results
   }
 }
 
@@ -175,7 +179,14 @@ export async function handleShader(action: string, args: Record<string, unknown>
 
       const resolvedPath = safeResolve(baseDir, projectPath)
       const shaders = await findShaderFiles(resolvedPath)
-      const relativePaths = shaders.map((s) => relative(resolvedPath, s).replace(/\\/g, '/'))
+
+      // OPTIMIZATION: Use substring and a pre-allocated array instead of .map() and node:path.relative
+      // for significantly faster execution on large arrays of prefixed paths.
+      const prefixLen = resolvedPath.length + (resolvedPath.endsWith('/') || resolvedPath.endsWith('\\') ? 0 : 1)
+      const relativePaths = new Array(shaders.length)
+      for (let i = 0; i < shaders.length; i++) {
+        relativePaths[i] = shaders[i].substring(prefixLen).replace(/\\/g, '/')
+      }
 
       return formatJSON({ project: resolvedPath, count: relativePaths.length, shaders: relativePaths })
     }

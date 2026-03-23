@@ -4,7 +4,7 @@
  */
 
 import { readdir, readFile, stat, unlink } from 'node:fs/promises'
-import { extname, join, relative } from 'node:path'
+import { extname, join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
@@ -86,11 +86,19 @@ export async function handleResources(action: string, args: Record<string, unkno
       }
 
       const resources = await findResourceFiles(resolvedPath, exts)
-      const relativePaths = resources.map((r) => ({
-        path: relative(resolvedPath, r.path).replace(/\\/g, '/'),
-        ext: extname(r.path),
-        size: r.size,
-      }))
+
+      // OPTIMIZATION: Use substring and a pre-allocated array instead of .map() and node:path.relative
+      // for significantly faster execution on large arrays of prefixed paths.
+      const prefixLen = resolvedPath.length + (resolvedPath.endsWith('/') || resolvedPath.endsWith('\\') ? 0 : 1)
+      const relativePaths = new Array(resources.length)
+      for (let i = 0; i < resources.length; i++) {
+        const r = resources[i]
+        relativePaths[i] = {
+          path: r.path.substring(prefixLen).replace(/\\/g, '/'),
+          ext: extname(r.path),
+          size: r.size,
+        }
+      }
 
       return formatJSON({ project: resolvedPath, count: relativePaths.length, resources: relativePaths })
     }

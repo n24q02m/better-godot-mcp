@@ -28,7 +28,7 @@ import { handleShader } from './composite/shader.js'
 import { handleSignals } from './composite/signals.js'
 import { handleTilemap } from './composite/tilemap.js'
 import { handleUI } from './composite/ui.js'
-import { formatError, GodotMCPError } from './helpers/errors.js'
+import { findClosestMatch, formatError, GodotMCPError } from './helpers/errors.js'
 import { wrapToolResult } from './helpers/security.js'
 
 // =============================================
@@ -39,7 +39,7 @@ const P0_TOOLS = [
   {
     name: 'project',
     description:
-      'Godot project ops. Actions: info|version|run|stop|settings_get|settings_set|export. Use this for project-level operations (not scene/node editing). Use help tool for full docs.',
+      'Godot project operations.\n\nActions (required params -> optional):\n- info (-> project_path): project metadata\n- version: Godot engine version\n- run (-> project_path): launch game\n- stop: stop running game\n- settings_get (key -> project_path): read project setting\n- settings_set (key, value -> project_path): write project setting\n- export (preset, output_path -> project_path): export game build',
     annotations: {
       title: 'Project',
       readOnlyHint: false,
@@ -67,7 +67,7 @@ const P0_TOOLS = [
   {
     name: 'scenes',
     description:
-      'Scene file (.tscn) ops. Actions: create|list|info|delete|duplicate|set_main. scene_path is relative to project root (e.g., "scenes/main.tscn"), not res:// prefix. Use this for scene-level CRUD; use nodes tool to edit nodes within a scene. Use help tool for full docs.',
+      'Scene file (.tscn) CRUD.\n\nActions (required params -> optional):\n- create (scene_path -> root_type="Node2D", root_name, project_path)\n- list (-> project_path)\n- info (scene_path -> project_path)\n- delete (scene_path -> project_path)\n- duplicate (scene_path, new_path -> project_path)\n- set_main (scene_path -> project_path)\n\nscene_path: relative to project root (e.g., "scenes/main.tscn"), NOT res:// prefix. Use nodes tool to edit nodes within a scene.',
     annotations: {
       title: 'Scenes',
       readOnlyHint: false,
@@ -98,7 +98,7 @@ const P0_TOOLS = [
   {
     name: 'nodes',
     description:
-      'Scene node ops. Actions: add|remove|rename|list|set_property|get_property. Node paths are relative to scene root using "/" separator (e.g., "Player/Sprite2D" not "/root/Main/Player/Sprite2D"). Use "." for the root node. Use help tool for full docs.',
+      'Scene node operations.\n\nActions (required params -> optional):\n- add (scene_path, name -> type="Node", parent=".", project_path)\n- remove (scene_path, name -> project_path)\n- rename (scene_path, name, new_name -> project_path)\n- list (scene_path -> project_path)\n- set_property (scene_path, name, property, value -> project_path)\n- get_property (scene_path, name, property -> project_path)\n\nNode paths: relative to scene root using "/" (e.g., "Player/Sprite2D"). Use "." for root.',
     annotations: {
       title: 'Nodes',
       readOnlyHint: false,
@@ -133,7 +133,7 @@ const P0_TOOLS = [
   {
     name: 'scripts',
     description:
-      'GDScript file CRUD. Actions: create|read|write|attach|list|delete. script_path is relative to project root (e.g., "scripts/player.gd"). create generates a template from extends type; write replaces entire file content. attach links a script to a scene node. Use help tool for full docs.',
+      'GDScript file CRUD.\n\nActions (required params -> optional):\n- create (script_path -> extends="Node", content, project_path): generate template\n- read (script_path -> project_path)\n- write (script_path, content -> project_path): replace entire file\n- attach (script_path, scene_path, node_name -> project_path): link to scene node\n- list (-> project_path)\n- delete (script_path -> project_path)\n\nscript_path: relative to project root (e.g., "scripts/player.gd").',
     annotations: {
       title: 'Scripts',
       readOnlyHint: false,
@@ -162,7 +162,7 @@ const P0_TOOLS = [
   {
     name: 'editor',
     description:
-      'Godot editor control. Actions: launch|status. Use this to open the Godot editor or check if it is running. For running the game, use project(action="run") instead. Use help tool for full docs.',
+      'Godot editor control.\n\nActions (required params -> optional):\n- launch (-> project_path): open editor\n- status (-> project_path): check if editor is running\n\nFor running the game, use project(action="run") instead.',
     annotations: {
       title: 'Editor',
       readOnlyHint: false,
@@ -181,7 +181,8 @@ const P0_TOOLS = [
   },
   {
     name: 'setup',
-    description: 'Environment setup. Actions: detect_godot|check. Use help tool for full docs.',
+    description:
+      'Environment setup.\n\nActions:\n- detect_godot: find Godot binary path\n- check: verify project and Godot availability',
     annotations: {
       title: 'Setup',
       readOnlyHint: true,
@@ -199,7 +200,8 @@ const P0_TOOLS = [
   },
   {
     name: 'config',
-    description: 'Server config. Actions: status|set. Use help tool for full docs.',
+    description:
+      'Server configuration.\n\nActions (required params -> optional):\n- status: current config\n- set (key, value): update setting',
     annotations: {
       title: 'Config',
       readOnlyHint: false,
@@ -267,7 +269,8 @@ const P0_TOOLS = [
 const P1_TOOLS = [
   {
     name: 'resources',
-    description: 'Resource file management. Actions: list|info|delete|import_config. Use help tool for full docs.',
+    description:
+      'Resource file management.\n\nActions (required params -> optional):\n- list (-> type, project_path): browse resources (type: image|audio|font|shader|scene|resource)\n- info (resource_path -> project_path): resource metadata\n- delete (resource_path -> project_path)\n- import_config (resource_path -> project_path): view import settings',
     annotations: {
       title: 'Resources',
       readOnlyHint: false,
@@ -289,7 +292,7 @@ const P1_TOOLS = [
   {
     name: 'input_map',
     description:
-      'Input action management. Actions: list|add_action|remove_action|add_event. Use help tool for full docs.',
+      'Input action management.\n\nActions (required params -> optional):\n- list (-> project_path): all input actions\n- add_action (action_name -> deadzone=0.5, project_path)\n- remove_action (action_name -> project_path)\n- add_event (action_name, event_type, event_value -> project_path)\n\nevent_type: key | mouse | joypad. event_value: e.g., KEY_SPACE.',
     annotations: {
       title: 'Input Map',
       readOnlyHint: false,
@@ -316,7 +319,8 @@ const P1_TOOLS = [
   },
   {
     name: 'signals',
-    description: 'Signal connection management. Actions: list|connect|disconnect. Use help tool for full docs.',
+    description:
+      'Signal connection management.\n\nActions (required params -> optional):\n- list (scene_path -> project_path): all signal connections\n- connect (scene_path, signal, from, to, method -> flags, project_path)\n- disconnect (scene_path, signal, from, to, method -> project_path)',
     annotations: {
       title: 'Signals',
       readOnlyHint: false,
@@ -622,10 +626,13 @@ export function registerTools(server: Server, config: GodotConfig): void {
       } else {
         const handler = TOOL_HANDLERS[name]
         if (!handler) {
+          const validTools = TOOLS.map((t) => t.name)
+          const closest = findClosestMatch(name, validTools)
+          const suggestion = closest ? ` Did you mean '${closest}'?` : ''
           throw new GodotMCPError(
-            `Unknown tool: ${name}`,
+            `Unknown tool: ${name}.${suggestion}`,
             'INVALID_ACTION',
-            `Available tools: ${TOOLS.map((t) => t.name).join(', ')}`,
+            `Available tools: ${validTools.join(', ')}`,
           )
         }
         result = await handler(args.action as string, args as Record<string, unknown>, config)

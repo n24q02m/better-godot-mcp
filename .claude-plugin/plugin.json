@@ -10,22 +10,25 @@
   "mcpServers": {
     "better-godot-mcp": {
       "command": "npx",
-      "args": [
-        "-y",
-        "@n24q02m/better-godot-mcp"
-      ]
+      "args": ["-y", "@n24q02m/better-godot-mcp"],
+      "env": {
+        "GODOT_PATH": "",
+        "GODOT_PROJECT_PATH": ""
+      }
+    },
+    "better-godot-mcp-bunx": {
+      "command": "bunx",
+      "args": ["--bun", "@n24q02m/better-godot-mcp"],
+      "env": {
+        "GODOT_PATH": "",
+        "GODOT_PROJECT_PATH": ""
+      }
     },
     "better-godot-mcp-docker": {
       "command": "docker",
-      "args": [
-        "run",
-        "--rm",
-        "-i",
-        "-v",
-        ".:/project",
-        "n24q02m/better-godot-mcp:latest"
-      ],
+      "args": ["run", "--rm", "-i", "-v", ".:/project", "n24q02m/better-godot-mcp:latest"],
       "env": {
+        "GODOT_PATH": "",
         "GODOT_PROJECT_PATH": "/project"
       }
     }

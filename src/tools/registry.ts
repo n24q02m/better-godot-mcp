@@ -614,15 +614,16 @@ export function registerTools(server: Server, config: GodotConfig): void {
   }))
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
-    const { name, arguments: args = {} } = request.params
+    const { name, arguments: rawArgs = {} } = request.params
 
     try {
+      const args = rawArgs as Record<string, unknown>
+      const action = args.action as string | undefined
+
       let result: { content: Array<{ type: string; text: string }>; isError?: boolean }
       if (name === 'help') {
-        result = await handleHelp(
-          (args.action as string) || (args.tool_name as string),
-          args as Record<string, unknown>,
-        )
+        const helpAction = action || (args.tool_name as string)
+        result = await handleHelp(helpAction, args)
       } else {
         const handler = TOOL_HANDLERS[name]
         if (!handler) {
@@ -635,7 +636,10 @@ export function registerTools(server: Server, config: GodotConfig): void {
             `Available tools: ${validTools.join(', ')}`,
           )
         }
-        result = await handler(args.action as string, args as Record<string, unknown>, config)
+
+        // Tool handlers expect 'action' to be explicitly defined as a string, but the schema allows it to be missing
+        // since the tools schema marks it as required, it should be present.
+        result = await handler(action as string, args, config)
       }
       return wrapToolResult(name, result)
     } catch (error) {

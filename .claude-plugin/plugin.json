@@ -9,20 +9,11 @@
   "homepage": "https://github.com/n24q02m/better-godot-mcp",
   "repository": "https://github.com/n24q02m/better-godot-mcp",
   "license": "MIT",
-  "keywords": [
-    "godot",
-    "game-development",
-    "game-engine",
-    "mcp",
-    "claude-code"
-  ],
+  "keywords": ["godot", "game-development", "game-engine", "mcp", "claude-code"],
   "mcpServers": {
     "better-godot-mcp": {
       "command": "npx",
-      "args": [
-        "-y",
-        "@n24q02m/better-godot-mcp"
-      ]
+      "args": ["-y", "@n24q02m/better-godot-mcp"]
     }
   },
   "skills": "./skills/"

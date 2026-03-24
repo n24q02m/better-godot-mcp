@@ -31,6 +31,14 @@
 
 ### Claude Code Plugin (Recommended)
 
+Via marketplace (includes skills: /build-scene, /debug-issue, /add-mechanic):
+
+```bash
+/plugins add n24q02m/claude-plugins
+```
+
+Or install this plugin only:
+
 ```bash
 claude plugin add n24q02m/better-godot-mcp
 ```

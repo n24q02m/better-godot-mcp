@@ -1,5 +1,0 @@
-⚡ Bolt: Optimize documentation file loading
-
-💡 What: Replaced the pattern of await pathExists followed by await readFile with a direct try/catch wrapper around await readFile.
-🎯 Why: Using pathExists followed by readFile requires two filesystem operations (a stat call followed by an open call) to read an existing file. This optimization reduces it to a single call when the file exists, avoiding unnecessary I/O overhead.
-📊 Measured Improvement: Benchmarked ~56% performance improvement for reading existing files, while the speed for non-existent files remains mostly the same.

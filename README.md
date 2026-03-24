@@ -1,5 +1,7 @@
 # Better Godot MCP
 
+mcp-name: io.github.n24q02m/better-godot-mcp
+
 **Composite MCP server for Godot Engine -- 18 mega-tools for AI-assisted game development**
 
 <!-- Badge Row 1: Status -->

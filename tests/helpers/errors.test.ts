@@ -8,6 +8,7 @@ import {
   formatJSON,
   formatSuccess,
   GodotMCPError,
+  requireArg,
   withErrorHandling,
 } from '../../src/tools/helpers/errors.js'
 
@@ -138,5 +139,24 @@ describe('errors', () => {
       expect(result.isError).toBe(true)
       expect(result.content[0].text).toContain('EXECUTION_ERROR')
     })
+  })
+})
+
+describe('requireArg', () => {
+  it('should return the value if it is a string', () => {
+    const args = { foo: 'bar' }
+    expect(requireArg(args, 'foo')).toBe('bar')
+  })
+
+  it('should throw GodotMCPError if the argument is missing', () => {
+    const args = {}
+    expect(() => requireArg(args, 'foo')).toThrow(GodotMCPError)
+    expect(() => requireArg(args, 'foo')).toThrow('No foo specified')
+  })
+
+  it('should throw GodotMCPError if the argument is not a string', () => {
+    const args = { foo: 123 }
+    expect(() => requireArg(args, 'foo')).toThrow(GodotMCPError)
+    expect(() => requireArg(args, 'foo')).toThrow('No foo specified')
   })
 })

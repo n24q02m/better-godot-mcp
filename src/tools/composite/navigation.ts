@@ -5,7 +5,7 @@
 
 import { readFile, writeFile } from 'node:fs/promises'
 import type { GodotConfig } from '../../godot/types.js'
-import { formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
+import { formatSuccess, GodotMCPError, requireArg, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
 
 async function resolveScene(projectPath: string | null | undefined, scenePath: string): Promise<string> {
@@ -27,8 +27,7 @@ export async function handleNavigation(action: string, args: Record<string, unkn
 
   switch (action) {
     case 'create_region': {
-      const scenePath = args.scene_path as string
-      if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
+      const scenePath = requireArg(args, 'scene_path')
       const regionName = (args.name as string) || 'NavigationRegion3D'
       const parent = (args.parent as string) || '.'
       const dimension = (args.dimension as string) || '3D'
@@ -44,8 +43,7 @@ export async function handleNavigation(action: string, args: Record<string, unkn
     }
 
     case 'add_agent': {
-      const scenePath = args.scene_path as string
-      if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
+      const scenePath = requireArg(args, 'scene_path')
       const agentName = (args.name as string) || 'NavigationAgent3D'
       const parent = (args.parent as string) || '.'
       const dimension = (args.dimension as string) || '3D'
@@ -67,8 +65,7 @@ export async function handleNavigation(action: string, args: Record<string, unkn
     }
 
     case 'add_obstacle': {
-      const scenePath = args.scene_path as string
-      if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
+      const scenePath = requireArg(args, 'scene_path')
       const obstacleName = (args.name as string) || 'NavigationObstacle3D'
       const parent = (args.parent as string) || '.'
       const dimension = (args.dimension as string) || '3D'

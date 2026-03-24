@@ -133,3 +133,15 @@ export function throwUnknownAction(action: string, validActions: string[]): neve
     `Valid actions: ${validActions.join(', ')}. Use help tool for full docs.`,
   )
 }
+
+/**
+ * Require a string argument from the provided arguments object.
+ * Throws a standardized INVALID_ARGS error if the argument is missing or not a string.
+ */
+export function requireArg(args: Record<string, unknown>, key: string): string {
+  const value = args[key]
+  if (!value || typeof value !== 'string') {
+    throw new GodotMCPError(`No ${key} specified`, 'INVALID_ARGS', `Provide ${key}.`)
+  }
+  return value
+}

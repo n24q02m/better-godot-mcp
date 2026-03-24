@@ -1,7 +1,7 @@
 {
   "name": "better-godot-mcp",
   "description": "Comprehensive Godot Engine integration -- 18 tools for scenes, nodes, scripts, physics, UI, and more",
-  "version": "1.6.2",
+  "version": "1.7.0",
   "author": {
     "name": "n24q02m",
     "url": "https://github.com/n24q02m"
@@ -15,5 +15,6 @@
       "command": "npx",
       "args": ["-y", "@n24q02m/better-godot-mcp"]
     }
-  }
+  },
+  "skills": "./skills/"
 }

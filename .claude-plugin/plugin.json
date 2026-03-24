@@ -1,21 +1,12 @@
 {
   "name": "better-godot-mcp",
-  "description": "Comprehensive Godot Engine integration -- 18 tools for scenes, nodes, scripts, physics, UI, and more",
+  "description": "Comprehensive Godot Engine integration — 18 tools for game development",
   "version": "1.7.0",
   "author": {
     "name": "n24q02m",
     "url": "https://github.com/n24q02m"
   },
   "homepage": "https://github.com/n24q02m/better-godot-mcp",
-  "repository": "https://github.com/n24q02m/better-godot-mcp",
-  "license": "MIT",
-  "keywords": [
-    "godot",
-    "game-development",
-    "game-engine",
-    "mcp",
-    "claude-code"
-  ],
   "mcpServers": {
     "better-godot-mcp": {
       "command": "npx",
@@ -23,6 +14,20 @@
         "-y",
         "@n24q02m/better-godot-mcp"
       ]
+    },
+    "better-godot-mcp-docker": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "-v",
+        ".:/project",
+        "n24q02m/better-godot-mcp:latest"
+      ],
+      "env": {
+        "GODOT_PROJECT_PATH": "/project"
+      }
     }
   },
   "skills": "./skills/"

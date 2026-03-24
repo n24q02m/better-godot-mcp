@@ -1,9 +1,18 @@
+import * as fsPromises from 'node:fs/promises'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { GodotMCPError } from '../../src/tools/helpers/errors.js'
 import { pathExists, safeResolve } from '../../src/tools/helpers/paths.js'
+
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>()
+  return {
+    ...actual,
+    access: vi.fn().mockImplementation(actual.access),
+  }
+})
 
 describe('safeResolve', () => {
   const baseDir = resolve('/mock/base/dir')
@@ -102,5 +111,18 @@ describe('pathExists', () => {
     const nonExistentPath = join(testDir, 'does-not-exist')
 
     expect(await pathExists(nonExistentPath)).toBe(false)
+  })
+
+  it('returns false when access throws an error (e.g. EACCES)', async () => {
+    const errorPath = join(testDir, 'forbidden-file.txt')
+
+    const accessSpy = vi.mocked(fsPromises.access).mockRejectedValueOnce(new Error('EACCES: permission denied'))
+
+    try {
+      expect(await pathExists(errorPath)).toBe(false)
+      expect(accessSpy).toHaveBeenCalledWith(errorPath)
+    } finally {
+      accessSpy.mockClear()
+    }
   })
 })

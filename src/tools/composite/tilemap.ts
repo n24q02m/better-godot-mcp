@@ -124,8 +124,10 @@ export async function handleTilemap(action: string, args: Record<string, unknown
       const content = await readFile(fullPath, 'utf-8')
       const tilemaps: string[] = []
       const tmRegex = /\[node name="([^"]+)" type="TileMapLayer"/g
-      for (const match of content.matchAll(tmRegex)) {
+      let match = tmRegex.exec(content)
+      while (match !== null) {
         tilemaps.push(match[1])
+        match = tmRegex.exec(content)
       }
 
       return formatJSON({ scene: scenePath, tilemapLayers: tilemaps })

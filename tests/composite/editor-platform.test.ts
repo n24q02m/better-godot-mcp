@@ -1,119 +1,79 @@
 /**
- * Tests for editor.ts - getGodotProcessesAsync platform branches
+ * Tests for editor.ts - process checking branches
  */
 
-import * as util from 'node:util'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest'
 import type { GodotConfig } from '../../src/godot/types.js'
+import { handleEditor } from '../../src/tools/composite/editor.js'
 import { makeConfig } from '../fixtures.js'
-
-// Mock child_process.execFile via promisify
-vi.mock('node:child_process', () => ({
-  execFile: vi.fn(),
-  spawn: vi.fn(),
-}))
-
-vi.mock('node:util', async (importOriginal) => {
-  const original = await importOriginal<typeof import('node:util')>()
-  return {
-    ...original,
-    promisify: vi.fn((_fn: unknown) => {
-      // Return a mock async function that wraps execFile
-      return vi.fn().mockResolvedValue({ stdout: '', stderr: '' })
-    }),
-  }
-})
 
 vi.mock('../../src/godot/headless.js', () => ({
   launchGodotEditor: vi.fn(() => ({ pid: 12345 })),
 }))
 
-describe('editor - getGodotProcessesAsync branches', () => {
+describe('editor - process checking', () => {
   let config: GodotConfig
-  const originalPlatform = process.platform
+  let processKillSpy: MockInstance
 
   beforeEach(() => {
     vi.clearAllMocks()
     config = makeConfig({ godotPath: '/usr/bin/godot' })
+
+    // Default spy behavior
+    processKillSpy = vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
+      if (signal !== 0) throw new Error('Unexpected signal')
+      if (config.activePids.includes(pid as number)) return true
+      throw new Error('Process not found')
+    })
   })
 
   afterEach(() => {
-    Object.defineProperty(process, 'platform', { value: originalPlatform })
+    processKillSpy.mockRestore()
   })
 
-  it('status should handle win32 platform with godot processes', async () => {
-    Object.defineProperty(process, 'platform', { value: 'win32' })
+  it('status should return active processes when kill(0) succeeds', async () => {
+    config.activePids = [1234, 5678]
 
-    // Re-mock promisify for this test - return tasklist output
-    vi.mocked(util.promisify).mockReturnValue(
-      vi.fn().mockResolvedValue({
-        stdout: '"godot.exe","1234","Console","1","50,000 K"\n"godot_console.exe","5678","Console","1","30,000 K"\n',
-        stderr: '',
-      }) as never,
-    )
-
-    // We need to re-import to get the new mock
-    vi.resetModules()
-    vi.doMock('node:child_process', () => ({ execFile: vi.fn(), spawn: vi.fn() }))
-    vi.doMock('node:util', () => ({
-      promisify: vi.fn(() =>
-        vi.fn().mockResolvedValue({
-          stdout: '"godot.exe","1234","Console","1","50,000 K"\n',
-          stderr: '',
-        }),
-      ),
-    }))
-    vi.doMock('../../src/godot/headless.js', () => ({
-      launchGodotEditor: vi.fn(() => ({ pid: 12345 })),
-    }))
-
-    const { handleEditor: freshHandleEditor } = await import('../../src/tools/composite/editor.js')
-    const result = await freshHandleEditor('status', {}, config)
+    const result = await handleEditor('status', {}, config)
     const data = JSON.parse(result.content[0].text)
-    expect(data).toHaveProperty('running')
-    expect(data).toHaveProperty('processes')
-  })
 
-  it('status should handle linux platform with pgrep output', async () => {
-    Object.defineProperty(process, 'platform', { value: 'linux' })
-
-    vi.resetModules()
-    vi.doMock('node:child_process', () => ({ execFile: vi.fn(), spawn: vi.fn() }))
-    vi.doMock('node:util', () => ({
-      promisify: vi.fn(() =>
-        vi.fn().mockResolvedValue({
-          stdout: '1234 /usr/bin/godot --editor\n5678 /usr/bin/godot --path /tmp\n',
-          stderr: '',
-        }),
-      ),
-    }))
-    vi.doMock('../../src/godot/headless.js', () => ({
-      launchGodotEditor: vi.fn(() => ({ pid: 12345 })),
-    }))
-
-    const { handleEditor: freshHandleEditor } = await import('../../src/tools/composite/editor.js')
-    const result = await freshHandleEditor('status', {}, config)
-    const data = JSON.parse(result.content[0].text)
     expect(data.running).toBe(true)
-    expect(data.processes.length).toBeGreaterThan(0)
+    expect(data.processes).toHaveLength(2)
+    expect(data.processes).toEqual([
+      { pid: '1234', name: 'godot' },
+      { pid: '5678', name: 'godot' },
+    ])
+    expect(processKillSpy).toHaveBeenCalledTimes(2)
   })
 
-  it('status should handle pgrep error (no processes)', async () => {
-    Object.defineProperty(process, 'platform', { value: 'linux' })
+  it('status should filter out dead processes when kill(0) fails', async () => {
+    config.activePids = [1234, 9999, 5678]
 
-    vi.resetModules()
-    vi.doMock('node:child_process', () => ({ execFile: vi.fn(), spawn: vi.fn() }))
-    vi.doMock('node:util', () => ({
-      promisify: vi.fn(() => vi.fn().mockRejectedValue(new Error('No processes found'))),
-    }))
-    vi.doMock('../../src/godot/headless.js', () => ({
-      launchGodotEditor: vi.fn(() => ({ pid: 12345 })),
-    }))
+    processKillSpy.mockImplementation((pid, _signal) => {
+      if (pid === 9999) throw new Error('ESRCH')
+      return true
+    })
 
-    const { handleEditor: freshHandleEditor } = await import('../../src/tools/composite/editor.js')
-    const result = await freshHandleEditor('status', {}, config)
+    const result = await handleEditor('status', {}, config)
     const data = JSON.parse(result.content[0].text)
+
+    expect(data.running).toBe(true)
+    expect(data.processes).toHaveLength(2)
+    expect(data.processes).toEqual([
+      { pid: '1234', name: 'godot' },
+      { pid: '5678', name: 'godot' },
+    ])
+    expect(processKillSpy).toHaveBeenCalledTimes(3)
+  })
+
+  it('status should handle no active processes', async () => {
+    config.activePids = []
+
+    const result = await handleEditor('status', {}, config)
+    const data = JSON.parse(result.content[0].text)
+
     expect(data.running).toBe(false)
     expect(data.processes).toEqual([])
+    expect(processKillSpy).not.toHaveBeenCalled()
   })
 })

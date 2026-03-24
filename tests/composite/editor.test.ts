@@ -62,7 +62,23 @@ describe('editor', () => {
   // status
   // ==========================================
   describe('status', () => {
+    let processKillSpy: import('vitest').MockInstance
+
+    beforeEach(() => {
+      // Mock process.kill to return true for active PIDs
+      processKillSpy = vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
+        if (signal !== 0) throw new Error('Unexpected signal')
+        if (config.activePids.includes(pid as number)) return true
+        throw new Error('Process not found')
+      })
+    })
+
+    afterEach(() => {
+      processKillSpy.mockRestore()
+    })
+
     it('should return JSON with running, processes, and godotPath', async () => {
+      config.activePids.push(12345)
       const result = await handleEditor('status', {}, config)
       const data = JSON.parse(result.content[0].text)
 
@@ -70,6 +86,8 @@ describe('editor', () => {
       expect(data).toHaveProperty('processes')
       expect(data).toHaveProperty('godotPath')
       expect(Array.isArray(data.processes)).toBe(true)
+      expect(data.processes.length).toBe(1)
+      expect(data.processes[0]).toEqual({ pid: '12345', name: 'godot' })
       expect(typeof data.running).toBe('boolean')
     })
 

@@ -62,6 +62,30 @@ claude plugin add n24q02m/better-godot-mcp
 
 Other runners: `bun x`, `pnpm dlx`, `yarn dlx` also work.
 
+<details>
+<summary>Other MCP clients (Cursor, Codex, Gemini CLI)</summary>
+
+```jsonc
+// Cursor, Windsurf, Cline, Amp, OpenCode
+{
+  "mcpServers": {
+    "better-godot": {
+      "command": "npx",
+      "args": ["-y", "@n24q02m/better-godot-mcp@latest"]
+    }
+  }
+}
+```
+
+```toml
+# Codex (~/.codex/config.toml)
+[mcp_servers.better-godot]
+command = "npx"
+args = ["-y", "@n24q02m/better-godot-mcp@latest"]
+```
+
+</details>
+
 #### Option 2: Docker
 
 ```jsonc
@@ -117,14 +141,19 @@ Other runners: `bun x`, `pnpm dlx`, `yarn dlx` also work.
 - `run`/`stop`/`export` actions require Godot binary to be installed
 - Docker mode has limited filesystem access (mount your project directory)
 
+### Security
+
+- **Binary detection** -- Multi-path Godot detection (env, PATH, common locations)
+- **Project validation** -- Verifies project.godot exists before operations
+- **Cross-platform** -- Windows, macOS, Linux path handling
+
 ## Build from Source
 
 ```bash
 git clone https://github.com/n24q02m/better-godot-mcp.git
 cd better-godot-mcp
-npm install
-npm run build
-npm start
+bun install
+bun run dev
 ```
 
 ## Compatible With

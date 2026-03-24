@@ -50,7 +50,7 @@ describe('handleHelp', () => {
 
   it('should return fallback message if documentation file is missing', async () => {
     // Mock file not found
-    vi.mocked(pathExists).mockResolvedValue(false)
+    vi.mocked(readFile).mockRejectedValue(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }))
 
     const result = await handleHelp('project', {})
 

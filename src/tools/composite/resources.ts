@@ -33,33 +33,45 @@ interface ResourceEntry {
   size: number
 }
 
-async function findResourceFiles(dir: string, extensions?: Set<string>): Promise<ResourceEntry[]> {
+async function findResourceFiles(
+  dir: string,
+  extensions?: Set<string>,
+  results: ResourceEntry[] = [],
+): Promise<ResourceEntry[]> {
   const exts = extensions || RESOURCE_EXTENSIONS
   try {
     const entries = await readdir(dir, { withFileTypes: true })
-    const promises = entries.map(async (entry) => {
+    const promises: Promise<void>[] = []
+
+    for (let i = 0; i < entries.length; i++) {
+      const entry = entries[i]
       const name = entry.name
-      if (name.startsWith('.') || name === 'node_modules' || name === 'build') return []
+      if (name.startsWith('.') || name === 'node_modules' || name === 'build') continue
 
       const fullPath = join(dir, name)
       if (entry.isDirectory()) {
-        return findResourceFiles(fullPath, exts)
-      } else if (name.includes('.') && exts.has(name.slice(name.lastIndexOf('.')).toLowerCase())) {
-        try {
-          const fileStat = await stat(fullPath)
-          return [{ path: fullPath, size: fileStat.size }]
-        } catch {
-          return []
+        promises.push(findResourceFiles(fullPath, exts, results).then(() => {}))
+      } else {
+        const lastDot = name.lastIndexOf('.')
+        if (lastDot !== -1 && exts.has(name.slice(lastDot).toLowerCase())) {
+          promises.push(
+            stat(fullPath)
+              .then((fileStat) => {
+                results.push({ path: fullPath, size: fileStat.size })
+              })
+              .catch(() => {}),
+          )
         }
       }
-      return []
-    })
+    }
 
-    const results = await Promise.all(promises)
-    return results.flat()
+    if (promises.length > 0) {
+      await Promise.all(promises)
+    }
+    return results
   } catch {
     // Skip inaccessible
-    return []
+    return results
   }
 }
 

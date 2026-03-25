@@ -32,7 +32,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.1",
-    "@n24q02m/mcp-relay-core": "file:../mcp-relay-core/packages/core-ts",
+    "@n24q02m/mcp-relay-core": "^0.1.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {

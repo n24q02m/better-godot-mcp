@@ -5,8 +5,10 @@
   "mcpServers": {
     "better-godot-mcp": {
       "command": "npx",
-      "args": ["-y", "@n24q02m/better-godot-mcp"]
+      "args": [
+        "-y",
+        "@n24q02m/better-godot-mcp"
+      ]
     }
-  },
-  "contextFileName": "GEMINI.md"
+  }
 }

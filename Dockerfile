@@ -2,7 +2,7 @@
 # syntax=docker/dockerfile:1
 
 # Build stage
-FROM oven/bun:latest AS builder
+FROM oven/bun:1-alpine@sha256:7ed9f74c326d1c260abe247ac423ccbf5ac92af62bb442d515d1f92f21e8ea9b AS builder
 
 WORKDIR /app
 
@@ -13,7 +13,7 @@ COPY . .
 RUN bun run build
 
 # Production stage
-FROM node:24.14.1-alpine
+FROM node:24.14.1-alpine@sha256:01743339035a5c3c11a373cd7c83aeab6ed1457b55da6a69e014a95ac4e4700b
 
 LABEL org.opencontainers.image.source="https://github.com/n24q02m/better-godot-mcp"
 LABEL io.modelcontextprotocol.server.name="io.github.n24q02m/better-godot-mcp"

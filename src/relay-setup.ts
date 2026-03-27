@@ -1,9 +1,15 @@
 /**
- * Zero-env-config relay setup flow.
+ * Relay-first setup flow for better-godot-mcp.
  *
- * When GODOT_PROJECT_PATH is not set, this module resolves config from the
- * encrypted config file or triggers the relay page setup to collect the
- * project path from the user via a browser-based form.
+ * Always shows the relay URL at startup so users can configure the Godot
+ * project path via browser. If the user skips, tools will prompt for
+ * project_path on each call.
+ *
+ * Resolution order:
+ * 1. Environment variables (GODOT_PROJECT_PATH -- checked by caller)
+ * 2. Encrypted config file (~/.config/mcp/config.enc)
+ * 3. Relay setup (browser-based form, 30s timeout for optional-config server)
+ * 4. No default project path (tools accept project_path param)
  *
  * Godot binary auto-detection is handled separately by detector.ts,
  * so the relay primarily collects the project path.
@@ -17,6 +23,9 @@ import { RELAY_SCHEMA } from './relay-schema.js'
 const SERVER_NAME = 'better-godot-mcp'
 const DEFAULT_RELAY_URL = 'https://better-godot-mcp.n24q02m.com'
 const REQUIRED_FIELDS = ['project_path']
+
+// Shorter timeout for optional-config servers (user can skip)
+const RELAY_TIMEOUT_MS = 30_000
 
 export interface GodotRelayConfig {
   projectPath: string
@@ -41,13 +50,12 @@ export function parseRelayConfig(config: Record<string, string>): GodotRelayConf
 }
 
 /**
- * Resolve config or trigger relay setup.
+ * Resolve config or trigger relay setup (relay-first design).
  *
- * Resolution order:
- * 1. Encrypted config file (~/.config/mcp/config.enc)
- * 2. Relay setup (browser-based form via relay server)
+ * Always shows relay URL at startup. Uses 30s timeout since Godot MCP
+ * works without a default project path (tools accept project_path param).
  *
- * Returns GodotRelayConfig, or null if setup fails/times out.
+ * Returns GodotRelayConfig, or null if setup fails/skipped.
  *
  * Note: Environment variables (GODOT_PROJECT_PATH, GODOT_PATH) are checked
  * in init-server.ts before calling this function. This is only called when
@@ -61,7 +69,7 @@ export async function ensureConfig(): Promise<GodotRelayConfig | null> {
     return parseRelayConfig(result.config)
   }
 
-  // No config found -- trigger relay setup
+  // No config found -- always trigger relay setup (relay-first)
   console.error(`[${SERVER_NAME}] No project path configured. Starting relay setup...`)
 
   const relayUrl = DEFAULT_RELAY_URL
@@ -74,14 +82,24 @@ export async function ensureConfig(): Promise<GodotRelayConfig | null> {
   }
 
   // Log URL to stderr (visible to user in MCP client)
-  console.error(`\n[${SERVER_NAME}] Setup required. Open this URL to configure:\n${session.relayUrl}\n`)
+  console.error(
+    `\n[${SERVER_NAME}] Configure project path (optional, 30s timeout):\n${session.relayUrl}\nSkip to provide project_path per tool call.\n`,
+  )
 
-  // Poll for result
+  // Poll for result with shorter timeout
   let config: Record<string, string>
   try {
-    config = await pollForResult(relayUrl, session)
-  } catch {
-    console.error(`[${SERVER_NAME}] Relay setup timed out or session expired`)
+    config = await pollForResult(relayUrl, session, 2000, RELAY_TIMEOUT_MS)
+  } catch (err: any) {
+    if (err?.message === 'RELAY_SKIPPED') {
+      console.error(`[${SERVER_NAME}] Relay setup skipped by user.`)
+      return null
+    }
+    if (err?.message?.includes('timed out')) {
+      console.error(`[${SERVER_NAME}] Relay setup timed out. No default project path.`)
+    } else {
+      console.error(`[${SERVER_NAME}] Relay setup failed: ${err?.message}`)
+    }
     return null
   }
 

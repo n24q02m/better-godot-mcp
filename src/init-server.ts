@@ -15,7 +15,6 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { detectGodot } from './godot/detector.js'
 import type { GodotConfig } from './godot/types.js'
-import { ensureConfig } from './relay-setup.js'
 import { registerTools } from './tools/registry.js'
 
 const SERVER_NAME = 'better-godot-mcp'
@@ -45,21 +44,11 @@ export async function initServer(): Promise<void> {
     console.error(`[${SERVER_NAME}] Set GODOT_PATH env var or install Godot.`)
   }
 
-  // Resolve project path: env var first, then relay config
-  let projectPath = process.env.GODOT_PROJECT_PATH ?? null
-  let godotPathOverride: string | null = null
+  // Resolve project path from env var (tools also accept project_path per call)
+  const projectPath = process.env.GODOT_PROJECT_PATH ?? null
 
-  if (!projectPath) {
-    const relayConfig = await ensureConfig()
-    if (relayConfig) {
-      projectPath = relayConfig.projectPath
-      godotPathOverride = relayConfig.godotPath
-    }
-  }
-
-  // Build config (relay godotPath override takes lowest priority vs detection)
   const config: GodotConfig = {
-    godotPath: detection?.path ?? godotPathOverride,
+    godotPath: detection?.path ?? null,
     godotVersion: detection?.version ?? null,
     projectPath,
     activePids: [],

@@ -38,8 +38,6 @@ mise run fix       # bun run check:fix
 ```
 src/
   init-server.ts                 # Entry point
-  relay-setup.ts                 # Zero-config relay: create session, poll for config
-  relay-schema.ts                # Relay form schema (Godot project path field)
   godot/                         # Binary detection, headless execution, types
   tools/
     registry.ts                  # Tool definitions (P0-P3 priority) + routing

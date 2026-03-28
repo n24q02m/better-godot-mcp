@@ -32,7 +32,6 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.28.0",
-    "@n24q02m/mcp-relay-core": "^0.1.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {

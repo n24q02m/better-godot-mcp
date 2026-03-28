@@ -1,6 +1,6 @@
 {
   "name": "better-godot-mcp",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "description": "Comprehensive Godot Engine integration — 18 tools for game development",
   "mcpServers": {
     "better-godot-mcp": {

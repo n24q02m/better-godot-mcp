@@ -7,20 +7,11 @@
  * key/subkey=value
  */
 
-import { readFileSync, writeFileSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
 
 export interface ProjectSettings {
   sections: Map<string, Map<string, string>>
   raw: string
-}
-
-/**
- * Parse project.godot file
- */
-export function parseProjectSettings(filePath: string): ProjectSettings {
-  const raw = readFileSync(filePath, 'utf-8')
-  return parseProjectSettingsContent(raw)
 }
 
 /**
@@ -160,13 +151,6 @@ export function setSettingInContent(content: string, path: string, value: string
   }
 
   return result.join('\n')
-}
-
-/**
- * Write project settings back to file
- */
-export function writeProjectSettings(filePath: string, content: string): void {
-  writeFileSync(filePath, content, 'utf-8')
 }
 
 /**

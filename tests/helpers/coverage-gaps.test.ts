@@ -6,10 +6,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import {
-  parseProjectSettingsContent,
-  setSettingInContent,
-} from '../../src/tools/helpers/project-settings.js'
+import { parseProjectSettingsContent, setSettingInContent } from '../../src/tools/helpers/project-settings.js'
 import { parseSceneContent, setNodePropertyInContent, writeScene } from '../../src/tools/helpers/scene-parser.js'
 
 describe('project-settings additional coverage', () => {
@@ -64,7 +61,6 @@ describe('project-settings additional coverage', () => {
       expect(result).toBe(content)
     })
   })
-
 
   describe('parseProjectSettingsContent edge cases', () => {
     it('should skip lines without equals sign', () => {

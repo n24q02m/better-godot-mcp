@@ -2,7 +2,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { detectGodot } from '../../src/godot/detector.js'
 import type { GodotConfig } from '../../src/godot/types.js'
-import { handleSetup } from '../../src/tools/composite/setup.js'
+import { handleConfig } from '../../src/tools/composite/config.js'
 import { GodotMCPError } from '../../src/tools/helpers/errors.js'
 import { createTmpProject, makeConfig } from '../fixtures.js'
 
@@ -11,7 +11,7 @@ vi.mock('../../src/godot/detector.js', () => ({
   detectGodot: vi.fn(),
 }))
 
-describe('setup', () => {
+describe('config - detect_godot and check actions', () => {
   let config: GodotConfig
 
   beforeEach(() => {
@@ -37,7 +37,7 @@ describe('setup', () => {
         source: 'path',
       })
 
-      const result = await handleSetup('detect_godot', {}, config)
+      const result = await handleConfig('detect_godot', {}, config)
       const data = JSON.parse(result.content[0].text)
 
       expect(data.found).toBe(true)
@@ -50,7 +50,7 @@ describe('setup', () => {
       // Mock failure detection
       vi.mocked(detectGodot).mockReturnValue(null)
 
-      const result = await handleSetup('detect_godot', {}, config)
+      const result = await handleConfig('detect_godot', {}, config)
       const data = JSON.parse(result.content[0].text)
 
       expect(data.found).toBe(false)
@@ -88,7 +88,7 @@ describe('setup', () => {
         source: 'env',
       })
 
-      const result = await handleSetup('check', {}, { ...config, projectPath: tmpProject.projectPath })
+      const result = await handleConfig('check', {}, { ...config, projectPath: tmpProject.projectPath })
       const data = JSON.parse(result.content[0].text)
 
       expect(data.godot.found).toBe(true)
@@ -102,7 +102,7 @@ describe('setup', () => {
       vi.mocked(detectGodot).mockReturnValue(null)
 
       const invalidPath = join(tmpProject.projectPath, 'nonexistent')
-      const result = await handleSetup('check', {}, { ...config, projectPath: invalidPath })
+      const result = await handleConfig('check', {}, { ...config, projectPath: invalidPath })
       const data = JSON.parse(result.content[0].text)
 
       expect(data.godot.found).toBe(false)
@@ -114,7 +114,7 @@ describe('setup', () => {
       // Mock failure detection
       vi.mocked(detectGodot).mockReturnValue(null)
 
-      const result = await handleSetup('check', {}, config)
+      const result = await handleConfig('check', {}, config)
       const data = JSON.parse(result.content[0].text)
 
       expect(data.project.path).toBeNull()
@@ -125,7 +125,7 @@ describe('setup', () => {
   // invalid action
   // ==========================================
   it('should throw for unknown action', async () => {
-    await expect(handleSetup('invalid_action', {}, config)).rejects.toThrow(GodotMCPError)
-    await expect(handleSetup('invalid_action', {}, config)).rejects.toThrow('Unknown action')
+    await expect(handleConfig('invalid_action', {}, config)).rejects.toThrow(GodotMCPError)
+    await expect(handleConfig('invalid_action', {}, config)).rejects.toThrow('Unknown action')
   })
 })

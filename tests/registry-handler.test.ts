@@ -22,9 +22,6 @@ vi.mock('../src/tools/composite/scripts.js', () => ({
 vi.mock('../src/tools/composite/editor.js', () => ({
   handleEditor: vi.fn(() => ({ content: [{ type: 'text', text: 'editor result' }] })),
 }))
-vi.mock('../src/tools/composite/setup.js', () => ({
-  handleSetup: vi.fn(() => ({ content: [{ type: 'text', text: 'setup result' }] })),
-}))
 vi.mock('../src/tools/composite/config.js', () => ({
   handleConfig: vi.fn(() => ({ content: [{ type: 'text', text: 'config result' }] })),
 }))
@@ -98,9 +95,9 @@ describe('registerTools handler routing', () => {
     expect(callToolHandler).toBeDefined()
   })
 
-  it('should list all 18 tools', async () => {
+  it('should list all 17 tools', async () => {
     const result = await listToolsHandler?.()
-    expect(result.tools).toHaveLength(18)
+    expect(result.tools).toHaveLength(17)
   })
 
   // Test routing for all tools
@@ -110,7 +107,6 @@ describe('registerTools handler routing', () => {
     { name: 'nodes', action: 'list' },
     { name: 'scripts', action: 'list' },
     { name: 'editor', action: 'status' },
-    { name: 'setup', action: 'check' },
     { name: 'config', action: 'status' },
     { name: 'resources', action: 'list' },
     { name: 'input_map', action: 'list' },

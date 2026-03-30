@@ -39,11 +39,11 @@ The server automatically detects Godot in this order:
 2. System PATH
 3. Platform-specific common locations
 
-Use `setup.detect_godot` to verify detection.
+Use `config.detect_godot` to verify detection.
 
 ## Quick Start
 
 1. Start the MCP server
-2. Use `setup.check` to verify your environment
+2. Use `config.check` to verify your environment
 3. Use `project.info` with your project path
 4. Create scenes, scripts, and nodes with the respective tools

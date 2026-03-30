@@ -1,7 +1,7 @@
 # CLAUDE.md - better-godot-mcp
 
 MCP Server cho Godot Engine. TypeScript, Node.js >= 24, bun, ESM.
-18 composite mega-tools cho game development. Zod v4 schema validation.
+17 composite mega-tools cho game development. Zod v4 schema validation.
 
 ## Commands
 
@@ -41,7 +41,7 @@ src/
   godot/                         # Binary detection, headless execution, types
   tools/
     registry.ts                  # Tool definitions (P0-P3 priority) + routing
-    composite/                   # 1 file per mega-tool (18 tools)
+    composite/                   # 1 file per mega-tool (17 tools)
     helpers/                     # errors.ts, scene-parser.ts, godot-types.ts, project-settings.ts
 tests/
   fixtures.ts                    # Shared fixtures

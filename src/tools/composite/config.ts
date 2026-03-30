@@ -1,10 +1,13 @@
 /**
- * Config tool - Server runtime configuration (Standard Tool Set)
- * Actions: status | set
+ * Config tool - Server configuration, environment detection, and verification
+ * Actions: status | set | detect_godot | check
  */
 
+import { join } from 'node:path'
+import { detectGodot } from '../../godot/detector.js'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
+import { pathExists } from '../helpers/paths.js'
 
 // Mutable runtime config
 const runtimeConfig: Record<string, string> = {}
@@ -60,7 +63,50 @@ export async function handleConfig(action: string, args: Record<string, unknown>
       return formatSuccess(`Config updated: ${key} = ${value}`)
     }
 
+    case 'detect_godot': {
+      const result = detectGodot()
+      if (!result) {
+        return formatJSON({
+          found: false,
+          message: 'Godot not found on this system',
+          suggestions: [
+            'Install Godot from https://godotengine.org/download',
+            'Set GODOT_PATH environment variable to your Godot binary',
+            'Windows: winget install GodotEngine.GodotEngine',
+            'macOS: brew install --cask godot',
+            'Linux: snap install godot-4 or flatpak install org.godotengine.Godot',
+          ],
+        })
+      }
+
+      return formatJSON({
+        found: true,
+        path: result.path,
+        version: result.version,
+        source: result.source,
+      })
+    }
+
+    case 'check': {
+      const detection = detectGodot()
+      const projectPath = config.projectPath
+
+      const status = {
+        godot: detection ? { found: true, path: detection.path, version: detection.version.raw } : { found: false },
+        project: projectPath
+          ? {
+              path: projectPath,
+              // Performance optimization: using async pathExists instead of existsSync
+              // to avoid blocking the Node.js event loop during I/O operations
+              valid: await pathExists(join(projectPath, 'project.godot')),
+            }
+          : { path: null },
+      }
+
+      return formatJSON(status)
+    }
+
     default:
-      throwUnknownAction(action, ['status', 'set'])
+      throwUnknownAction(action, ['status', 'set', 'detect_godot', 'check'])
   }
 }

@@ -72,7 +72,6 @@ const expectedTools = [
   'resources',
   'scenes',
   'scripts',
-  'setup',
   'shader',
   'signals',
   'tilemap',
@@ -245,7 +244,6 @@ const extendedHelpTopics = [
   'signals',
   'tilemap',
   'ui',
-  'setup',
 ]
 
 for (const topic of extendedHelpTopics) {
@@ -277,7 +275,7 @@ const actionValidationCases = [
   { tool: 'signals', action: 'connect', label: 'signals.connect(no path)' },
   { tool: 'tilemap', action: 'create_tileset', label: 'tilemap.create_tileset(no path)' },
   { tool: 'ui', action: 'create_control', label: 'ui.create_control(no path)' },
-  { tool: 'setup', action: 'detect_godot', label: 'setup.detect_godot(no project)' },
+  { tool: 'config', action: 'detect_godot', label: 'config.detect_godot(no project)' },
 ]
 
 for (const { tool, action, label } of actionValidationCases) {

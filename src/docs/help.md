@@ -9,6 +9,6 @@ Get full documentation for any tool.
 ```
 
 ## Available Topics
-project, scenes, nodes, scripts, editor, setup, config, help,
+project, scenes, nodes, scripts, editor, config, help,
 resources, input_map, signals, animation, tilemap, shader,
 physics, audio, navigation, ui

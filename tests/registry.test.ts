@@ -26,7 +26,6 @@ describe('registry', () => {
         'nodes',
         'scripts',
         'editor',
-        'setup',
         'config',
         'help',
         'resources',
@@ -46,7 +45,7 @@ describe('registry', () => {
       }
     })
 
-    it('should have exactly 18 tools (8 P0 + 3 P1 + 4 P2 + 3 P3)', async () => {
+    it('should have exactly 17 tools (7 P0 + 3 P1 + 4 P2 + 3 P3)', async () => {
       const { readFileSync } = await import('node:fs')
       const { resolve } = await import('node:path')
       registrySource = readFileSync(resolve(import.meta.dirname, '../src/tools/registry.ts'), 'utf-8')
@@ -54,7 +53,7 @@ describe('registry', () => {
       const nameMatches = registrySource.match(/name: '(\w+)'/g)
       // Filter to only tool definition names (inside TOOLS arrays)
       // Each tool has exactly one name: 'xxx' entry
-      expect(nameMatches?.length).toBe(18)
+      expect(nameMatches?.length).toBe(17)
     })
 
     it('all tools should have annotations', async () => {
@@ -64,7 +63,7 @@ describe('registry', () => {
 
       // Count annotations blocks (each tool should have one)
       const annotationsMatches = registrySource.match(/annotations:\s*\{/g)
-      expect(annotationsMatches?.length).toBe(18)
+      expect(annotationsMatches?.length).toBe(17)
     })
 
     it('all annotations should have required fields', async () => {
@@ -79,11 +78,11 @@ describe('registry', () => {
       const idempotentCount = (registrySource.match(/idempotentHint:/g) || []).length
       const openWorldCount = (registrySource.match(/openWorldHint:/g) || []).length
 
-      expect(titleCount).toBe(18)
-      expect(readOnlyCount).toBe(18)
-      expect(destructiveCount).toBe(18)
-      expect(idempotentCount).toBe(18)
-      expect(openWorldCount).toBe(18)
+      expect(titleCount).toBe(17)
+      expect(readOnlyCount).toBe(17)
+      expect(destructiveCount).toBe(17)
+      expect(idempotentCount).toBe(17)
+      expect(openWorldCount).toBe(17)
     })
 
     it('all tools should have inputSchema with required action', async () => {
@@ -92,11 +91,11 @@ describe('registry', () => {
       registrySource = readFileSync(resolve(import.meta.dirname, '../src/tools/registry.ts'), 'utf-8')
 
       const inputSchemaCount = (registrySource.match(/inputSchema:\s*\{/g) || []).length
-      expect(inputSchemaCount).toBe(18)
+      expect(inputSchemaCount).toBe(17)
 
       // help tool requires 'tool_name' instead of 'action'
       const requiredActionCount = (registrySource.match(/required:\s*\['action'\]/g) || []).length
-      expect(requiredActionCount).toBe(17) // 18 minus help (uses 'tool_name')
+      expect(requiredActionCount).toBe(16) // 17 minus help (uses 'tool_name')
 
       // help uses 'tool_name' as required
       expect(registrySource).toContain("required: ['tool_name']")
@@ -107,7 +106,7 @@ describe('registry', () => {
   // Tool routing via switch
   // ==========================================
   describe('routing', () => {
-    it('should map handlers for all 18 tools', async () => {
+    it('should map handlers for all 17 tools', async () => {
       const { readFileSync } = await import('node:fs')
       const { resolve } = await import('node:path')
       const source = readFileSync(resolve(import.meta.dirname, '../src/tools/registry.ts'), 'utf-8')
@@ -118,7 +117,6 @@ describe('registry', () => {
         'nodes',
         'scripts',
         'editor',
-        'setup',
         'config',
         'help',
         'resources',
@@ -157,14 +155,14 @@ describe('registry', () => {
   // Priority grouping
   // ==========================================
   describe('priority grouping', () => {
-    it('P0 should have 8 core tools', async () => {
+    it('P0 should have 7 core tools', async () => {
       const { readFileSync } = await import('node:fs')
       const { resolve } = await import('node:path')
       const source = readFileSync(resolve(import.meta.dirname, '../src/tools/registry.ts'), 'utf-8')
 
       const p0Section = source.slice(source.indexOf('const P0_TOOLS'), source.indexOf('const P1_TOOLS'))
       const names = p0Section.match(/name: '(\w+)'/g)
-      expect(names?.length).toBe(8)
+      expect(names?.length).toBe(7)
     })
 
     it('P1 should have 3 extended tools', async () => {
@@ -219,7 +217,6 @@ describe('registry', () => {
         'nodes',
         'scripts',
         'editor',
-        'setup',
         'config',
         'help',
         'resources',
@@ -244,10 +241,7 @@ describe('registry', () => {
       const { resolve } = await import('node:path')
       const source = readFileSync(resolve(import.meta.dirname, '../src/tools/registry.ts'), 'utf-8')
 
-      // setup and help should be read-only
-      const setupSection = source.slice(source.indexOf("name: 'setup'"), source.indexOf("name: 'config'"))
-      expect(setupSection).toContain('readOnlyHint: true')
-
+      // help should be read-only
       const helpSection = source.slice(source.indexOf("name: 'help'"), source.indexOf('const P1_TOOLS'))
       expect(helpSection).toContain('readOnlyHint: true')
     })

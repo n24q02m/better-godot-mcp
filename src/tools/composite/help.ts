@@ -14,7 +14,6 @@ const VALID_TOPICS = [
   'nodes',
   'scripts',
   'editor',
-  'setup',
   'config',
   'help',
   'resources',

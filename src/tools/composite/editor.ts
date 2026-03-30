@@ -33,7 +33,7 @@ export async function handleEditor(action: string, args: Record<string, unknown>
         throw new GodotMCPError(
           'Godot not found',
           'GODOT_NOT_FOUND',
-          'Set GODOT_PATH env var or install Godot. Use setup.detect_godot to check.',
+          'Set GODOT_PATH env var or install Godot. Use config.detect_godot to check.',
         )
       }
       const projectPath = (args.project_path as string) || config.projectPath

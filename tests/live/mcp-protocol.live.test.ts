@@ -11,13 +11,12 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 const ALL_TOOL_NAMES = [
-  // P0 - Core (8)
+  // P0 - Core (7)
   'project',
   'scenes',
   'nodes',
   'scripts',
   'editor',
-  'setup',
   'config',
   'help',
   // P1 - Extended (3)
@@ -67,13 +66,13 @@ describe('MCP Protocol - Live', () => {
   })
 
   // -------------------------------------------------------
-  // 2. tools/list returns all 18 expected tools
+  // 2. tools/list returns all 17 expected tools
   // -------------------------------------------------------
-  it('tools/list returns all 18 tools', async () => {
+  it('tools/list returns all 17 tools', async () => {
     const result = await client.listTools()
     const names = result.tools.map((t) => t.name).sort()
 
-    expect(names).toHaveLength(18)
+    expect(names).toHaveLength(17)
     expect(names).toEqual([...ALL_TOOL_NAMES].sort())
   })
 
@@ -131,7 +130,6 @@ describe('MCP Protocol - Live', () => {
       'nodes',
       'scripts',
       'editor',
-      'setup',
       'config',
       'help',
       'resources',
@@ -188,8 +186,8 @@ describe('MCP Protocol - Live', () => {
   // -------------------------------------------------------
   // 5. Tools return appropriate responses (with or without Godot)
   // -------------------------------------------------------
-  it('setup.detect_godot returns structured detection result', async () => {
-    const result = await client.callTool({ name: 'setup', arguments: { action: 'detect_godot' } })
+  it('config.detect_godot returns structured detection result', async () => {
+    const result = await client.callTool({ name: 'config', arguments: { action: 'detect_godot' } })
 
     expect(result.isError).toBeFalsy()
     const json = JSON.parse(getText(result))
@@ -205,8 +203,8 @@ describe('MCP Protocol - Live', () => {
     }
   })
 
-  it('setup.check returns structured check result', async () => {
-    const result = await client.callTool({ name: 'setup', arguments: { action: 'check' } })
+  it('config.check returns structured check result', async () => {
+    const result = await client.callTool({ name: 'config', arguments: { action: 'check' } })
 
     expect(result.isError).toBeFalsy()
     const json = JSON.parse(getText(result))

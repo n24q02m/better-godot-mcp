@@ -23,7 +23,6 @@ import { handleProject } from './composite/project.js'
 import { handleResources } from './composite/resources.js'
 import { handleScenes } from './composite/scenes.js'
 import { handleScripts } from './composite/scripts.js'
-import { handleSetup } from './composite/setup.js'
 import { handleShader } from './composite/shader.js'
 import { handleSignals } from './composite/signals.js'
 import { handleTilemap } from './composite/tilemap.js'
@@ -32,7 +31,7 @@ import { findClosestMatch, formatError, GodotMCPError } from './helpers/errors.j
 import { wrapToolResult } from './helpers/security.js'
 
 // =============================================
-// P0 - Core Tools (8)
+// P0 - Core Tools (7)
 // =============================================
 
 const P0_TOOLS = [
@@ -180,28 +179,9 @@ const P0_TOOLS = [
     },
   },
   {
-    name: 'setup',
-    description:
-      'Environment setup.\n\nActions:\n- detect_godot: find Godot binary path\n- check: verify project and Godot availability',
-    annotations: {
-      title: 'Setup',
-      readOnlyHint: true,
-      destructiveHint: false,
-      idempotentHint: true,
-      openWorldHint: false,
-    },
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        action: { type: 'string', enum: ['detect_godot', 'check'], description: 'Action to perform' },
-      },
-      required: ['action'],
-    },
-  },
-  {
     name: 'config',
     description:
-      'Server configuration.\n\nActions (required params -> optional):\n- status: current config\n- set (key, value): update setting',
+      'Server configuration and environment.\n\nActions (required params -> optional):\n- status: current config\n- set (key, value): update setting\n- detect_godot: find Godot binary path\n- check: verify project and Godot availability',
     annotations: {
       title: 'Config',
       readOnlyHint: false,
@@ -212,7 +192,11 @@ const P0_TOOLS = [
     inputSchema: {
       type: 'object' as const,
       properties: {
-        action: { type: 'string', enum: ['status', 'set'], description: 'Action to perform' },
+        action: {
+          type: 'string',
+          enum: ['status', 'set', 'detect_godot', 'check'],
+          description: 'Action to perform',
+        },
         key: { type: 'string', description: 'Config key (for set)' },
         value: { type: 'string', description: 'Config value (for set)' },
       },
@@ -240,7 +224,6 @@ const P0_TOOLS = [
             'nodes',
             'scripts',
             'editor',
-            'setup',
             'config',
             'help',
             'resources',
@@ -591,7 +574,6 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
   nodes: handleNodes,
   scripts: handleScripts,
   editor: handleEditor,
-  setup: handleSetup,
   config: handleConfig,
   resources: handleResources,
   input_map: handleInputMap,

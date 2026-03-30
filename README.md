@@ -2,7 +2,7 @@
 
 mcp-name: io.github.n24q02m/better-godot-mcp
 
-**Composite MCP server for Godot Engine -- 18 mega-tools for AI-assisted game development**
+**Composite MCP server for Godot Engine -- 17 mega-tools for AI-assisted game development**
 
 <!-- Badge Row 1: Status -->
 [![CI](https://github.com/n24q02m/better-godot-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/n24q02m/better-godot-mcp/actions/workflows/ci.yml)
@@ -102,8 +102,7 @@ Other runners: `bun x`, `pnpm dlx`, `yarn dlx` also work.
 | `nodes` | `add`, `remove`, `rename`, `list`, `set_property`, `get_property` | Scene tree node manipulation |
 | `scripts` | `create`, `read`, `write`, `attach`, `list`, `delete` | GDScript file CRUD |
 | `editor` | `launch`, `status` | Launch Godot editor and check status |
-| `setup` | `detect_godot`, `check` | Detect Godot binary and check project |
-| `config` | `status`, `set` | Server configuration |
+| `config` | `status`, `set`, `detect_godot`, `check` | Server configuration and environment detection |
 | `resources` | `list`, `info`, `delete`, `import_config` | Resource file management |
 | `input_map` | `list`, `add_action`, `remove_action`, `add_event` | Input action and event mapping |
 | `signals` | `list`, `connect`, `disconnect` | Signal connections |

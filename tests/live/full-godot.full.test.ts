@@ -434,7 +434,7 @@ describe('P0: editor tool', () => {
   })
 })
 
-describe('P0: setup tool', () => {
+describe('P0: config tool (detect_godot + check)', () => {
   let client: Client
 
   beforeAll(async () => {
@@ -443,7 +443,7 @@ describe('P0: setup tool', () => {
       args: ['bin/cli.mjs'],
       cwd: process.cwd(),
     })
-    client = new Client({ name: 'full-test-setup', version: '1.0.0' })
+    client = new Client({ name: 'full-test-config-setup', version: '1.0.0' })
     await client.connect(transport)
   }, 15_000)
 
@@ -453,7 +453,7 @@ describe('P0: setup tool', () => {
 
   it('detect_godot returns structured detection result', async () => {
     const result = await client.callTool({
-      name: 'setup',
+      name: 'config',
       arguments: { action: 'detect_godot' },
     })
     expect(result.isError).toBeFalsy()
@@ -470,7 +470,7 @@ describe('P0: setup tool', () => {
 
   it('check returns structured check result', async () => {
     const result = await client.callTool({
-      name: 'setup',
+      name: 'config',
       arguments: { action: 'check' },
     })
     expect(result.isError).toBeFalsy()

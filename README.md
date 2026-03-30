@@ -24,7 +24,7 @@ mcp-name: io.github.n24q02m/better-godot-mcp
 
 ## Features
 
-- **18 composite mega-tools** -- scene, node, script, shader, animation, tilemap, physics, audio, navigation, UI, and more
+- **17 composite mega-tools** -- scene, node, script, shader, animation, tilemap, physics, audio, navigation, UI, and more
 - **Full scene control** -- create, parse, and modify `.tscn` files directly without Godot running
 - **GDScript CRUD** -- create, read, write, and attach scripts in a single call
 - **Tiered token optimization** -- compressed descriptions + on-demand `help` tool

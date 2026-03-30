@@ -52,7 +52,7 @@ await client.connect(transport)
 console.log('Server connected (no env vars required).\n')
 
 // ---------------------------------------------------------------------------
-// 1. listTools — verify 18 tools returned with correct names
+// 1. listTools — verify 17 tools returned with correct names
 // ---------------------------------------------------------------------------
 console.log('--- Meta ---')
 

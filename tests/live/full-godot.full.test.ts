@@ -1,5 +1,5 @@
 /**
- * Full/Real live MCP protocol tests for all 18 tools
+ * Full/Real live MCP protocol tests for all 17 tools
  *
  * Spawns the actual MCP server via stdio transport and exercises
  * REAL operations against temp Godot projects. Each describe block

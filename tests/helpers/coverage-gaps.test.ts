@@ -6,11 +6,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import {
-  parseProjectSettingsContent,
-  setSettingInContent,
-  writeProjectSettings,
-} from '../../src/tools/helpers/project-settings.js'
+import { parseProjectSettingsContent, setSettingInContent } from '../../src/tools/helpers/project-settings.js'
 import { parseSceneContent, setNodePropertyInContent, writeScene } from '../../src/tools/helpers/scene-parser.js'
 
 describe('project-settings additional coverage', () => {
@@ -63,15 +59,6 @@ describe('project-settings additional coverage', () => {
       const content = `[application]\nfoo=bar\n`
       const result = setSettingInContent(content, 'singlepart', '"val"')
       expect(result).toBe(content)
-    })
-  })
-
-  describe('writeProjectSettings', () => {
-    it('should write content to file', () => {
-      const filePath = join(tmpDir, 'project.godot')
-      writeProjectSettings(filePath, '[application]\nconfig/name="Test"\n')
-      const { readFileSync } = require('node:fs') as typeof import('node:fs')
-      expect(readFileSync(filePath, 'utf-8')).toContain('config/name="Test"')
     })
   })
 

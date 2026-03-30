@@ -8,7 +8,7 @@ import { join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
-import { parseProjectSettings, setSettingInContent } from '../helpers/project-settings.js'
+import { parseProjectSettingsAsync, setSettingInContent } from '../helpers/project-settings.js'
 import { escapeRegExp } from '../helpers/scene-parser.js'
 
 export async function handlePhysics(action: string, args: Record<string, unknown>, config: GodotConfig) {
@@ -21,7 +21,9 @@ export async function handlePhysics(action: string, args: Record<string, unknown
       if (!(await pathExists(configPath)))
         throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify project path.')
 
-      const settings = parseProjectSettings(configPath)
+      // Performance optimization: using async file reading instead of sync
+      // to avoid blocking the Node.js event loop during I/O operations
+      const settings = await parseProjectSettingsAsync(configPath)
       const layers2d: Record<string, string> = {}
       const layers3d: Record<string, string> = {}
 

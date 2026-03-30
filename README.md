@@ -29,6 +29,10 @@ mcp-name: io.github.n24q02m/better-godot-mcp
 - **GDScript CRUD** -- create, read, write, and attach scripts in a single call
 - **Tiered token optimization** -- compressed descriptions + on-demand `help` tool
 
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/n24q02m-better-godot-mcp).
+
 ## Quick Start
 
 ### Claude Code Plugin (Recommended)

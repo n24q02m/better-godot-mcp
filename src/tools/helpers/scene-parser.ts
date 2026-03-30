@@ -133,9 +133,9 @@ export function parseSceneContent(content: string): ParsedScene {
             // 'g' -> [gd_scene
             currentSection = 'header'
             const line = content.slice(start, end)
-            const formatMatch = line.match(rxGdSceneFormat)
-            const stepsMatch = line.match(rxGdSceneSteps)
-            const uidMatch = line.match(rxUid)
+            const formatMatch = line.includes('format=') ? line.match(rxGdSceneFormat) : null
+            const stepsMatch = line.includes('load_steps=') ? line.match(rxGdSceneSteps) : null
+            const uidMatch = line.includes('uid=') ? line.match(rxUid) : null
             if (formatMatch) header.format = Number.parseInt(formatMatch[1], 10)
             if (stepsMatch) header.loadSteps = Number.parseInt(stepsMatch[1], 10)
             if (uidMatch) header.uid = uidMatch[1]
@@ -143,10 +143,10 @@ export function parseSceneContent(content: string): ParsedScene {
             // 'e' -> [ext_resource
             currentSection = 'ext_resource'
             const line = content.slice(start, end)
-            const typeMatch = line.match(rxType)
-            const uidMatch = line.match(rxUid)
-            const pathMatch = line.match(rxPath)
-            const idMatch = line.match(rxId)
+            const typeMatch = line.includes('type="') ? line.match(rxType) : null
+            const uidMatch = line.includes('uid=') ? line.match(rxUid) : null
+            const pathMatch = line.includes('path="') ? line.match(rxPath) : null
+            const idMatch = line.includes(' id="') ? line.match(rxId) : null
             if (typeMatch && pathMatch && idMatch) {
               extResources.push({
                 type: typeMatch[1],
@@ -159,8 +159,8 @@ export function parseSceneContent(content: string): ParsedScene {
             // 's' -> [sub_resource
             currentSection = 'sub_resource'
             const line = content.slice(start, end)
-            const typeMatch = line.match(rxType)
-            const idMatch = line.match(rxId)
+            const typeMatch = line.includes('type="') ? line.match(rxType) : null
+            const idMatch = line.includes(' id="') ? line.match(rxId) : null
             if (typeMatch && idMatch) {
               currentSubResource = { type: typeMatch[1], id: idMatch[1], properties: {} }
             }
@@ -168,11 +168,11 @@ export function parseSceneContent(content: string): ParsedScene {
             // 'n' -> [node
             currentSection = 'node'
             const line = content.slice(start, end)
-            const nameMatch = line.match(rxName)
-            const typeMatch = line.match(rxType)
-            const parentMatch = line.match(rxParent)
-            const instanceMatch = line.match(rxInstance)
-            const groupsMatch = line.match(rxGroups)
+            const nameMatch = line.includes('name="') ? line.match(rxName) : null
+            const typeMatch = line.includes('type="') ? line.match(rxType) : null
+            const parentMatch = line.includes('parent="') ? line.match(rxParent) : null
+            const instanceMatch = line.includes('instance=') ? line.match(rxInstance) : null
+            const groupsMatch = line.includes('groups=') ? line.match(rxGroups) : null
             if (nameMatch) {
               currentNode = {
                 name: nameMatch[1],
@@ -192,11 +192,11 @@ export function parseSceneContent(content: string): ParsedScene {
             // 'c' -> [connection
             currentSection = 'connection'
             const line = content.slice(start, end)
-            const signalMatch = line.match(rxSignal)
-            const fromMatch = line.match(rxFrom)
-            const toMatch = line.match(rxTo)
-            const methodMatch = line.match(rxMethod)
-            const flagsMatch = line.match(rxFlags)
+            const signalMatch = line.includes('signal="') ? line.match(rxSignal) : null
+            const fromMatch = line.includes('from="') ? line.match(rxFrom) : null
+            const toMatch = line.includes('to="') ? line.match(rxTo) : null
+            const methodMatch = line.includes('method="') ? line.match(rxMethod) : null
+            const flagsMatch = line.includes('flags=') ? line.match(rxFlags) : null
             if (signalMatch && fromMatch && toMatch && methodMatch) {
               connections.push({
                 signal: signalMatch[1],

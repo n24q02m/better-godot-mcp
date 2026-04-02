@@ -4,11 +4,11 @@
 
 import { describe, expect, it } from 'vitest'
 import {
-  findClosestMatch,
   formatError,
   formatJSON,
   formatSuccess,
   GodotMCPError,
+  findClosestMatch,
   throwUnknownAction,
   withErrorHandling,
 } from '../../src/tools/helpers/errors.js'
@@ -141,6 +141,7 @@ describe('errors', () => {
       expect(result.content[0].text).toContain('EXECUTION_ERROR')
     })
   })
+})
 
   // ==========================================
   // findClosestMatch
@@ -157,8 +158,8 @@ describe('errors', () => {
     })
 
     it('should match by fuzzy similarity', () => {
-      // 'preate' and 'create' share 're', 'ea', 'at', 'te'
-      expect(findClosestMatch('preate', ['create', 'other'])).toBe('create')
+      // 'tset' is close to 'test'
+      expect(findClosestMatch('tset', ['test', 'other'])).toBe('test')
     })
 
     it('should be case insensitive', () => {
@@ -177,7 +178,6 @@ describe('errors', () => {
     it('should throw GodotMCPError with INVALID_ACTION code', () => {
       try {
         throwUnknownAction('test', ['other'])
-        expect.fail('Should have thrown')
       } catch (err) {
         expect(err).toBeInstanceOf(GodotMCPError)
         const gErr = err as GodotMCPError
@@ -187,19 +187,80 @@ describe('errors', () => {
 
     it('should include suggestion if close match exists', () => {
       try {
-        throwUnknownAction('preate', ['create', 'other'])
-        expect.fail('Should have thrown')
+        throwUnknownAction('tset', ['test', 'other'])
       } catch (err) {
         const gErr = err as GodotMCPError
-        expect(gErr.message).toContain("Did you mean 'create'?")
-        expect(gErr.suggestion).toContain('Valid actions: create, other')
+        expect(gErr.message).toContain("Did you mean 'test'?")
+        expect(gErr.suggestion).toContain('Valid actions: test, other')
       }
     })
 
     it('should not include suggestion if no close match exists', () => {
       try {
         throwUnknownAction('xyz', ['abc', 'def'])
-        expect.fail('Should have thrown')
+      } catch (err) {
+        const gErr = err as GodotMCPError
+        expect(gErr.message).not.toContain('Did you mean')
+        expect(gErr.message).toBe('Unknown action: xyz.')
+        expect(gErr.suggestion).toContain('Valid actions: abc, def')
+      }
+    })
+
+  // ==========================================
+  // findClosestMatch
+  // ==========================================
+  describe('findClosestMatch', () => {
+    it('should return null for empty input or options', () => {
+      expect(findClosestMatch('', ['test'])).toBeNull()
+      expect(findClosestMatch('test', [])).toBeNull()
+    })
+
+    it('should match by prefix', () => {
+      expect(findClosestMatch('cre', ['create', 'delete'])).toBe('create')
+      expect(findClosestMatch('del', ['create', 'delete'])).toBe('delete')
+    })
+
+    it('should match by fuzzy similarity', () => {
+      // 'tset' is close to 'test'
+      expect(findClosestMatch('tset', ['test', 'other'])).toBe('test')
+    })
+
+    it('should be case insensitive', () => {
+      expect(findClosestMatch('CREATE', ['create', 'delete'])).toBe('create')
+    })
+
+    it('should return null if no good match is found', () => {
+      expect(findClosestMatch('xyz', ['abc', 'def'])).toBeNull()
+    })
+  })
+
+  // ==========================================
+  // throwUnknownAction
+  // ==========================================
+  describe('throwUnknownAction', () => {
+    it('should throw GodotMCPError with INVALID_ACTION code', () => {
+      try {
+        throwUnknownAction('test', ['other'])
+      } catch (err) {
+        expect(err).toBeInstanceOf(GodotMCPError)
+        const gErr = err as GodotMCPError
+        expect(gErr.code).toBe('INVALID_ACTION')
+      }
+    })
+
+    it('should include suggestion if close match exists', () => {
+      try {
+        throwUnknownAction('tset', ['test', 'other'])
+      } catch (err) {
+        const gErr = err as GodotMCPError
+        expect(gErr.message).toContain("Did you mean 'test'?")
+        expect(gErr.suggestion).toContain('Valid actions: test, other')
+      }
+    })
+
+    it('should not include suggestion if no close match exists', () => {
+      try {
+        throwUnknownAction('xyz', ['abc', 'def'])
       } catch (err) {
         const gErr = err as GodotMCPError
         expect(gErr.message).not.toContain('Did you mean')

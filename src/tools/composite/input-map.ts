@@ -105,6 +105,37 @@ const GODOT_MOUSE_CODES: Record<string, number> = {
 }
 
 /**
+ * Extract events from an events array string
+ * Optimized manual loop to avoid intermediate array allocations from split/map/filter.
+ */
+function extractEvents(eventsStr: string): string[] {
+  const result: string[] = []
+  if (!eventsStr) return result
+
+  let pos = 0
+  const len = eventsStr.length
+
+  while (pos < len) {
+    let nextComma = eventsStr.indexOf(',', pos)
+    if (nextComma === -1) nextComma = len
+
+    // Trim manually
+    let start = pos
+    let end = nextComma
+    while (start < end && eventsStr.charCodeAt(start) <= 32) start++
+    while (end > start && eventsStr.charCodeAt(end - 1) <= 32) end--
+
+    if (start < end) {
+      result.push(eventsStr.slice(start, end))
+    }
+
+    pos = nextComma + 1
+  }
+
+  return result
+}
+
+/**
  * Resolve a key name to its numeric Godot code.
  * Accepts both "KEY_SPACE" and raw numeric strings like "32".
  */
@@ -161,12 +192,7 @@ function parseInputActions(content: string): Map<string, string[]> {
       if (trimmed.endsWith('}')) {
         // End of multi-line action
         const eventsMatch = currentActionAccumulator.match(/"events":\s*\[([^\]]*)\]/)
-        const events = eventsMatch
-          ? eventsMatch[1]
-              .split(',')
-              .map((e) => e.trim())
-              .filter(Boolean)
-          : []
+        const events = eventsMatch ? extractEvents(eventsMatch[1]) : []
         actions.set(currentActionName, events)
         currentActionName = null
         currentActionAccumulator = ''
@@ -191,12 +217,7 @@ function parseInputActions(content: string): Map<string, string[]> {
       if (match) {
         const actionName = match[1]
         const eventsMatch = match[2].match(/"events":\s*\[([^\]]*)\]/)
-        const events = eventsMatch
-          ? eventsMatch[1]
-              .split(',')
-              .map((e) => e.trim())
-              .filter(Boolean)
-          : []
+        const events = eventsMatch ? extractEvents(eventsMatch[1]) : []
         actions.set(actionName, events)
       } else {
         // Multi-line format start: action_name={

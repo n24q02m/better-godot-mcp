@@ -32,47 +32,52 @@ function getVersion(): string {
 }
 
 export async function initServer(): Promise<void> {
-  // Detect Godot binary
-  const detection = detectGodot()
+  try {
+    // Detect Godot binary
+    const detection = detectGodot()
 
-  if (detection) {
-    console.error(
-      `[${SERVER_NAME}] Godot detected: ${detection.version.raw} at ${detection.path} (${detection.source})`,
-    )
-  } else {
-    console.error(`[${SERVER_NAME}] Godot not found. CLI headless tools will be limited.`)
-    console.error(`[${SERVER_NAME}] Set GODOT_PATH env var or install Godot.`)
-  }
+    if (detection) {
+      console.error(
+        `[${SERVER_NAME}] Godot detected: ${detection.version.raw} at ${detection.path} (${detection.source})`,
+      )
+    } else {
+      console.error(`[${SERVER_NAME}] Godot not found. CLI headless tools will be limited.`)
+      console.error(`[${SERVER_NAME}] Set GODOT_PATH env var or install Godot.`)
+    }
 
-  // Resolve project path from env var (tools also accept project_path per call)
-  const projectPath = process.env.GODOT_PROJECT_PATH ?? null
+    // Resolve project path from env var (tools also accept project_path per call)
+    const projectPath = process.env.GODOT_PROJECT_PATH ?? null
 
-  const config: GodotConfig = {
-    godotPath: detection?.path ?? null,
-    godotVersion: detection?.version ?? null,
-    projectPath,
-    activePids: [],
-  }
+    const config: GodotConfig = {
+      godotPath: detection?.path ?? null,
+      godotVersion: detection?.version ?? null,
+      projectPath,
+      activePids: [],
+    }
 
-  // Create MCP server
-  const server = new Server(
-    {
-      name: SERVER_NAME,
-      version: getVersion(),
-    },
-    {
-      capabilities: {
-        tools: {},
+    // Create MCP server
+    const server = new Server(
+      {
+        name: SERVER_NAME,
+        version: getVersion(),
       },
-    },
-  )
+      {
+        capabilities: {
+          tools: {},
+        },
+      },
+    )
 
-  // Register all tools
-  registerTools(server, config)
+    // Register all tools
+    registerTools(server, config)
 
-  // Connect via stdio
-  const transport = new StdioServerTransport()
-  await server.connect(transport)
+    // Connect via stdio
+    const transport = new StdioServerTransport()
+    await server.connect(transport)
 
-  console.error(`[${SERVER_NAME}] Server started (v${getVersion()})`)
+    console.error(`[${SERVER_NAME}] Server started (v${getVersion()})`)
+  } catch (error) {
+    console.error('Failed to initialize server:', error)
+    throw error
+  }
 }

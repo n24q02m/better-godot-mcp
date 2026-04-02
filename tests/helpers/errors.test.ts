@@ -4,10 +4,12 @@
 
 import { describe, expect, it } from 'vitest'
 import {
+  findClosestMatch,
   formatError,
   formatJSON,
   formatSuccess,
   GodotMCPError,
+  throwUnknownAction,
   withErrorHandling,
 } from '../../src/tools/helpers/errors.js'
 
@@ -137,6 +139,83 @@ describe('errors', () => {
       const result = (await wrapped()) as { isError: boolean; content: Array<{ text: string }> }
       expect(result.isError).toBe(true)
       expect(result.content[0].text).toContain('EXECUTION_ERROR')
+    })
+  })
+
+  // ==========================================
+  // findClosestMatch
+  // ==========================================
+  describe('findClosestMatch', () => {
+    it('should return null for empty input', () => {
+      expect(findClosestMatch('', ['option'])).toBeNull()
+    })
+
+    it('should return null for empty options', () => {
+      expect(findClosestMatch('input', [])).toBeNull()
+    })
+
+    it('should return exact match (case-insensitive)', () => {
+      expect(findClosestMatch('CREATE', ['create', 'delete'])).toBe('create')
+    })
+
+    it('should return prefix match', () => {
+      expect(findClosestMatch('cre', ['create', 'delete'])).toBe('create')
+    })
+
+    it('should return containment match', () => {
+      expect(findClosestMatch('create', ['cre', 'delete'])).toBe('cre')
+    })
+
+    it('should return fuzzy match using bigram similarity', () => {
+      // 'crate' and 'create' share bigrams 'cr', 'ra', 'at', 'te'
+      expect(findClosestMatch('crate', ['create', 'delete', 'update'])).toBe('create')
+    })
+
+    it('should return null if no match is good enough', () => {
+      expect(findClosestMatch('xyz', ['create', 'delete'])).toBeNull()
+    })
+  })
+
+  // ==========================================
+  // throwUnknownAction
+  // ==========================================
+  describe('throwUnknownAction', () => {
+    it('should throw GodotMCPError with INVALID_ACTION code', () => {
+      expect(() => throwUnknownAction('unknown', ['create', 'delete'])).toThrow(GodotMCPError)
+      try {
+        throwUnknownAction('unknown', ['create', 'delete'])
+      } catch (err) {
+        const error = err as GodotMCPError
+        expect(error.code).toBe('INVALID_ACTION')
+        expect(error.message).toContain('Unknown action: unknown')
+      }
+    })
+
+    it('should include suggestion if close match found', () => {
+      try {
+        throwUnknownAction('creete', ['create', 'delete'])
+      } catch (err) {
+        const error = err as GodotMCPError
+        expect(error.message).toContain("Did you mean 'create'?")
+      }
+    })
+
+    it('should not include suggestion if no close match found', () => {
+      try {
+        throwUnknownAction('xyz', ['create', 'delete'])
+      } catch (err) {
+        const error = err as GodotMCPError
+        expect(error.message).not.toContain('Did you mean')
+      }
+    })
+
+    it('should list valid actions in suggestion field', () => {
+      try {
+        throwUnknownAction('unknown', ['a', 'b'])
+      } catch (err) {
+        const error = err as GodotMCPError
+        expect(error.suggestion).toContain('Valid actions: a, b')
+      }
     })
   })
 })

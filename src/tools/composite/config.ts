@@ -4,7 +4,7 @@
  */
 
 import { join } from 'node:path'
-import { detectGodot } from '../../godot/detector.js'
+import { detectGodot, isExecutable, isVersionSupported, tryGetVersion } from '../../godot/detector.js'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists } from '../helpers/paths.js'
@@ -57,9 +57,39 @@ export async function handleConfig(action: string, args: Record<string, unknown>
 
       // Apply to active config
       if (key === 'project_path') {
+        if (!(await pathExists(join(value, 'project.godot')))) {
+          throw new GodotMCPError(
+            'Invalid project path',
+            'INVALID_ARGS',
+            `The path '${value}' does not contain a 'project.godot' file.`,
+          )
+        }
         config.projectPath = value
       } else if (key === 'godot_path') {
+        if (!isExecutable(value)) {
+          throw new GodotMCPError(
+            'Invalid Godot path',
+            'INVALID_ARGS',
+            `The path '${value}' is not an executable file.`,
+          )
+        }
+        const version = tryGetVersion(value)
+        if (!version) {
+          throw new GodotMCPError(
+            'Invalid Godot binary',
+            'INVALID_ARGS',
+            `The file at '${value}' is not a valid Godot binary or failed to return version information.`,
+          )
+        }
+        if (!isVersionSupported(version)) {
+          throw new GodotMCPError(
+            'Unsupported Godot version',
+            'INVALID_ARGS',
+            `Godot version ${version.raw} is not supported. Minimum required version is 4.1.`,
+          )
+        }
         config.godotPath = value
+        config.godotVersion = version
       }
 
       return formatSuccess(`Config updated: ${key} = ${value}`)

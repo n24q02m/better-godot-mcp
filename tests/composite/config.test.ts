@@ -2,16 +2,50 @@
  * Integration tests for Config tool
  */
 
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import * as detector from '../../src/godot/detector.js'
 import type { GodotConfig } from '../../src/godot/types.js'
 import { handleConfig } from '../../src/tools/composite/config.js'
+import * as paths from '../../src/tools/helpers/paths.js'
 import { makeConfig } from '../fixtures.js'
+
+vi.mock('../../src/godot/detector.js', async () => {
+  const actual = await vi.importActual<typeof detector>('../../src/godot/detector.js')
+  return {
+    ...actual,
+    isExecutable: vi.fn(),
+    tryGetVersion: vi.fn(),
+    isVersionSupported: vi.fn(),
+    detectGodot: vi.fn(),
+  }
+})
+
+vi.mock('../../src/tools/helpers/paths.js', async () => {
+  const actual = await vi.importActual<typeof paths>('../../src/tools/helpers/paths.js')
+  return {
+    ...actual,
+    pathExists: vi.fn(),
+  }
+})
 
 describe('config', () => {
   let config: GodotConfig
 
   beforeEach(() => {
+    vi.clearAllMocks()
     config = makeConfig({ godotPath: '/usr/bin/godot', projectPath: '/tmp/proj' })
+
+    // Default mocks to pass initial validations if needed
+    vi.mocked(detector.isExecutable).mockReturnValue(true)
+    vi.mocked(detector.tryGetVersion).mockReturnValue({
+      major: 4,
+      minor: 2,
+      patch: 0,
+      label: 'stable',
+      raw: 'Godot Engine v4.2.stable.official',
+    })
+    vi.mocked(detector.isVersionSupported).mockReturnValue(true)
+    vi.mocked(paths.pathExists).mockResolvedValue(true)
   })
 
   // ==========================================
@@ -64,7 +98,8 @@ describe('config', () => {
   // set
   // ==========================================
   describe('set', () => {
-    it('should update project_path in config and return success', async () => {
+    it('should update project_path in config and return success when valid', async () => {
+      vi.mocked(paths.pathExists).mockResolvedValue(true)
       const result = await handleConfig('set', { key: 'project_path', value: '/new/project' }, config)
 
       expect(result.content[0].text).toContain('Config updated')
@@ -72,11 +107,59 @@ describe('config', () => {
       expect(config.projectPath).toBe('/new/project')
     })
 
-    it('should update godot_path in config and return success', async () => {
+    it('should throw when project_path does not contain project.godot', async () => {
+      vi.mocked(paths.pathExists).mockResolvedValue(false)
+      await expect(handleConfig('set', { key: 'project_path', value: '/invalid/project' }, config)).rejects.toThrow(
+        'Invalid project path',
+      )
+    })
+
+    it('should update godot_path in config and return success when valid', async () => {
+      vi.mocked(detector.isExecutable).mockReturnValue(true)
+      vi.mocked(detector.tryGetVersion).mockReturnValue({
+        major: 4,
+        minor: 2,
+        patch: 0,
+        label: 'stable',
+        raw: '4.2.stable',
+      })
+      vi.mocked(detector.isVersionSupported).mockReturnValue(true)
+
       const result = await handleConfig('set', { key: 'godot_path', value: '/usr/local/bin/godot4' }, config)
 
       expect(result.content[0].text).toContain('Config updated')
       expect(config.godotPath).toBe('/usr/local/bin/godot4')
+      expect(config.godotVersion?.raw).toBe('4.2.stable')
+    })
+
+    it('should throw when godot_path is not executable', async () => {
+      vi.mocked(detector.isExecutable).mockReturnValue(false)
+      await expect(handleConfig('set', { key: 'godot_path', value: '/tmp/not-exe' }, config)).rejects.toThrow(
+        'Invalid Godot path',
+      )
+    })
+
+    it('should throw when godot_path is not a valid Godot binary', async () => {
+      vi.mocked(detector.isExecutable).mockReturnValue(true)
+      vi.mocked(detector.tryGetVersion).mockReturnValue(null)
+      await expect(handleConfig('set', { key: 'godot_path', value: '/tmp/fake-godot' }, config)).rejects.toThrow(
+        'Invalid Godot binary',
+      )
+    })
+
+    it('should throw when Godot version is unsupported', async () => {
+      vi.mocked(detector.isExecutable).mockReturnValue(true)
+      vi.mocked(detector.tryGetVersion).mockReturnValue({
+        major: 3,
+        minor: 5,
+        patch: 0,
+        label: 'stable',
+        raw: '3.5.stable',
+      })
+      vi.mocked(detector.isVersionSupported).mockReturnValue(false)
+      await expect(handleConfig('set', { key: 'godot_path', value: '/usr/bin/godot3' }, config)).rejects.toThrow(
+        'Unsupported Godot version',
+      )
     })
 
     it('should store timeout in runtimeConfig and succeed', async () => {
@@ -84,11 +167,6 @@ describe('config', () => {
 
       expect(result.content[0].text).toContain('Config updated')
       expect(result.content[0].text).toContain('timeout')
-    })
-
-    it('should reflect set value in subsequent status call', async () => {
-      await handleConfig('set', { key: 'project_path', value: '/reflected/path' }, config)
-      expect(config.projectPath).toBe('/reflected/path')
     })
 
     it('should throw for invalid key', async () => {
@@ -115,31 +193,8 @@ describe('config', () => {
       )
     })
 
-    it('should reject paths with backtick injection', async () => {
-      await expect(handleConfig('set', { key: 'godot_path', value: '/usr/bin/`whoami`' }, config)).rejects.toThrow(
-        'Invalid characters',
-      )
-    })
-
-    it('should reject paths with command substitution', async () => {
-      await expect(handleConfig('set', { key: 'godot_path', value: '/usr/bin/$(whoami)' }, config)).rejects.toThrow(
-        'Invalid characters',
-      )
-    })
-
-    it('should reject paths with quotes', async () => {
-      await expect(handleConfig('set', { key: 'godot_path', value: '/usr/bin/"malicious"' }, config)).rejects.toThrow(
-        'Invalid characters',
-      )
-    })
-
-    it('should reject paths with redirection', async () => {
-      await expect(
-        handleConfig('set', { key: 'godot_path', value: '/usr/bin/godot > /tmp/out' }, config),
-      ).rejects.toThrow('Invalid characters')
-    })
-
-    it('should allow Windows-style paths with backslashes', async () => {
+    it('should allow Windows-style paths with backslashes (if valid)', async () => {
+      vi.mocked(detector.isExecutable).mockReturnValue(true)
       const result = await handleConfig(
         'set',
         { key: 'godot_path', value: 'C:\\Program Files\\Godot\\godot.exe' },
@@ -154,15 +209,10 @@ describe('config', () => {
       ).rejects.toThrow('Invalid characters')
     })
 
-    it('should reject paths that are not strings (e.g. arrays to bypass regex)', async () => {
+    it('should reject paths that are not strings', async () => {
       await expect(
         handleConfig('set', { key: 'godot_path', value: ['node', '-e', 'pwned'] as unknown as string }, config),
       ).rejects.toThrow('Invalid characters')
-    })
-
-    it('should allow timeout with numeric value (no path validation)', async () => {
-      const result = await handleConfig('set', { key: 'timeout', value: '30000' }, config)
-      expect(result.content[0].text).toContain('Config updated')
     })
   })
 

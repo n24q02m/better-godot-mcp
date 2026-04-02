@@ -9,7 +9,7 @@
  */
 
 import { execFileSync } from 'node:child_process'
-import { existsSync, readdirSync } from 'node:fs'
+import { accessSync, constants, existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import type { DetectionResult, GodotVersion } from './types.js'
 
@@ -45,7 +45,7 @@ export function isVersionSupported(version: GodotVersion): boolean {
 /**
  * Try to get Godot version from a binary path
  */
-function tryGetVersion(binaryPath: string): GodotVersion | null {
+export function tryGetVersion(binaryPath: string): GodotVersion | null {
   try {
     const output = execFileSync(binaryPath, ['--version'], {
       timeout: 5000,
@@ -61,9 +61,10 @@ function tryGetVersion(binaryPath: string): GodotVersion | null {
 /**
  * Check if a binary path exists and is executable
  */
-function isExecutable(filePath: string): boolean {
+export function isExecutable(filePath: string): boolean {
   try {
-    return existsSync(filePath)
+    accessSync(filePath, constants.X_OK)
+    return true
   } catch {
     return false
   }

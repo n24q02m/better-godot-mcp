@@ -160,13 +160,14 @@ function parseInputActions(content: string): Map<string, string[]> {
       currentActionAccumulator += trimmed
       if (trimmed.endsWith('}')) {
         // End of multi-line action
+        const events: string[] = []
         const eventsMatch = currentActionAccumulator.match(/"events":\s*\[([^\]]*)\]/)
-        const events = eventsMatch
-          ? eventsMatch[1]
-              .split(',')
-              .map((e) => e.trim())
-              .filter(Boolean)
-          : []
+        if (eventsMatch) {
+          for (const e of eventsMatch[1].split(',')) {
+            const t = e.trim()
+            if (t) events.push(t)
+          }
+        }
         actions.set(currentActionName, events)
         currentActionName = null
         currentActionAccumulator = ''
@@ -187,16 +188,17 @@ function parseInputActions(content: string): Map<string, string[]> {
 
     if (inInputSection) {
       // Single-line format: action_name={...}
-      const match = trimmed.match(/^(\w+)=\{(.+)\}$/)
+      const match = trimmed.match(/^(\w+)=\{(.*)\}$/)
       if (match) {
         const actionName = match[1]
+        const events: string[] = []
         const eventsMatch = match[2].match(/"events":\s*\[([^\]]*)\]/)
-        const events = eventsMatch
-          ? eventsMatch[1]
-              .split(',')
-              .map((e) => e.trim())
-              .filter(Boolean)
-          : []
+        if (eventsMatch) {
+          for (const e of eventsMatch[1].split(',')) {
+            const t = e.trim()
+            if (t) events.push(t)
+          }
+        }
         actions.set(actionName, events)
       } else {
         // Multi-line format start: action_name={
@@ -214,7 +216,6 @@ function parseInputActions(content: string): Map<string, string[]> {
 
   return actions
 }
-
 export async function handleInputMap(action: string, args: Record<string, unknown>, config: GodotConfig) {
   const baseDir = config.projectPath || process.cwd()
   const projectPath = (args.project_path as string) || config.projectPath

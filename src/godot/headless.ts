@@ -78,24 +78,6 @@ export async function execGodotAsync(
 }
 
 /**
- * Execute a Godot headless script and capture JSON output
- */
-export function execGodotScript(
-  godotPath: string,
-  scriptPath: string,
-  projectPath: string,
-  args?: string[],
-  options?: { timeout?: number },
-): HeadlessResult {
-  const godotArgs = ['--headless', '--path', projectPath, '--script', scriptPath]
-  if (args) {
-    godotArgs.push('--', ...args)
-  }
-
-  return execGodotSync(godotPath, godotArgs, options)
-}
-
-/**
  * Run Godot project (non-blocking)
  */
 export function runGodotProject(godotPath: string, projectPath: string): { pid: number | undefined } {

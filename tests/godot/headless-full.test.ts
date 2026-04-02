@@ -1,16 +1,10 @@
 /**
- * Tests for headless.ts - execGodotScript, runGodotProject, launchGodotEditor
+ * Tests for headless.ts - runGodotProject, launchGodotEditor
  */
 
 import * as child_process from 'node:child_process'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import {
-  execGodotAsync,
-  execGodotScript,
-  execGodotSync,
-  launchGodotEditor,
-  runGodotProject,
-} from '../../src/godot/headless.js'
+import { execGodotAsync, execGodotSync, launchGodotEditor, runGodotProject } from '../../src/godot/headless.js'
 
 // execFileAsyncMock is hoisted so it is available inside the vi.mock factory.
 // We attach it as [promisify.custom] on execFile so that promisify(execFile)
@@ -42,7 +36,14 @@ describe('headless', () => {
   // ==========================================
   describe('execGodotSync', () => {
     it('should use default timeout when not specified', () => {
-      vi.mocked(child_process.spawnSync).mockReturnValue({ stdout: 'output', stderr: '', status: 0 })
+      vi.mocked(child_process.spawnSync).mockReturnValue({
+        stdout: 'output',
+        stderr: '',
+        status: 0,
+        output: [],
+        pid: 0,
+        signal: null,
+      })
       const result = execGodotSync('/usr/bin/godot', ['--version'])
       expect(result.success).toBe(true)
       expect(child_process.spawnSync).toHaveBeenCalledWith(
@@ -53,12 +54,15 @@ describe('headless', () => {
     })
 
     it('should handle error without status (fallback to 1)', () => {
-      const error = new Error('Timeout')
+      const error = new Error('Timeout') as Error & { status?: number; stdout?: string; stderr?: string }
       vi.mocked(child_process.spawnSync).mockReturnValue({
         error,
         status: error.status ?? 1,
         stdout: error.stdout ?? '',
         stderr: error.stderr ?? '',
+        output: [],
+        pid: 0,
+        signal: null,
       })
       const result = execGodotSync('/usr/bin/godot', ['--version'])
       expect(result.success).toBe(false)
@@ -67,70 +71,22 @@ describe('headless', () => {
     })
 
     it('should handle error with empty stdout/stderr', () => {
-      const error = new Error('fail')
+      const error = new Error('fail') as Error & { status?: number; stdout?: string; stderr?: string }
       Object.assign(error, { status: 2, stdout: '', stderr: '' })
       vi.mocked(child_process.spawnSync).mockReturnValue({
         error,
         status: error.status ?? 1,
         stdout: error.stdout ?? '',
         stderr: error.stderr ?? '',
+        output: [],
+        pid: 0,
+        signal: null,
       })
       const result = execGodotSync('/usr/bin/godot', ['--version'])
       expect(result.success).toBe(false)
       expect(result.stdout).toBe('')
       expect(result.stderr).toBe('fail')
       expect(result.exitCode).toBe(2)
-    })
-  })
-
-  // ==========================================
-  // execGodotScript
-  // ==========================================
-  describe('execGodotScript', () => {
-    it('should construct correct args for headless script execution', () => {
-      vi.mocked(child_process.spawnSync).mockReturnValue({ stdout: 'script output', stderr: '', status: 0 })
-      const result = execGodotScript('/usr/bin/godot', '/tmp/script.gd', '/tmp/project')
-      expect(result.success).toBe(true)
-      expect(result.stdout).toBe('script output')
-      expect(child_process.spawnSync).toHaveBeenCalledWith(
-        '/usr/bin/godot',
-        ['--headless', '--path', '/tmp/project', '--script', '/tmp/script.gd'],
-        expect.anything(),
-      )
-    })
-
-    it('should append extra args after -- separator', () => {
-      vi.mocked(child_process.spawnSync).mockReturnValue({ stdout: 'result', stderr: '', status: 0 })
-      execGodotScript('/usr/bin/godot', '/tmp/script.gd', '/tmp/project', ['--arg1', '--arg2'])
-      expect(child_process.spawnSync).toHaveBeenCalledWith(
-        '/usr/bin/godot',
-        ['--headless', '--path', '/tmp/project', '--script', '/tmp/script.gd', '--', '--arg1', '--arg2'],
-        expect.anything(),
-      )
-    })
-
-    it('should pass timeout option', () => {
-      vi.mocked(child_process.spawnSync).mockReturnValue({ stdout: 'result', stderr: '', status: 0 })
-      execGodotScript('/usr/bin/godot', '/tmp/script.gd', '/tmp/project', undefined, { timeout: 5000 })
-      expect(child_process.spawnSync).toHaveBeenCalledWith(
-        '/usr/bin/godot',
-        ['--headless', '--path', '/tmp/project', '--script', '/tmp/script.gd'],
-        expect.objectContaining({ timeout: 5000 }),
-      )
-    })
-
-    it('should handle script execution errors', () => {
-      const error = new Error('Script error')
-      Object.assign(error, { status: 1, stdout: '', stderr: 'GDScript error' })
-      vi.mocked(child_process.spawnSync).mockReturnValue({
-        error,
-        status: error.status ?? 1,
-        stdout: error.stdout ?? '',
-        stderr: error.stderr ?? '',
-      })
-      const result = execGodotScript('/usr/bin/godot', '/tmp/script.gd', '/tmp/project')
-      expect(result.success).toBe(false)
-      expect(result.stderr).toBe('GDScript error')
     })
   })
 

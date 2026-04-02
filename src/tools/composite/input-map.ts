@@ -144,6 +144,29 @@ async function getProjectGodotPath(projectPath: string | null | undefined, baseD
 }
 
 /**
+ * Fast-path parser for comma-separated lists, avoiding split/map/filter allocations.
+ */
+function parseEventsList(str: string): string[] {
+  if (!str) return []
+  const results: string[] = []
+  let start = 0
+  const len = str.length
+  while (start < len) {
+    let end = str.indexOf(',', start)
+    if (end === -1) end = len
+    let i = start
+    while (i < end && str.charCodeAt(i) <= 32) i++
+    let j = end - 1
+    while (j >= i && str.charCodeAt(j) <= 32) j--
+    if (i <= j) {
+      results.push(str.slice(i, j + 1))
+    }
+    start = end + 1
+  }
+  return results
+}
+
+/**
  * Parse input actions from project.godot
  */
 function parseInputActions(content: string): Map<string, string[]> {
@@ -161,12 +184,7 @@ function parseInputActions(content: string): Map<string, string[]> {
       if (trimmed.endsWith('}')) {
         // End of multi-line action
         const eventsMatch = currentActionAccumulator.match(/"events":\s*\[([^\]]*)\]/)
-        const events = eventsMatch
-          ? eventsMatch[1]
-              .split(',')
-              .map((e) => e.trim())
-              .filter(Boolean)
-          : []
+        const events = eventsMatch ? parseEventsList(eventsMatch[1]) : []
         actions.set(currentActionName, events)
         currentActionName = null
         currentActionAccumulator = ''
@@ -191,12 +209,7 @@ function parseInputActions(content: string): Map<string, string[]> {
       if (match) {
         const actionName = match[1]
         const eventsMatch = match[2].match(/"events":\s*\[([^\]]*)\]/)
-        const events = eventsMatch
-          ? eventsMatch[1]
-              .split(',')
-              .map((e) => e.trim())
-              .filter(Boolean)
-          : []
+        const events = eventsMatch ? parseEventsList(eventsMatch[1]) : []
         actions.set(actionName, events)
       } else {
         // Multi-line format start: action_name={

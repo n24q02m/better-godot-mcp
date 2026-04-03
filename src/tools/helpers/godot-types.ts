@@ -122,10 +122,43 @@ export function parseGodotValue(expr: string, _depth = 0): unknown {
 
   // Array
   if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-    // Simple array parsing - split by comma (careful with nested)
     const inner = trimmed.slice(1, -1).trim()
     if (!inner) return []
-    return inner.split(',').map((item) => parseGodotValue(item.trim(), _depth + 1))
+
+    const results: unknown[] = []
+    let bracketLevel = 0
+    let parenLevel = 0
+    let inQuote: string | null = null
+    let start = 0
+
+    for (let i = 0; i <= inner.length; i++) {
+      const char = i < inner.length ? inner[i] : ','
+
+      if (inQuote) {
+        if (char === inQuote && inner[i - 1] !== '\\') {
+          inQuote = null
+        }
+        continue
+      }
+
+      if (char === '"' || char === "'") {
+        inQuote = char
+        continue
+      }
+
+      if (char === '[') bracketLevel++
+      else if (char === ']') bracketLevel--
+      else if (char === '(') parenLevel++
+      else if (char === ')') parenLevel--
+      else if (char === ',' && bracketLevel === 0 && parenLevel === 0) {
+        const item = inner.slice(start, i).trim()
+        if (item || results.length > 0 || i < inner.length) {
+          results.push(parseGodotValue(item, _depth + 1))
+        }
+        start = i + 1
+      }
+    }
+    return results
   }
 
   // Return as-is for unrecognized types

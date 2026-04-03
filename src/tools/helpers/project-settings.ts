@@ -7,7 +7,7 @@
  * key/subkey=value
  */
 
-import { readFile, writeFile } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 
 export interface ProjectSettings {
   sections: Map<string, Map<string, string>>
@@ -151,25 +151,4 @@ export function setSettingInContent(content: string, path: string, value: string
   }
 
   return result.join('\n')
-}
-
-/**
- * Write project settings back to file asynchronously
- */
-export async function writeProjectSettingsAsync(filePath: string, content: string): Promise<void> {
-  await writeFile(filePath, content, 'utf-8')
-}
-
-/**
- * Get all input actions from project settings
- */
-export function getInputActions(settings: ProjectSettings): Map<string, string> {
-  const actions = new Map<string, string>()
-  const inputSection = settings.sections.get('input')
-  if (inputSection) {
-    for (const [key, value] of inputSection) {
-      actions.set(key, value)
-    }
-  }
-  return actions
 }

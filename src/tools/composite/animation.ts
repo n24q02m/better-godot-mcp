@@ -123,9 +123,16 @@ export async function handleAnimation(action: string, args: Record<string, unkno
       const animRegex = /\[sub_resource type="Animation" id="([^"]+)"\]/g
       for (const match of content.matchAll(animRegex)) {
         const id = match[1]
-        const nameMatch = content.slice(match.index).match(/resource_name\s*=\s*"([^"]*)"/)
-        const durationMatch = content.slice(match.index).match(/length\s*=\s*([\d.]+)/)
-        const loopMatch = content.slice(match.index).match(/loop_mode\s*=\s*(\d+)/)
+
+        // Isolate each animation block to avoid O(N^2) slicing and cross-talk
+        const startIndex = match.index
+        let endIndex = content.indexOf('\n[', startIndex + 1)
+        if (endIndex === -1) endIndex = content.length
+        const block = content.slice(startIndex, endIndex)
+
+        const nameMatch = block.match(/resource_name\s*=\s*"([^"]*)"/)
+        const durationMatch = block.match(/length\s*=\s*([\d.]+)/)
+        const loopMatch = block.match(/loop_mode\s*=\s*(\d+)/)
         animations.push({
           name: nameMatch?.[1] || id,
           duration: durationMatch?.[1],

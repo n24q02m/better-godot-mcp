@@ -4,7 +4,6 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  getInputActions,
   getSetting,
   parseProjectSettingsContent,
   setSettingInContent,
@@ -166,23 +165,6 @@ describe('project-settings', () => {
       const original = SAMPLE_PROJECT_GODOT
       const result = setSettingInContent(original, 'noslash', 'value')
       expect(result).toBe(original)
-    })
-  })
-
-  // ==========================================
-  // getInputActions
-  // ==========================================
-  describe('getInputActions', () => {
-    it('should extract input actions', () => {
-      const settings = parseProjectSettingsContent(SAMPLE_PROJECT_GODOT)
-      const actions = getInputActions(settings)
-      expect(actions.size).toBeGreaterThan(0)
-    })
-
-    it('should return empty map when no input section', () => {
-      const settings = parseProjectSettingsContent('[application]\nconfig/name="Test"\n')
-      const actions = getInputActions(settings)
-      expect(actions.size).toBe(0)
     })
   })
 })

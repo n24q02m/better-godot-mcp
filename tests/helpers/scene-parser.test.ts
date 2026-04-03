@@ -4,8 +4,8 @@
 
 import { describe, expect, it } from 'vitest'
 import {
+  escapeRegExp,
   findNode,
-  getNodePath,
   getNodeProperty,
   parseSceneContent,
   removeNodeFromContent,
@@ -156,31 +156,6 @@ describe('scene-parser', () => {
   })
 
   // ==========================================
-  // getNodePath
-  // ==========================================
-  describe('getNodePath', () => {
-    it('should return name for root node (no parent)', () => {
-      const scene = parseSceneContent(COMPLEX_TSCN)
-      const root = scene.nodes[0]
-      expect(getNodePath(scene, root)).toBe('Player')
-    })
-
-    it('should return name for direct child (parent=".")', () => {
-      const scene = parseSceneContent(COMPLEX_TSCN)
-      const sprite = scene.nodes.find((n) => n.name === 'Sprite')
-      if (!sprite) throw new Error('Sprite node not found')
-      expect(getNodePath(scene, sprite)).toBe('Sprite')
-    })
-
-    it('should return full path for nested node', () => {
-      const scene = parseSceneContent(COMPLEX_TSCN)
-      const label = scene.nodes.find((n) => n.name === 'Label')
-      if (!label) throw new Error('Label node not found')
-      expect(getNodePath(scene, label)).toBe('UI/Label')
-    })
-  })
-
-  // ==========================================
   // removeNodeFromContent
   // ==========================================
   describe('removeNodeFromContent', () => {
@@ -275,6 +250,29 @@ describe('scene-parser', () => {
     it('should return undefined for missing node', () => {
       const scene = parseSceneContent(COMPLEX_TSCN)
       expect(getNodeProperty(scene, 'Ghost', 'speed')).toBeUndefined()
+    })
+  })
+
+  // ==========================================
+  // escapeRegExp
+  // ==========================================
+  describe('escapeRegExp', () => {
+    it('should handle empty strings', () => {
+      expect(escapeRegExp('')).toBe('')
+    })
+
+    it('should return plain strings as-is', () => {
+      expect(escapeRegExp('hello123')).toBe('hello123')
+    })
+
+    it('should escape all regex special characters', () => {
+      const specialChars = '.*+?^' + '${' + '}()|[]\\'
+      const expected = '\\.\\*\\+\\?\\^\\$\\{\\}\\(\\)\\|\\[\\]\\\\'
+      expect(escapeRegExp(specialChars)).toBe(expected)
+    })
+
+    it('should escape special characters mixed with plain text', () => {
+      expect(escapeRegExp('node.name[1]')).toBe('node\\.name\\[1\\]')
     })
   })
 })

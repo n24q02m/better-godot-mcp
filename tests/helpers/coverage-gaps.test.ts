@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { parseProjectSettingsContent, setSettingInContent } from '../../src/tools/helpers/project-settings.js'
-import { parseSceneContent, setNodePropertyInContent, writeScene } from '../../src/tools/helpers/scene-parser.js'
+import { parseSceneContent, setNodePropertyInContent } from '../../src/tools/helpers/scene-parser.js'
 
 describe('project-settings additional coverage', () => {
   let tmpDir: string
@@ -146,15 +146,6 @@ radius = 16.0`
       const content = `[gd_scene format=3]\n[node name="Root" type="Node2D"]\n`
       const result = setNodePropertyInContent(content, 'Root', 'visible', 'false')
       expect(result).toContain('visible = false')
-    })
-  })
-
-  describe('writeScene', () => {
-    it('should write scene content to file', async () => {
-      const filePath = join(tmpDir, 'test.tscn')
-      await writeScene(filePath, '[gd_scene format=3]\n[node name="Root" type="Node2D"]\n')
-      const { readFileSync } = require('node:fs') as typeof import('node:fs')
-      expect(readFileSync(filePath, 'utf-8')).toContain('name="Root"')
     })
   })
 })

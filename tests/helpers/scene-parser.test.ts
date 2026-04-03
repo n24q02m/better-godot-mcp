@@ -7,6 +7,7 @@ import {
   escapeRegExp,
   findNode,
   getNodeProperty,
+  parseGroups,
   parseSceneContent,
   removeNodeFromContent,
   renameNodeInContent,
@@ -274,5 +275,23 @@ describe('scene-parser', () => {
     it('should escape special characters mixed with plain text', () => {
       expect(escapeRegExp('node.name[1]')).toBe('node\\.name\\[1\\]')
     })
+  })
+})
+
+describe('parseGroups (direct)', () => {
+  it('should handle empty input', () => {
+    expect(parseGroups('')).toEqual([])
+  })
+
+  it('should handle single group', () => {
+    expect(parseGroups('"group1"')).toEqual(['group1'])
+  })
+
+  it('should handle multiple groups with various spacing and quotes', () => {
+    expect(parseGroups('"group1",  "group2" , "group3"')).toEqual(['group1', 'group2', 'group3'])
+  })
+
+  it('should handle groups without quotes', () => {
+    expect(parseGroups('group1, group2')).toEqual(['group1', 'group2'])
   })
 })

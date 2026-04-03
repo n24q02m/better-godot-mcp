@@ -301,21 +301,23 @@ describe('detector', () => {
         return false
       })
 
-      vi.mocked(readdirSync).mockImplementation(((path: PathLike, _options?: unknown) => {
-        if (path === packagesDir) {
-          return [
-            {
-              isDirectory: () => true,
-              name: 'GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe',
-            } as Dirent,
-          ]
+      vi.mocked(readdirSync).mockImplementation(((path: PathLike, options?: string | { withFileTypes?: boolean }) => {
+        if (options && typeof options === 'object' && 'withFileTypes' in options && options.withFileTypes) {
+          if (path === packagesDir) {
+            return [
+              {
+                isDirectory: () => true,
+                name: 'GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe',
+              } as Dirent,
+            ]
+          }
+          return []
         }
         if (path === pkgDir) {
           return ['Godot_v4.3-stable_win64.exe', 'Godot_v4.3-stable_win64_console.exe']
         }
         return []
       }) as typeof readdirSync)
-
       vi.mocked(execFileSync).mockImplementation((cmd) => {
         if (typeof cmd === 'string' && cmd.includes('Godot_v4.3-stable_win64.exe'))
           return 'Godot Engine v4.3.stable.official'

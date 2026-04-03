@@ -93,7 +93,9 @@ export function formatJSON(data: unknown): { content: Array<{ type: 'text'; text
 export function findClosestMatch(input: string, validOptions: string[]): string | null {
   if (!input || validOptions.length === 0) return null
 
-  const lower = input.toLowerCase()
+  // Security: Prevent DoS (CPU exhaustion) from excessively long inputs during bigram generation
+  const safeInput = input.length > 100 ? input.slice(0, 100) : input
+  const lower = safeInput.toLowerCase()
   let bestMatch: string | null = null
   let bestScore = 0
 
@@ -125,10 +127,12 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
  * Throw a standardized "Unknown action" error with valid actions listed.
  */
 export function throwUnknownAction(action: string, validActions: string[]): never {
-  const closest = findClosestMatch(action, validActions)
+  // Security: Prevent extremely long inputs from causing DoS or log bloat/memory issues
+  const safeAction = action.length > 100 ? `${action.slice(0, 100)}...` : action
+  const closest = findClosestMatch(safeAction, validActions)
   const suggestion = closest ? ` Did you mean '${closest}'?` : ''
   throw new GodotMCPError(
-    `Unknown action: ${action}.${suggestion}`,
+    `Unknown action: ${safeAction}.${suggestion}`,
     'INVALID_ACTION',
     `Valid actions: ${validActions.join(', ')}. Use help tool for full docs.`,
   )

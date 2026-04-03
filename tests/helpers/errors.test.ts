@@ -173,6 +173,13 @@ describe('errors', () => {
     it('should return null if no match is good enough', () => {
       expect(findClosestMatch('xyz', ['create', 'delete'])).toBeNull()
     })
+
+    it('should truncate input to 100 characters to prevent DoS', () => {
+      const longInput = 'a'.repeat(200)
+      const validOptions = ['a'.repeat(100), 'b'.repeat(100)]
+      // It should match the 100-character 'a' option because it truncates the input to 100 'a's
+      expect(findClosestMatch(longInput, validOptions)).toBe('a'.repeat(100))
+    })
   })
 
   // ==========================================
@@ -214,6 +221,17 @@ describe('errors', () => {
       } catch (err) {
         const error = err as GodotMCPError
         expect(error.suggestion).toContain('Valid actions: a, b')
+      }
+    })
+
+    it('should truncate overly long action names in the error message', () => {
+      const longAction = 'a'.repeat(200)
+      try {
+        throwUnknownAction(longAction, ['create', 'delete'])
+      } catch (err) {
+        const error = err as GodotMCPError
+        expect(error.message).toContain(`Unknown action: ${'a'.repeat(100)}...`)
+        expect(error.message.length).toBeLessThan(250) // Ensure message isn't insanely long
       }
     })
   })

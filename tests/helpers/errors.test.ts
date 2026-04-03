@@ -173,6 +173,32 @@ describe('errors', () => {
     it('should return null if no match is good enough', () => {
       expect(findClosestMatch('xyz', ['create', 'delete'])).toBeNull()
     })
+
+    it('should return the best fuzzy match when multiple options match', () => {
+      expect(findClosestMatch('typescript', ['javascript', 'coffeescript'])).toBe('coffeescript')
+    })
+
+    it('should handle single character inputs (no bigrams)', () => {
+      expect(findClosestMatch('a', ['abc', 'def'])).toBe('abc')
+      expect(findClosestMatch('x', ['abc', 'def'])).toBeNull()
+    })
+
+    it('should handle single character options (no bigrams)', () => {
+      expect(findClosestMatch('abc', ['a', 'z'])).toBe('a')
+      expect(findClosestMatch('uvw', ['a', 'z'])).toBeNull()
+    })
+
+    it('should return the first match in case of a score tie', () => {
+      expect(findClosestMatch('abcd', ['abce', 'abcf'])).toBe('abce')
+    })
+
+    it('should respect the 0.4 similarity threshold', () => {
+      // 0.4 exactly: (2 * 2) / (5 + 5) = 0.4. Should NOT match.
+      expect(findClosestMatch('123456', ['123xyz'])).toBeNull()
+
+      // 0.5: (2 * 2) / (4 + 4) = 0.5. Should match.
+      expect(findClosestMatch('12345', ['123xy'])).toBe('123xy')
+    })
   })
 
   // ==========================================

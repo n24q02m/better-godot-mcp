@@ -173,6 +173,38 @@ describe('errors', () => {
     it('should return null if no match is good enough', () => {
       expect(findClosestMatch('xyz', ['create', 'delete'])).toBeNull()
     })
+
+    it('should truncate input to 100 characters to prevent DoS', () => {
+      const longInput = 'a'.repeat(200)
+      const validOptions = ['a'.repeat(100), 'b'.repeat(100)]
+      expect(findClosestMatch(longInput, validOptions)).toBe('a'.repeat(100))
+    })
+
+    it('should return the best fuzzy match when multiple options match', () => {
+      expect(findClosestMatch('typescript', ['javascript', 'coffeescript'])).toBe('coffeescript')
+    })
+
+    it('should handle single character inputs (no bigrams)', () => {
+      expect(findClosestMatch('a', ['abc', 'def'])).toBe('abc')
+      expect(findClosestMatch('x', ['abc', 'def'])).toBeNull()
+    })
+
+    it('should handle single character options (no bigrams)', () => {
+      expect(findClosestMatch('abc', ['a', 'z'])).toBe('a')
+      expect(findClosestMatch('uvw', ['a', 'z'])).toBeNull()
+    })
+
+    it('should return the first match in case of a score tie', () => {
+      expect(findClosestMatch('abcd', ['abce', 'abcf'])).toBe('abce')
+    })
+
+    it('should respect the 0.4 similarity threshold', () => {
+      // 0.4 exactly: (2 * 2) / (5 + 5) = 0.4. Should NOT match (> 0.4 required).
+      expect(findClosestMatch('123456', ['123xyz'])).toBeNull()
+
+      // 0.5: (2 * 2) / (4 + 4) = 0.5. Should match.
+      expect(findClosestMatch('12345', ['123xy'])).toBe('123xy')
+    })
   })
 
   // ==========================================
@@ -214,6 +246,17 @@ describe('errors', () => {
       } catch (err) {
         const error = err as GodotMCPError
         expect(error.suggestion).toContain('Valid actions: a, b')
+      }
+    })
+
+    it('should truncate overly long action names in the error message', () => {
+      const longAction = 'a'.repeat(200)
+      try {
+        throwUnknownAction(longAction, ['create', 'delete'])
+      } catch (err) {
+        const error = err as GodotMCPError
+        expect(error.message).toContain(`Unknown action: ${'a'.repeat(100)}...`)
+        expect(error.message.length).toBeLessThan(250)
       }
     })
   })

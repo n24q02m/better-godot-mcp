@@ -9,7 +9,7 @@
  */
 
 import { execFileSync } from 'node:child_process'
-import { accessSync, constants, existsSync, readdirSync } from 'node:fs'
+import { accessSync, constants, existsSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import type { DetectionResult, GodotVersion } from './types.js'
 
@@ -59,10 +59,13 @@ export function tryGetVersion(binaryPath: string): GodotVersion | null {
 }
 
 /**
- * Check if a binary path exists and is executable
+ * Check if a binary path exists, is a regular file, and is executable.
+ * Rejects directories and other non-file entries to prevent arbitrary binary execution.
  */
 export function isExecutable(filePath: string): boolean {
   try {
+    const stats = statSync(filePath)
+    if (!stats.isFile()) return false
     accessSync(filePath, constants.X_OK)
     return true
   } catch {

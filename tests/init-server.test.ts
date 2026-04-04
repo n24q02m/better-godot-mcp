@@ -49,7 +49,7 @@ describe('initServer', () => {
   const originalEnv = process.env
 
   beforeEach(() => {
-    vi.clearAllMocks()
+    vi.resetAllMocks()
     mockConnect.mockResolvedValue(undefined)
     // Suppress console.error output during tests
     vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -192,7 +192,7 @@ describe('initServer', () => {
     expect(console.error).toHaveBeenCalledWith(expect.stringContaining('Server started'))
   })
 
-  it('should handle errors during server initialization', async () => {
+  it('should handle errors during server initialization (connect failure)', async () => {
     const { detectGodot } = await import('../src/godot/detector.js')
     vi.mocked(detectGodot).mockReturnValue(null)
 
@@ -203,6 +203,51 @@ describe('initServer', () => {
 
     await expect(initServer()).rejects.toThrow('Connection failed')
     expect(console.error).toHaveBeenCalledWith('Failed to initialize server:', testError)
+  })
+
+  it('should handle errors when registerTools fails', async () => {
+    const { detectGodot } = await import('../src/godot/detector.js')
+    vi.mocked(detectGodot).mockReturnValue(null)
+
+    const { registerTools } = await import('../src/tools/registry.js')
+    const testError = new Error('Registration failed')
+    vi.mocked(registerTools).mockImplementation(() => {
+      throw testError
+    })
+
+    const { initServer } = await import('../src/init-server.js')
+    await expect(initServer()).rejects.toThrow('Registration failed')
+    expect(console.error).toHaveBeenCalledWith('Failed to initialize server:', testError)
+  })
+
+  it('should handle errors when detectGodot fails', async () => {
+    const { detectGodot } = await import('../src/godot/detector.js')
+    const testError = new Error('Detection failed')
+    vi.mocked(detectGodot).mockImplementation(() => {
+      throw testError
+    })
+
+    const { initServer } = await import('../src/init-server.js')
+    await expect(initServer()).rejects.toThrow('Detection failed')
+    expect(console.error).toHaveBeenCalledWith('Failed to initialize server:', testError)
+  })
+
+  it('should handle missing version in package.json', async () => {
+    const { readFileSync } = await import('node:fs')
+    vi.mocked(readFileSync).mockReturnValue(JSON.stringify({}))
+
+    const { detectGodot } = await import('../src/godot/detector.js')
+    vi.mocked(detectGodot).mockReturnValue(null)
+
+    const { initServer } = await import('../src/init-server.js')
+    await initServer()
+
+    expect(mockServerConstructor).toHaveBeenCalledWith(
+      expect.objectContaining({
+        version: '0.0.0',
+      }),
+      expect.anything(),
+    )
   })
 
   it('should handle errors in getVersion by returning default version', async () => {

@@ -1,21 +1,14 @@
 import { execFileSync } from 'node:child_process'
-import { type Dirent, existsSync, type PathLike, readdirSync } from 'node:fs'
+import type { Dirent, PathLike } from 'node:fs'
+import { accessSync, existsSync, readdirSync, statSync } from 'node:fs'
 /**
  * Tests for Godot binary detector
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { detectGodot, isVersionSupported, parseGodotVersion } from '../../src/godot/detector.js'
+import { detectGodot, isExecutable, isVersionSupported, parseGodotVersion } from '../../src/godot/detector.js'
 
 vi.mock('node:child_process')
 vi.mock('node:fs')
-vi.mock('node:path', () => ({
-  join: (...args: string[]) => {
-    if (process.platform === 'win32') {
-      return args.join('\\')
-    }
-    return args.join('/')
-  },
-}))
 
 describe('detector', () => {
   // ==========================================
@@ -169,6 +162,37 @@ describe('detector', () => {
   })
 
   // ==========================================
+  // isExecutable
+  // ==========================================
+  describe('isExecutable', () => {
+    it('should return true for a regular executable file', () => {
+      vi.mocked(statSync).mockReturnValue({ isFile: () => true } as unknown as import('node:fs').Stats)
+      vi.mocked(accessSync).mockReturnValue(undefined)
+      expect(isExecutable('/usr/bin/godot')).toBe(true)
+    })
+
+    it('should return false for a directory', () => {
+      vi.mocked(statSync).mockReturnValue({ isFile: () => false } as unknown as import('node:fs').Stats)
+      expect(isExecutable('/usr/bin/')).toBe(false)
+    })
+
+    it('should return false when file does not exist', () => {
+      vi.mocked(statSync).mockImplementation(() => {
+        throw new Error('ENOENT')
+      })
+      expect(isExecutable('/nonexistent')).toBe(false)
+    })
+
+    it('should return false when file exists but is not executable', () => {
+      vi.mocked(statSync).mockReturnValue({ isFile: () => true } as unknown as import('node:fs').Stats)
+      vi.mocked(accessSync).mockImplementation(() => {
+        throw new Error('EACCES')
+      })
+      expect(isExecutable('/usr/bin/readme.txt')).toBe(false)
+    })
+  })
+
+  // ==========================================
   // detectGodot
   // ==========================================
   describe('detectGodot', () => {
@@ -178,6 +202,9 @@ describe('detector', () => {
     beforeEach(() => {
       vi.clearAllMocks()
       process.env = { ...originalEnv }
+      // Default: statSync returns a file, accessSync succeeds (isExecutable passes)
+      vi.mocked(statSync).mockReturnValue({ isFile: () => true } as unknown as import('node:fs').Stats)
+      vi.mocked(accessSync).mockReturnValue(undefined)
     })
 
     afterEach(() => {
@@ -335,6 +362,9 @@ describe('detector', () => {
         throw new Error('not found')
       })
       vi.mocked(existsSync).mockReturnValue(false)
+      vi.mocked(statSync).mockImplementation(() => {
+        throw new Error('ENOENT')
+      })
       vi.mocked(readdirSync).mockImplementation(((_path: PathLike, _options?: unknown) => []) as typeof readdirSync)
 
       expect(detectGodot()).toBeNull()

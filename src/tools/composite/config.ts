@@ -53,9 +53,7 @@ export async function handleConfig(action: string, args: Record<string, unknown>
         )
       }
 
-      runtimeConfig[key] = value
-
-      // Apply to active config
+      // Validate before updating runtimeConfig to avoid storing invalid values
       if (key === 'project_path') {
         if (!(await pathExists(join(value, 'project.godot')))) {
           throw new GodotMCPError(
@@ -91,6 +89,9 @@ export async function handleConfig(action: string, args: Record<string, unknown>
         config.godotPath = value
         config.godotVersion = version
       }
+
+      // Only persist to runtimeConfig after all validation passes
+      runtimeConfig[key] = value
 
       return formatSuccess(`Config updated: ${key} = ${value}`)
     }

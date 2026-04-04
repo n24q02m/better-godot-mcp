@@ -11,6 +11,7 @@ import type { GodotConfig, ProjectInfo } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
 import { getSetting, parseProjectSettingsAsync, setSettingInContent } from '../helpers/project-settings.js'
+import { parseCommaSeparatedList } from '../helpers/strings.js'
 
 async function parseProjectGodot(projectPath: string): Promise<ProjectInfo> {
   const configPath = join(projectPath, 'project.godot')
@@ -51,7 +52,7 @@ async function parseProjectGodot(projectPath: string): Promise<ProjectInfo> {
       if (key === 'config/features') {
         const featMatch = rawValue.match(/PackedStringArray\((.+)\)/)
         if (featMatch) {
-          info.features = featMatch[1].split(',').map((f) => f.trim().replace(/"/g, ''))
+          info.features = parseCommaSeparatedList(featMatch[1])
         }
       }
     }

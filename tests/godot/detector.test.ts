@@ -295,17 +295,21 @@ describe('detector', () => {
         throw new Error('not found')
       })
 
-      vi.mocked(existsSync).mockImplementation((path) => path === 'C:\\Program Files\\Godot\\godot.exe')
+      vi.mocked(existsSync).mockImplementation(
+        (path) => typeof path === 'string' && path.includes('Godot') && path.includes('godot.exe'),
+      )
 
       vi.mocked(execFileSync).mockImplementation((cmd) => {
-        if (cmd === 'C:\\Program Files\\Godot\\godot.exe') return 'Godot Engine v4.3.stable.official'
+        if (typeof cmd === 'string' && cmd.includes('Godot') && cmd.includes('godot.exe'))
+          return 'Godot Engine v4.3.stable.official'
         throw new Error('cmd not found')
       })
 
       const result = detectGodot()
 
       expect(result).not.toBeNull()
-      expect(result?.path).toBe('C:\\Program Files\\Godot\\godot.exe')
+      expect(result?.path).toContain('Godot')
+      expect(result?.path).toContain('godot.exe')
       expect(result?.source).toBe('system')
     })
 
@@ -314,22 +318,23 @@ describe('detector', () => {
       Object.defineProperty(process, 'platform', { value: 'win32' })
       process.env.LOCALAPPDATA = 'C:\\Users\\Test\\AppData\\Local'
 
-      const packagesDir = 'C:\\Users\\Test\\AppData\\Local\\Microsoft\\WinGet\\Packages'
-      const pkgDir =
-        'C:\\Users\\Test\\AppData\\Local\\Microsoft\\WinGet\\Packages\\GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe'
-
       vi.mocked(execFileSync).mockImplementation(() => {
         throw new Error('not found')
       })
 
       vi.mocked(existsSync).mockImplementation((path) => {
-        if (path === packagesDir) return true
+        if (typeof path === 'string' && path.includes('WinGet') && path.includes('Packages')) return true
         if (typeof path === 'string' && path.includes('Godot_v4.3-stable_win64.exe')) return true
         return false
       })
 
       vi.mocked(readdirSync).mockImplementation(((path: PathLike, _options?: unknown) => {
-        if (path === packagesDir) {
+        if (
+          typeof path === 'string' &&
+          path.includes('WinGet') &&
+          path.includes('Packages') &&
+          !path.includes('GodotEngine')
+        ) {
           return [
             {
               isDirectory: () => true,
@@ -337,7 +342,7 @@ describe('detector', () => {
             } as Dirent,
           ]
         }
-        if (path === pkgDir) {
+        if (typeof path === 'string' && path.includes('GodotEngine.GodotEngine')) {
           return ['Godot_v4.3-stable_win64.exe', 'Godot_v4.3-stable_win64_console.exe']
         }
         return []

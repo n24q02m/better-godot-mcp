@@ -98,19 +98,49 @@ export async function handleSignals(action: string, args: Record<string, unknown
       }
 
       const content = await readScene()
-      const lines = content.split('\n')
-      const filtered = lines.filter((line) => {
-        const trimmed = line.trim()
-        if (!trimmed.startsWith('[connection')) return true
-        return !(
-          trimmed.includes(`signal="${signal}"`) &&
-          trimmed.includes(`from="${from}"`) &&
-          trimmed.includes(`to="${to}"`) &&
-          trimmed.includes(`method="${method}"`)
-        )
-      })
+      let startIndex = 0
+      let updatedContent = content
+      let found = false
 
-      if (filtered.length === lines.length) {
+      // ⚡ Bolt: Instead of splitting the entire file into an array of lines (which is memory
+      // and CPU intensive for large Godot scenes), we find and remove the connection line directly.
+      while (startIndex !== -1) {
+        startIndex = updatedContent.indexOf('[connection', startIndex)
+        if (startIndex === -1) break
+        let endIndex = updatedContent.indexOf('\n', startIndex)
+        if (endIndex === -1) endIndex = updatedContent.length
+
+        const line = updatedContent.slice(startIndex, endIndex)
+        if (
+          line.includes(`signal="${signal}"`) &&
+          line.includes(`from="${from}"`) &&
+          line.includes(`to="${to}"`) &&
+          line.includes(`method="${method}"`)
+        ) {
+          found = true
+          let removeStart = startIndex
+          let removeEnd = endIndex
+
+          // Try to remove the trailing newline to keep the file clean
+          if (removeEnd < updatedContent.length && updatedContent[removeEnd] === '\n') {
+            removeEnd++
+            if (removeEnd < updatedContent.length && updatedContent[removeEnd] === '\r') {
+              removeEnd++
+            }
+          } else if (removeStart > 0 && updatedContent[removeStart - 1] === '\n') {
+            removeStart--
+            if (removeStart > 0 && updatedContent[removeStart - 1] === '\r') {
+              removeStart--
+            }
+          }
+
+          updatedContent = updatedContent.slice(0, removeStart) + updatedContent.slice(removeEnd)
+        } else {
+          startIndex = endIndex
+        }
+      }
+
+      if (!found) {
         throw new GodotMCPError(
           'Connection not found',
           'SIGNAL_ERROR',
@@ -118,7 +148,7 @@ export async function handleSignals(action: string, args: Record<string, unknown
         )
       }
 
-      await writeFile(fullPath, filtered.join('\n'), 'utf-8')
+      await writeFile(fullPath, updatedContent, 'utf-8')
       return formatSuccess(`Disconnected: ${from}.${signal} -> ${to}.${method}()`)
     }
 

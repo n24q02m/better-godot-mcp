@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import type { Dirent, PathLike } from 'node:fs'
 import { accessSync, existsSync, readdirSync, statSync } from 'node:fs'
+import { join } from 'node:path'
 /**
  * Tests for Godot binary detector
  */
@@ -51,14 +52,15 @@ describe('detector', () => {
       expect(v).not.toBeNull()
       expect(v?.major).toBe(5)
       expect(v?.minor).toBe(0)
+      expect(v?.label).toBe('dev.abcdef')
     })
 
     it('should parse mono version', () => {
-      const v = parseGodotVersion('Godot Engine v4.2.1.stable.mono')
+      const v = parseGodotVersion('Godot Engine v4.2.stable.mono.official.789abc')
       expect(v).not.toBeNull()
       expect(v?.major).toBe(4)
       expect(v?.minor).toBe(2)
-      expect(v?.patch).toBe(1)
+      expect(v?.label).toContain('mono')
     })
 
     it('should return null for invalid string', () => {
@@ -70,30 +72,29 @@ describe('detector', () => {
     })
 
     it('should capture raw string', () => {
-      const raw = 'Godot Engine v4.6.stable.official'
-      const v = parseGodotVersion(raw)
-      expect(v?.raw).toBe(raw)
+      const v = parseGodotVersion('4.3.stable')
+      expect(v?.raw).toBe('4.3.stable')
     })
 
     it('should trim raw string', () => {
-      const v = parseGodotVersion('  4.6.stable  \n')
-      expect(v?.raw).toBe('4.6.stable')
+      const v = parseGodotVersion('  4.3.stable  \n')
+      expect(v?.raw).toBe('4.3.stable')
     })
 
     it('should parse version with only major and minor', () => {
-      const v = parseGodotVersion('Godot v4.0')
+      const v = parseGodotVersion('v4.1')
       expect(v).not.toBeNull()
       expect(v?.major).toBe(4)
-      expect(v?.minor).toBe(0)
+      expect(v?.minor).toBe(1)
       expect(v?.patch).toBe(0)
     })
 
     it('should parse version with just v prefix and numbers', () => {
-      const v = parseGodotVersion('v4.0')
+      const v = parseGodotVersion('v4.1.2')
       expect(v).not.toBeNull()
       expect(v?.major).toBe(4)
-      expect(v?.minor).toBe(0)
-      expect(v?.patch).toBe(0)
+      expect(v?.minor).toBe(1)
+      expect(v?.patch).toBe(2)
     })
 
     it('should parse simple version numbers without v', () => {
@@ -289,34 +290,39 @@ describe('detector', () => {
     it('should check common Windows paths', () => {
       delete process.env.GODOT_PATH
       Object.defineProperty(process, 'platform', { value: 'win32' })
-      process.env.ProgramFiles = 'C:\\Program Files'
+      const programFiles = 'C:\\Program Files'
+      process.env.ProgramFiles = programFiles
 
       vi.mocked(execFileSync).mockImplementation((_cmd) => {
         throw new Error('not found')
       })
 
-      vi.mocked(existsSync).mockImplementation((path) => path === 'C:\\Program Files\\Godot\\godot.exe')
+      const expectedPath = join(programFiles, 'Godot', 'godot.exe')
+      vi.mocked(existsSync).mockImplementation((path) => path === expectedPath)
 
       vi.mocked(execFileSync).mockImplementation((cmd) => {
-        if (cmd === 'C:\\Program Files\\Godot\\godot.exe') return 'Godot Engine v4.3.stable.official'
+        if (cmd === expectedPath) return 'Godot Engine v4.3.stable.official'
         throw new Error('cmd not found')
       })
 
       const result = detectGodot()
 
       expect(result).not.toBeNull()
-      expect(result?.path).toBe('C:\\Program Files\\Godot\\godot.exe')
+      expect(result?.path).toBe(expectedPath)
       expect(result?.source).toBe('system')
     })
 
     it('should detect WinGet packages on Windows', () => {
       delete process.env.GODOT_PATH
       Object.defineProperty(process, 'platform', { value: 'win32' })
-      process.env.LOCALAPPDATA = 'C:\\Users\\Test\\AppData\\Local'
+      const localAppData = 'C:\\Users\\Test\\AppData\\Local'
+      process.env.LOCALAPPDATA = localAppData
 
-      const packagesDir = 'C:\\Users\\Test\\AppData\\Local\\Microsoft\\WinGet\\Packages'
-      const pkgDir =
-        'C:\\Users\\Test\\AppData\\Local\\Microsoft\\WinGet\\Packages\\GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe'
+      const packagesDir = join(localAppData, 'Microsoft', 'WinGet', 'Packages')
+      const pkgDirName = 'GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe'
+      const pkgDir = join(packagesDir, pkgDirName)
+      const fileName = 'Godot_v4.3-stable_win64.exe'
+      const expectedPath = join(pkgDir, fileName)
 
       vi.mocked(execFileSync).mockImplementation(() => {
         throw new Error('not found')
@@ -324,7 +330,7 @@ describe('detector', () => {
 
       vi.mocked(existsSync).mockImplementation((path) => {
         if (path === packagesDir) return true
-        if (typeof path === 'string' && path.includes('Godot_v4.3-stable_win64.exe')) return true
+        if (path === expectedPath) return true
         return false
       })
 
@@ -333,26 +339,25 @@ describe('detector', () => {
           return [
             {
               isDirectory: () => true,
-              name: 'GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe',
+              name: pkgDirName,
             } as Dirent,
           ]
         }
         if (path === pkgDir) {
-          return ['Godot_v4.3-stable_win64.exe', 'Godot_v4.3-stable_win64_console.exe']
+          return [fileName, 'Godot_v4.3-stable_win64_console.exe']
         }
         return []
       }) as typeof readdirSync)
 
       vi.mocked(execFileSync).mockImplementation((cmd) => {
-        if (typeof cmd === 'string' && cmd.includes('Godot_v4.3-stable_win64.exe'))
-          return 'Godot Engine v4.3.stable.official'
+        if (cmd === expectedPath) return 'Godot Engine v4.3.stable.official'
         throw new Error('cmd not found')
       })
 
       const result = detectGodot()
 
       expect(result).not.toBeNull()
-      expect(result?.path).toContain('Godot_v4.3-stable_win64.exe')
+      expect(result?.path).toBe(expectedPath)
       expect(result?.source).toBe('system')
     })
 

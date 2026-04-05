@@ -23,7 +23,7 @@ describe('detector', () => {
       expect(v?.major).toBe(4)
       expect(v?.minor).toBe(3)
       expect(v?.patch).toBe(0)
-      expect(v?.label).toBe('stable')
+      expect(v?.label).toBe('stable.official')
     })
 
     it('should parse version with patch number', () => {
@@ -62,7 +62,7 @@ describe('detector', () => {
       expect(v).not.toBeNull()
       expect(v?.major).toBe(4)
       expect(v?.minor).toBe(3)
-      expect(v?.label).toBe('stable.mono')
+      expect(v?.label).toBe('stable.mono.official')
     })
 
     it('should return null for invalid string', () => {

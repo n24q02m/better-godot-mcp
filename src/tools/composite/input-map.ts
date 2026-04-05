@@ -9,6 +9,13 @@ import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
 import { escapeRegExp } from '../helpers/scene-parser.js'
+import { parseCommaSeparatedList } from '../helpers/strings.js'
+
+/** Pre-compiled regexes for parsing project.godot input section */
+const EVENTS_ARRAY_RE = /"events":\s*\[([^\]]*)\]/
+const ACTION_SINGLE_LINE_RE = /^(\w+)=\{(.+)\}$/
+const ACTION_MULTI_LINE_START_RE = /^(\w+)=\{(.*)$/
+const ACTION_NAME_VALIDATION_RE = /^[a-zA-Z0-9_-]+$/
 
 /**
  * Godot 4.x Key enum numeric values (@GlobalScope.Key)
@@ -135,29 +142,6 @@ function resolveMouseCode(value: string): number {
   )
 }
 
-/**
- * Fast-path parser for comma-separated lists, avoiding split/map/filter allocations.
- */
-function parseEventsList(str: string): string[] {
-  if (!str) return []
-  const results: string[] = []
-  let start = 0
-  const len = str.length
-  while (start < len) {
-    let end = str.indexOf(',', start)
-    if (end === -1) end = len
-    let i = start
-    while (i < end && str.charCodeAt(i) <= 32) i++
-    let j = end - 1
-    while (j >= i && str.charCodeAt(j) <= 32) j--
-    if (i <= j) {
-      results.push(str.slice(i, j + 1))
-    }
-    start = end + 1
-  }
-  return results
-}
-
 async function getProjectGodotPath(projectPath: string | null | undefined, baseDir: string): Promise<string> {
   if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
   const configPath = join(safeResolve(baseDir, projectPath), 'project.godot')
@@ -175,16 +159,25 @@ function parseInputActions(content: string): Map<string, string[]> {
   let currentActionName: string | null = null
   let currentActionAccumulator = ''
 
-  for (const line of content.split('\n')) {
+  let pos = 0
+  const len = content.length
+
+  while (pos < len) {
+    let nextNewline = content.indexOf('\n', pos)
+    if (nextNewline === -1) nextNewline = len
+    const line = content.slice(pos, nextNewline)
     const trimmed = line.trim()
+    pos = nextNewline + 1
+
+    if (trimmed === '') continue
 
     // Handle multi-line continuation
     if (currentActionName !== null) {
       currentActionAccumulator += trimmed
       if (trimmed.endsWith('}')) {
         // End of multi-line action
-        const eventsMatch = currentActionAccumulator.match(/"events":\s*\[([^\]]*)\]/)
-        const events = eventsMatch ? parseEventsList(eventsMatch[1]) : []
+        const eventsMatch = currentActionAccumulator.match(EVENTS_ARRAY_RE)
+        const events = eventsMatch ? parseCommaSeparatedList(eventsMatch[1]) : []
         actions.set(currentActionName, events)
         currentActionName = null
         currentActionAccumulator = ''
@@ -205,18 +198,18 @@ function parseInputActions(content: string): Map<string, string[]> {
 
     if (inInputSection) {
       // Single-line format: action_name={...}
-      const match = trimmed.match(/^(\w+)=\{(.+)\}$/)
+      const match = trimmed.match(ACTION_SINGLE_LINE_RE)
       if (match) {
         const actionName = match[1]
-        const eventsMatch = match[2].match(/"events":\s*\[([^\]]*)\]/)
-        const events = eventsMatch ? parseEventsList(eventsMatch[1]) : []
+        const eventsMatch = match[2].match(EVENTS_ARRAY_RE)
+        const events = eventsMatch ? parseCommaSeparatedList(eventsMatch[1]) : []
         actions.set(actionName, events)
       } else {
         // Multi-line format start: action_name={
         //   "deadzone": 0.2,
         //   "events": [...]
         // }
-        const startMatch = trimmed.match(/^(\w+)=\{(.*)$/)
+        const startMatch = trimmed.match(ACTION_MULTI_LINE_START_RE)
         if (startMatch) {
           currentActionName = startMatch[1]
           currentActionAccumulator = startMatch[2]
@@ -250,7 +243,7 @@ export async function handleInputMap(action: string, args: Record<string, unknow
       const configPath = await getProjectGodotPath(projectPath, baseDir)
       const actionName = args.action_name as string
       if (!actionName) throw new GodotMCPError('No action_name specified', 'INVALID_ARGS', 'Provide action_name.')
-      if (typeof actionName !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(actionName)) {
+      if (typeof actionName !== 'string' || !ACTION_NAME_VALIDATION_RE.test(actionName)) {
         throw new GodotMCPError(
           `Invalid action name: ${actionName}`,
           'INVALID_ARGS',
@@ -283,7 +276,7 @@ export async function handleInputMap(action: string, args: Record<string, unknow
       const configPath = await getProjectGodotPath(projectPath, baseDir)
       const actionName = args.action_name as string
       if (!actionName) throw new GodotMCPError('No action_name specified', 'INVALID_ARGS', 'Provide action_name.')
-      if (typeof actionName !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(actionName)) {
+      if (typeof actionName !== 'string' || !ACTION_NAME_VALIDATION_RE.test(actionName)) {
         throw new GodotMCPError(
           `Invalid action name: ${actionName}`,
           'INVALID_ARGS',
@@ -316,7 +309,7 @@ export async function handleInputMap(action: string, args: Record<string, unknow
           'Provide action_name, event_type (key/mouse/joypad), and event_value (e.g., "KEY_SPACE").',
         )
       }
-      if (typeof actionName !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(actionName)) {
+      if (typeof actionName !== 'string' || !ACTION_NAME_VALIDATION_RE.test(actionName)) {
         throw new GodotMCPError(
           `Invalid action name: ${actionName}`,
           'INVALID_ARGS',

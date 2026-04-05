@@ -45,7 +45,7 @@ describe('headless', () => {
         output: [],
         pid: 0,
         signal: null,
-      })
+      } as ReturnType<typeof child_process.spawnSync>)
 
       const result = execGodotSync(godotPath, args, options)
 
@@ -70,7 +70,7 @@ describe('headless', () => {
         output: [],
         pid: 0,
         signal: null,
-      })
+      } as ReturnType<typeof child_process.spawnSync>)
       const result = execGodotSync('/usr/bin/godot', ['--version'])
       expect(result.success).toBe(true)
       expect(child_process.spawnSync).toHaveBeenCalledWith(
@@ -88,7 +88,7 @@ describe('headless', () => {
         output: [],
         pid: 0,
         signal: null,
-      })
+      } as ReturnType<typeof child_process.spawnSync>)
 
       const result = execGodotSync('/usr/bin/godot', ['--invalid'])
 
@@ -107,7 +107,7 @@ describe('headless', () => {
         output: [],
         pid: 0,
         signal: null,
-      })
+      } as unknown as ReturnType<typeof child_process.spawnSync>)
       const result = execGodotSync('/usr/bin/godot', ['--version'])
       expect(result.success).toBe(false)
       expect(result.exitCode).toBe(1)
@@ -124,7 +124,7 @@ describe('headless', () => {
         output: [],
         pid: 0,
         signal: null,
-      })
+      } as unknown as ReturnType<typeof child_process.spawnSync>)
       const result = execGodotSync('/usr/bin/godot', ['--version'])
       expect(result.success).toBe(false)
       expect(result.stderr).toBe('fail')
@@ -133,14 +133,14 @@ describe('headless', () => {
 
     it('should handle error without stderr and without message', () => {
       vi.mocked(child_process.spawnSync).mockReturnValue({
-        error: {} as any,
+        error: new Error(),
         status: 1,
         stdout: '',
         stderr: '',
         output: [],
         pid: 0,
         signal: null,
-      })
+      } as unknown as ReturnType<typeof child_process.spawnSync>)
       const result = execGodotSync('/usr/bin/godot', ['--version'])
       expect(result.success).toBe(false)
       expect(result.stderr).toBe('Unknown error')
@@ -148,13 +148,13 @@ describe('headless', () => {
 
     it('should handle success with empty stdout and stderr', () => {
       vi.mocked(child_process.spawnSync).mockReturnValue({
-        stdout: null as any,
-        stderr: null as any,
+        stdout: '',
+        stderr: '',
         status: 0,
         output: [],
         pid: 0,
         signal: null,
-      })
+      } as ReturnType<typeof child_process.spawnSync>)
       const result = execGodotSync('/usr/bin/godot', ['--version'])
       expect(result.success).toBe(true)
       expect(result.stdout).toBe('')
@@ -172,7 +172,7 @@ describe('headless', () => {
         output: [],
         pid: 0,
         signal: null,
-      })
+      } as ReturnType<typeof child_process.spawnSync>)
 
       execGodotSync(godotPath, args)
 
@@ -236,7 +236,7 @@ describe('headless', () => {
     })
 
     it('should return empty strings when success stdout and stderr are empty', async () => {
-      execFileAsyncMock.mockResolvedValue({ stdout: null, stderr: undefined })
+      execFileAsyncMock.mockResolvedValue({ stdout: '', stderr: '' })
 
       const result = await execGodotAsync('/usr/bin/godot', ['--version'])
       expect(result.success).toBe(true)

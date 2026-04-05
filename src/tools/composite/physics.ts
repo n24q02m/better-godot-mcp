@@ -9,7 +9,7 @@ import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
 import { parseProjectSettingsAsync, setSettingInContent } from '../helpers/project-settings.js'
-import { escapeRegExp } from '../helpers/scene-parser.js'
+import { escapeRegExp } from '../helpers/strings.js'
 
 export async function handlePhysics(action: string, args: Record<string, unknown>, config: GodotConfig) {
   const projectPath = (args.project_path as string) || config.projectPath || ''

@@ -12,7 +12,7 @@
  */
 
 import { readFile } from 'node:fs/promises'
-import { parseCommaSeparatedList } from './strings.js'
+import { escapeRegExp, parseCommaSeparatedList } from './strings.js'
 
 // Pre-compiled regular expressions for parsing scene sections
 const rxGdSceneFormat = /format=(\d+)/
@@ -305,13 +305,6 @@ export function removeNodeFromContent(content: string, nodeName: string): string
   }
 
   return result.join('\n')
-}
-
-/**
- * Escape special characters in a string for use in a regular expression
- */
-export function escapeRegExp(string: string): string {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 /**

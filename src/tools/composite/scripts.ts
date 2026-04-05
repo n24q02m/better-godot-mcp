@@ -8,7 +8,7 @@ import { dirname, join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
-import { escapeRegExp } from '../helpers/scene-parser.js'
+import { escapeRegExp } from '../helpers/strings.js'
 
 const SCRIPT_TEMPLATES: Record<string, string> = {
   Node: `extends Node

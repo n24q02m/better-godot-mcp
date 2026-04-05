@@ -8,7 +8,8 @@ import { dirname } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
-import { escapeRegExp, parseScene } from '../helpers/scene-parser.js'
+import { parseScene } from '../helpers/scene-parser.js'
+import { escapeRegExp } from '../helpers/strings.js'
 
 const CONTROL_TEMPLATES: Record<string, Record<string, string>> = {
   Button: { text: '"Click"' },

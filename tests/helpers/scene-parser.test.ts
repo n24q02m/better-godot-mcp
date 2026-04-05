@@ -4,7 +4,6 @@
 
 import { describe, expect, it } from 'vitest'
 import {
-  escapeRegExp,
   findNode,
   getNodeProperty,
   parseSceneContent,
@@ -250,29 +249,6 @@ describe('scene-parser', () => {
     it('should return undefined for missing node', () => {
       const scene = parseSceneContent(COMPLEX_TSCN)
       expect(getNodeProperty(scene, 'Ghost', 'speed')).toBeUndefined()
-    })
-  })
-
-  // ==========================================
-  // escapeRegExp
-  // ==========================================
-  describe('escapeRegExp', () => {
-    it('should handle empty strings', () => {
-      expect(escapeRegExp('')).toBe('')
-    })
-
-    it('should return plain strings as-is', () => {
-      expect(escapeRegExp('hello123')).toBe('hello123')
-    })
-
-    it('should escape all regex special characters', () => {
-      const specialChars = '.*+?^' + '${' + '}()|[]\\'
-      const expected = '\\.\\*\\+\\?\\^\\$\\{\\}\\(\\)\\|\\[\\]\\\\'
-      expect(escapeRegExp(specialChars)).toBe(expected)
-    })
-
-    it('should escape special characters mixed with plain text', () => {
-      expect(escapeRegExp('node.name[1]')).toBe('node\\.name\\[1\\]')
     })
   })
 })

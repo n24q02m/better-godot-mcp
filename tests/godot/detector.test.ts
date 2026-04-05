@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process'
-import type { Dirent, PathLike } from 'node:fs'
+import type { PathLike } from 'node:fs'
 import { accessSync, existsSync, readdirSync, statSync } from 'node:fs'
+import { join } from 'node:path'
 /**
  * Tests for Godot binary detector
  */
@@ -295,17 +296,17 @@ describe('detector', () => {
         throw new Error('not found')
       })
 
-      vi.mocked(existsSync).mockImplementation((path) => path === 'C:\\Program Files\\Godot\\godot.exe')
+      vi.mocked(existsSync).mockImplementation((path) => path === join('C:\\Program Files', 'Godot', 'godot.exe'))
 
       vi.mocked(execFileSync).mockImplementation((cmd) => {
-        if (cmd === 'C:\\Program Files\\Godot\\godot.exe') return 'Godot Engine v4.3.stable.official'
+        if (cmd === join('C:\\Program Files', 'Godot', 'godot.exe')) return 'Godot Engine v4.3.stable.official'
         throw new Error('cmd not found')
       })
 
       const result = detectGodot()
 
       expect(result).not.toBeNull()
-      expect(result?.path).toBe('C:\\Program Files\\Godot\\godot.exe')
+      expect(result?.path).toBe(join('C:\\Program Files', 'Godot', 'godot.exe'))
       expect(result?.source).toBe('system')
     })
 
@@ -314,9 +315,8 @@ describe('detector', () => {
       Object.defineProperty(process, 'platform', { value: 'win32' })
       process.env.LOCALAPPDATA = 'C:\\Users\\Test\\AppData\\Local'
 
-      const packagesDir = 'C:\\Users\\Test\\AppData\\Local\\Microsoft\\WinGet\\Packages'
-      const pkgDir =
-        'C:\\Users\\Test\\AppData\\Local\\Microsoft\\WinGet\\Packages\\GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe'
+      const packagesDir = join('C:\\Users\\Test\\AppData\\Local', 'Microsoft', 'WinGet', 'Packages')
+      const pkgDir = join(packagesDir, 'GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe')
 
       vi.mocked(execFileSync).mockImplementation(() => {
         throw new Error('not found')
@@ -328,19 +328,27 @@ describe('detector', () => {
         return false
       })
 
-      vi.mocked(readdirSync).mockImplementation(((path: PathLike, _options?: unknown) => {
+      vi.mocked(readdirSync).mockImplementation(((path: PathLike, options?: string | { withFileTypes?: boolean }) => {
+        const withFileTypes = typeof options === 'object' && options?.withFileTypes
         if (path === packagesDir) {
-          return [
-            {
-              isDirectory: () => true,
-              name: 'GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe',
-            } as Dirent,
-          ]
+          if (withFileTypes) {
+            return [
+              {
+                isDirectory: () => true,
+                name: 'GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe',
+              },
+            ] as unknown as ReturnType<typeof readdirSync>
+          }
+          return ['GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe'] as unknown as ReturnType<
+            typeof readdirSync
+          >
         }
         if (path === pkgDir) {
-          return ['Godot_v4.3-stable_win64.exe', 'Godot_v4.3-stable_win64_console.exe']
+          return ['Godot_v4.3-stable_win64.exe', 'Godot_v4.3-stable_win64_console.exe'] as unknown as ReturnType<
+            typeof readdirSync
+          >
         }
-        return []
+        return [] as unknown as ReturnType<typeof readdirSync>
       }) as typeof readdirSync)
 
       vi.mocked(execFileSync).mockImplementation((cmd) => {
@@ -365,7 +373,10 @@ describe('detector', () => {
       vi.mocked(statSync).mockImplementation(() => {
         throw new Error('ENOENT')
       })
-      vi.mocked(readdirSync).mockImplementation(((_path: PathLike, _options?: unknown) => []) as typeof readdirSync)
+      vi.mocked(readdirSync).mockImplementation(((
+        _path: PathLike,
+        _options?: string | { withFileTypes?: boolean },
+      ) => []) as unknown as typeof readdirSync)
 
       expect(detectGodot()).toBeNull()
     })

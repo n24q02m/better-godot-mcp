@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import type { Dirent, PathLike } from 'node:fs'
 import { accessSync, existsSync, readdirSync, statSync } from 'node:fs'
+import { join } from 'node:path'
 /**
  * Tests for Godot binary detector
  */
@@ -291,21 +292,23 @@ describe('detector', () => {
       Object.defineProperty(process, 'platform', { value: 'win32' })
       process.env.ProgramFiles = 'C:\\Program Files'
 
+      const expectedPath = join('C:\\Program Files', 'Godot', 'godot.exe')
+
       vi.mocked(execFileSync).mockImplementation((_cmd) => {
         throw new Error('not found')
       })
 
-      vi.mocked(existsSync).mockImplementation((path) => path === 'C:\\Program Files\\Godot\\godot.exe')
+      vi.mocked(existsSync).mockImplementation((path) => path === expectedPath)
 
       vi.mocked(execFileSync).mockImplementation((cmd) => {
-        if (cmd === 'C:\\Program Files\\Godot\\godot.exe') return 'Godot Engine v4.3.stable.official'
+        if (cmd === expectedPath) return 'Godot Engine v4.3.stable.official'
         throw new Error('cmd not found')
       })
 
       const result = detectGodot()
 
       expect(result).not.toBeNull()
-      expect(result?.path).toBe('C:\\Program Files\\Godot\\godot.exe')
+      expect(result?.path).toBe(expectedPath)
       expect(result?.source).toBe('system')
     })
 
@@ -314,9 +317,11 @@ describe('detector', () => {
       Object.defineProperty(process, 'platform', { value: 'win32' })
       process.env.LOCALAPPDATA = 'C:\\Users\\Test\\AppData\\Local'
 
-      const packagesDir = 'C:\\Users\\Test\\AppData\\Local\\Microsoft\\WinGet\\Packages'
-      const pkgDir =
-        'C:\\Users\\Test\\AppData\\Local\\Microsoft\\WinGet\\Packages\\GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe'
+      const packagesDir = join('C:\\Users\\Test\\AppData\\Local', 'Microsoft', 'WinGet', 'Packages')
+      const pkgDir = join(
+        packagesDir,
+        'GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe'
+      )
 
       vi.mocked(execFileSync).mockImplementation(() => {
         throw new Error('not found')

@@ -318,10 +318,7 @@ describe('detector', () => {
       process.env.LOCALAPPDATA = 'C:\\Users\\Test\\AppData\\Local'
 
       const packagesDir = join('C:\\Users\\Test\\AppData\\Local', 'Microsoft', 'WinGet', 'Packages')
-      const pkgDir = join(
-        packagesDir,
-        'GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe'
-      )
+      const pkgDir = join(packagesDir, 'GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe')
 
       vi.mocked(execFileSync).mockImplementation(() => {
         throw new Error('not found')

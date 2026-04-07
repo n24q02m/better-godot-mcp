@@ -4,13 +4,14 @@ import { execGodotAsync, execGodotSync, launchGodotEditor, runGodotProject } fro
 
 // execFileAsyncMock is hoisted so it is available inside the vi.mock factory.
 const { execFileAsyncMock } = vi.hoisted(() => ({
-  execFileAsyncMock: vi.fn<(cmd: string, args: string[], opts: unknown) => Promise<{ stdout: string; stderr: string }>>(),
+  execFileAsyncMock:
+    vi.fn<(cmd: string, args: string[], opts: unknown) => Promise<{ stdout: string; stderr: string }>>(),
 }))
 
 vi.mock('node:child_process', async () => {
   const { promisify: _promisify } = await import('node:util')
   const execFileMock = vi.fn()
-  // @ts-ignore - custom promisify implementation
+  // @ts-expect-error - custom promisify implementation
   execFileMock[_promisify.custom] = execFileAsyncMock
   return {
     spawnSync: vi.fn(),
@@ -97,10 +98,10 @@ describe('headless', () => {
     })
 
     it('should handle execution errors without status (fallback to 1)', () => {
-      const error = new Error('Timeout') as Error & { status?: number; stdout?: string; stderr?: string }
+      const error = new Error('Timeout')
       vi.mocked(child_process.spawnSync).mockReturnValue({
         error,
-        status: null as any,
+        status: null,
         stdout: '',
         stderr: '',
         output: [],
@@ -115,10 +116,10 @@ describe('headless', () => {
 
     it('should handle error with missing message and status', () => {
       vi.mocked(child_process.spawnSync).mockReturnValue({
-        error: {} as any,
-        status: null as any,
-        stdout: null as any,
-        stderr: null as any,
+        error: {} as Error,
+        status: null,
+        stdout: null as unknown as string,
+        stderr: null as unknown as string,
         output: [],
         pid: 0,
         signal: null,
@@ -132,8 +133,8 @@ describe('headless', () => {
 
     it('should handle success with null/undefined stdout and stderr', () => {
       vi.mocked(child_process.spawnSync).mockReturnValue({
-        stdout: null as any,
-        stderr: undefined as any,
+        stdout: null as unknown as string,
+        stderr: undefined as unknown as string,
         status: 0,
         output: [],
         pid: 0,
@@ -181,11 +182,7 @@ describe('headless', () => {
 
       execGodotSync(godotPath, maliciousArgs)
 
-      expect(child_process.spawnSync).toHaveBeenCalledWith(
-        godotPath,
-        maliciousArgs,
-        expect.any(Object),
-      )
+      expect(child_process.spawnSync).toHaveBeenCalledWith(godotPath, maliciousArgs, expect.any(Object))
     })
   })
 
@@ -204,7 +201,10 @@ describe('headless', () => {
     })
 
     it('should handle success with null/undefined stdout and stderr', async () => {
-      execFileAsyncMock.mockResolvedValue({ stdout: null as any, stderr: undefined as any })
+      execFileAsyncMock.mockResolvedValue({
+        stdout: null as unknown as string,
+        stderr: undefined as unknown as string,
+      })
 
       const result = await execGodotAsync('/usr/bin/godot', ['--version'])
       expect(result.success).toBe(true)
@@ -237,7 +237,7 @@ describe('headless', () => {
 
     it('should handle error with missing stdout, stderr and code', async () => {
       const error = new Error('Async Fail')
-      // @ts-ignore
+      // @ts-expect-error
       delete error.message
       execFileAsyncMock.mockRejectedValue(error)
 

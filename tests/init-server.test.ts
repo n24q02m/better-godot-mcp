@@ -36,6 +36,11 @@ vi.mock('../src/tools/registry.js', () => ({
   registerTools: vi.fn(),
 }))
 
+vi.mock('../src/tools/helpers/paths.js', () => ({
+  pathExists: vi.fn().mockResolvedValue(true),
+  safeResolve: vi.fn().mockImplementation((_base, target) => target),
+}))
+
 // Mock node:fs to test getVersion catch block
 vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>()
@@ -54,6 +59,11 @@ describe('initServer', () => {
     // Suppress console.error output during tests
     vi.spyOn(console, 'error').mockImplementation(() => {})
     process.env = { ...originalEnv }
+
+    // Default pathExists to true
+    import('../src/tools/helpers/paths.js').then((m) => {
+      vi.mocked(m.pathExists).mockResolvedValue(true)
+    })
   })
 
   afterEach(() => {
@@ -128,9 +138,11 @@ describe('initServer', () => {
     )
   })
 
-  it('should read GODOT_PROJECT_PATH from environment', async () => {
+  it('should read GODOT_PROJECT_PATH from environment and validate it', async () => {
     const { detectGodot } = await import('../src/godot/detector.js')
+    const { pathExists } = await import('../src/tools/helpers/paths.js')
     vi.mocked(detectGodot).mockReturnValue(null)
+    vi.mocked(pathExists).mockResolvedValue(true)
     process.env.GODOT_PROJECT_PATH = '/path/to/my/project'
 
     const { initServer } = await import('../src/init-server.js')
@@ -143,6 +155,18 @@ describe('initServer', () => {
         projectPath: '/path/to/my/project',
       }),
     )
+    expect(pathExists).toHaveBeenCalled()
+  })
+
+  it('should throw error if GODOT_PROJECT_PATH is invalid', async () => {
+    const { detectGodot } = await import('../src/godot/detector.js')
+    const { pathExists } = await import('../src/tools/helpers/paths.js')
+    vi.mocked(detectGodot).mockReturnValue(null)
+    vi.mocked(pathExists).mockResolvedValue(false)
+    process.env.GODOT_PROJECT_PATH = '/invalid/path'
+
+    const { initServer } = await import('../src/init-server.js')
+    await expect(initServer()).rejects.toThrow('Invalid GODOT_PROJECT_PATH')
   })
 
   it('should pass null projectPath if GODOT_PROJECT_PATH is not set', async () => {

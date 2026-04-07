@@ -15,6 +15,8 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { detectGodot } from './godot/detector.js'
 import type { GodotConfig } from './godot/types.js'
+import { GodotMCPError } from './tools/helpers/errors.js'
+import { pathExists } from './tools/helpers/paths.js'
 import { registerTools } from './tools/registry.js'
 
 const SERVER_NAME = 'better-godot-mcp'
@@ -47,6 +49,18 @@ export async function initServer(): Promise<void> {
 
     // Resolve project path from env var (tools also accept project_path per call)
     const projectPath = process.env.GODOT_PROJECT_PATH ?? null
+
+    // Security: Validate GODOT_PROJECT_PATH if provided
+    if (projectPath) {
+      const isProject = await pathExists(join(projectPath, 'project.godot'))
+      if (!isProject) {
+        throw new GodotMCPError(
+          'Invalid GODOT_PROJECT_PATH',
+          'INVALID_ARGS',
+          `The directory at '${projectPath}' (from GODOT_PROJECT_PATH) does not contain a 'project.godot' file.`,
+        )
+      }
+    }
 
     const config: GodotConfig = {
       godotPath: detection?.path ?? null,

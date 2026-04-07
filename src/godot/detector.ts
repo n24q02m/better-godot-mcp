@@ -17,19 +17,44 @@ const GODOT_BINARY_NAMES = ['godot', 'godot4', 'Godot_v4']
 const MIN_VERSION = { major: 4, minor: 1 }
 
 /**
- * Parse Godot version string (e.g., "Godot Engine v4.6.stable.official")
+ * Parse Godot version string (e.g., "Godot Engine v4.3.stable.official")
+ *
+ * Security: Uses strict regex with anchors and Godot-specific heuristics
+ * to prevent arbitrary binaries (like ls or node) from spoofing Godot.
  */
 export function parseGodotVersion(versionOutput: string): GodotVersion | null {
-  // Match patterns like "Godot Engine v4.6.stable" or "4.6.1.stable"
-  const match = versionOutput.match(/v?(\d+)\.(\d+)(?:\.(\d+))?(?:[.\s-]+([^\s.-]\S*))?/)
+  const trimmed = versionOutput.trim()
+  if (!trimmed) return null
+
+  // Match patterns like "Godot Engine v4.6.stable", "4.6.1.stable", or "Godot_v4.3-stable"
+  // Using ^ and $ anchors is critical for security to ensure we match the whole
+  // output and not just a version number hidden inside a different tool's output.
+  const match = trimmed.match(/^(?:Godot[ _](?:Engine[ _])?)?v?(\d+)\.(\d+)(?:\.(\d+))?(?:[.\s-]+([^\s.-]\S*))?$/i)
   if (!match) return null
 
+  const major = Number.parseInt(match[1], 10)
+  const minor = Number.parseInt(match[2], 10)
+  const patch = match[3] ? Number.parseInt(match[3], 10) : 0
+  const labelRaw = match[4]?.replace(/\.$/, '')
+
+  // Security Heuristic: Ensure this is actually a Godot binary.
+  // Godot versions typically include "Godot" or common labels (stable, official, etc.).
+  // Generic binaries (like node) that just return "vX.Y.Z" are rejected.
+  const isLikelyGodot =
+    trimmed.toLowerCase().includes('godot') ||
+    (labelRaw && /stable|dev|beta|rc|alpha|mono|official/i.test(labelRaw)) ||
+    // Fallback for custom builds: expect a reasonable Godot 4.x version range
+    // if no other markers are present.
+    (major === 4 && minor >= 0 && minor < 10)
+
+  if (!isLikelyGodot) return null
+
   return {
-    major: Number.parseInt(match[1], 10),
-    minor: Number.parseInt(match[2], 10),
-    patch: match[3] ? Number.parseInt(match[3], 10) : 0,
-    label: match[4]?.replace(/\.$/, '') || 'stable',
-    raw: versionOutput.trim(),
+    major,
+    minor,
+    patch,
+    label: labelRaw || 'stable',
+    raw: trimmed,
   }
 }
 

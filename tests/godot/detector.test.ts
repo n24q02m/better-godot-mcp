@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import type { Dirent, PathLike } from 'node:fs'
+import type { PathLike } from 'node:fs'
 import { accessSync, existsSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 /**
@@ -330,19 +330,26 @@ describe('detector', () => {
         return false
       })
 
-      vi.mocked(readdirSync).mockImplementation(((path: PathLike, _options?: unknown) => {
+      vi.mocked(readdirSync).mockImplementation(((path: PathLike, options?: { withFileTypes?: boolean }) => {
         if (path === packagesDir) {
-          return [
-            {
-              isDirectory: () => true,
-              name: 'GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe',
-            } as Dirent,
-          ]
+          if (options?.withFileTypes) {
+            return [
+              {
+                isDirectory: () => true,
+                name: 'GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe',
+              },
+            ] as unknown as ReturnType<typeof readdirSync>
+          }
+          return ['GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe'] as unknown as ReturnType<
+            typeof readdirSync
+          >
         }
         if (path === pkgDir) {
-          return ['Godot_v4.3-stable_win64.exe', 'Godot_v4.3-stable_win64_console.exe']
+          return ['Godot_v4.3-stable_win64.exe', 'Godot_v4.3-stable_win64_console.exe'] as unknown as ReturnType<
+            typeof readdirSync
+          >
         }
-        return []
+        return [] as unknown as ReturnType<typeof readdirSync>
       }) as typeof readdirSync)
 
       vi.mocked(execFileSync).mockImplementation((cmd) => {
@@ -367,7 +374,10 @@ describe('detector', () => {
       vi.mocked(statSync).mockImplementation(() => {
         throw new Error('ENOENT')
       })
-      vi.mocked(readdirSync).mockImplementation(((_path: PathLike, _options?: unknown) => []) as typeof readdirSync)
+      vi.mocked(readdirSync).mockImplementation(((
+        _path: PathLike,
+        _options?: { withFileTypes?: boolean },
+      ) => []) as unknown as typeof readdirSync)
 
       expect(detectGodot()).toBeNull()
     })

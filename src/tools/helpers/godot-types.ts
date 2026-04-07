@@ -122,20 +122,20 @@ export function parseGodotValue(expr: string, _depth = 0): unknown {
 
   // Array
   if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-    const inner = trimmed.slice(1, -1).trim()
-    if (!inner) return []
+    const len = trimmed.length
+    if (len <= 2) return []
 
     const results: unknown[] = []
     let bracketLevel = 0
     let parenLevel = 0
     let inQuote: string | null = null
-    let start = 0
+    let start = 1
 
-    for (let i = 0; i <= inner.length; i++) {
-      const char = i < inner.length ? inner[i] : ','
+    for (let i = 1; i < len; i++) {
+      const char = trimmed[i]
 
       if (inQuote) {
-        if (char === inQuote && inner[i - 1] !== '\\') {
+        if (char === inQuote && trimmed[i - 1] !== '\\') {
           inQuote = null
         }
         continue
@@ -147,12 +147,20 @@ export function parseGodotValue(expr: string, _depth = 0): unknown {
       }
 
       if (char === '[') bracketLevel++
-      else if (char === ']') bracketLevel--
-      else if (char === '(') parenLevel++
+      else if (char === ']') {
+        if (bracketLevel > 0) {
+          bracketLevel--
+        } else {
+          const item = trimmed.slice(start, i).trim()
+          if (item) {
+            results.push(parseGodotValue(item, _depth + 1))
+          }
+        }
+      } else if (char === '(') parenLevel++
       else if (char === ')') parenLevel--
       else if (char === ',' && bracketLevel === 0 && parenLevel === 0) {
-        const item = inner.slice(start, i).trim()
-        if (item || results.length > 0 || i < inner.length) {
+        const item = trimmed.slice(start, i).trim()
+        if (item) {
           results.push(parseGodotValue(item, _depth + 1))
         }
         start = i + 1

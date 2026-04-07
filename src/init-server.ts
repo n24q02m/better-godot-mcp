@@ -15,6 +15,8 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { detectGodot } from './godot/detector.js'
 import type { GodotConfig } from './godot/types.js'
+import { GodotMCPError } from './tools/helpers/errors.js'
+import { pathExists } from './tools/helpers/paths.js'
 import { registerTools } from './tools/registry.js'
 
 const SERVER_NAME = 'better-godot-mcp'
@@ -31,7 +33,7 @@ function getVersion(): string {
   }
 }
 
-export async function initServer(): Promise<void> {
+export async function initServer(): Promise<Server> {
   try {
     // Detect Godot binary
     const detection = detectGodot()
@@ -47,6 +49,16 @@ export async function initServer(): Promise<void> {
 
     // Resolve project path from env var (tools also accept project_path per call)
     const projectPath = process.env.GODOT_PROJECT_PATH ?? null
+
+    if (projectPath) {
+      if (!(await pathExists(join(projectPath, 'project.godot')))) {
+        throw new GodotMCPError(
+          `Invalid GODOT_PROJECT_PATH: "project.godot" not found in ${projectPath}`,
+          'PROJECT_NOT_FOUND',
+          'Ensure the path points to a valid Godot project directory containing project.godot',
+        )
+      }
+    }
 
     const config: GodotConfig = {
       godotPath: detection?.path ?? null,
@@ -76,6 +88,7 @@ export async function initServer(): Promise<void> {
     await server.connect(transport)
 
     console.error(`[${SERVER_NAME}] Server started (v${getVersion()})`)
+    return server
   } catch (error) {
     console.error('Failed to initialize server:', error)
     throw error

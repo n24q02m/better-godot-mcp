@@ -182,7 +182,7 @@ Add these tests to `tests/godot/headless-full.test.ts` inside the existing `desc
 
 ```typescript
 // Add to imports at top of file:
-import { execGodotAsync, execGodotScript, execGodotSync, launchGodotEditor, runGodotProject } from '../../src/godot/headless.js'
+import { execGodotAsync, execGodotSync, launchGodotEditor, runGodotProject } from '../../src/godot/headless.js'
 
 // Add new describe block after the existing launchGodotEditor describe:
 
@@ -300,7 +300,7 @@ Expected: New tests should fail because `execGodotAsync` is not yet imported in 
 The import line in `tests/godot/headless-full.test.ts` at line 7 already imports `execGodotSync` but not `execGodotAsync`. Update it:
 
 ```typescript
-import { execGodotAsync, execGodotScript, execGodotSync, launchGodotEditor, runGodotProject } from '../../src/godot/headless.js'
+import { execGodotAsync, execGodotSync, launchGodotEditor, runGodotProject } from '../../src/godot/headless.js'
 ```
 
 Also ensure `execFile` is in the mock at line 9-13:

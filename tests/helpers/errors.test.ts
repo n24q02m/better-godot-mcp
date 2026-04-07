@@ -194,6 +194,10 @@ describe('errors', () => {
       expect(findClosestMatch('uvw', ['a', 'z'])).toBeNull()
     })
 
+    it('should handle cases where both input and option are single characters (zero bigrams)', () => {
+      expect(findClosestMatch('a', ['b'])).toBeNull()
+    })
+
     it('should return the first match in case of a score tie', () => {
       expect(findClosestMatch('abcd', ['abce', 'abcf'])).toBe('abce')
     })

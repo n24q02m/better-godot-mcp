@@ -99,13 +99,14 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
   let bestMatch: string | null = null
   let bestScore = 0
 
+  const inputBigrams = new Set<string>()
+  for (let i = 0; i < lower.length - 1; i++) inputBigrams.add(lower.slice(i, i + 2))
+
   for (const option of validOptions) {
     const optionLower = option.toLowerCase()
     if (optionLower.startsWith(lower) || lower.startsWith(optionLower)) {
       return option
     }
-    const inputBigrams = new Set<string>()
-    for (let i = 0; i < lower.length - 1; i++) inputBigrams.add(lower.slice(i, i + 2))
     const optionBigrams = new Set<string>()
     for (let i = 0; i < optionLower.length - 1; i++) optionBigrams.add(optionLower.slice(i, i + 2))
 
@@ -113,7 +114,9 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
     for (const b of inputBigrams) {
       if (optionBigrams.has(b)) overlap++
     }
-    const score = (2 * overlap) / (inputBigrams.size + optionBigrams.size)
+    const totalBigrams = inputBigrams.size + optionBigrams.size
+    if (totalBigrams === 0) continue
+    const score = (2 * overlap) / totalBigrams
     if (score > bestScore && score > 0.4) {
       bestScore = score
       bestMatch = option

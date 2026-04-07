@@ -36,9 +36,9 @@ describe('strings helpers', () => {
     })
 
     it('should return an empty array for undefined or null-like values (via type safety check)', () => {
-      // @ts-ignore
+      // @ts-expect-error
       expect(parseCommaSeparatedList(null)).toEqual([])
-      // @ts-ignore
+      // @ts-expect-error
       expect(parseCommaSeparatedList(undefined)).toEqual([])
     })
   })

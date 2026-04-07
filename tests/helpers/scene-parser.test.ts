@@ -272,9 +272,9 @@ describe('scene-parser coverage gaps', () => {
   })
 })
 
-  describe('removeNodeFromContent fast-path', () => {
-    it('should return early if node name is not present in any relevant field', () => {
-      const result = removeNodeFromContent(MINIMAL_TSCN, 'NonExistent')
-      expect(result).toBe(MINIMAL_TSCN)
-    })
+describe('removeNodeFromContent fast-path', () => {
+  it('should return early if node name is not present in any relevant field', () => {
+    const result = removeNodeFromContent(MINIMAL_TSCN, 'NonExistent')
+    expect(result).toBe(MINIMAL_TSCN)
   })
+})

@@ -15,6 +15,8 @@ import type { DetectionResult, GodotVersion } from './types.js'
 
 const GODOT_BINARY_NAMES = ['godot', 'godot4', 'Godot_v4']
 const MIN_VERSION = { major: 4, minor: 1 }
+const GODOT_WIN64_GUI_RE = /^Godot_v[\d.]+-\w+_win64\.exe$/i
+const GODOT_WIN64_CONSOLE_RE = /^Godot_v[\d.]+-\w+_win64_console\.exe$/i
 
 /**
  * Parse Godot version string (e.g., "Godot Engine v4.6.stable.official")
@@ -111,10 +113,14 @@ function findWinGetGodotBinaries(localAppData: string): string[] {
       const pkgDir = join(packagesDir, dir.name)
       try {
         const files = readdirSync(pkgDir)
-        // Prefer GUI version (has actual editor window), then console as fallback
-        const regularExe = files.find((f) => /^Godot_v[\d.]+-\w+_win64\.exe$/i.test(f) && !f.includes('console'))
+        let regularExe: string | undefined
+        let consoleExe: string | undefined
+        for (const f of files) {
+          if (!regularExe && GODOT_WIN64_GUI_RE.test(f)) regularExe = f
+          else if (!consoleExe && GODOT_WIN64_CONSOLE_RE.test(f)) consoleExe = f
+          if (regularExe && consoleExe) break
+        }
         if (regularExe) results.push(join(pkgDir, regularExe))
-        const consoleExe = files.find((f) => /^Godot_v[\d.]+-\w+_win64_console\.exe$/i.test(f))
         if (consoleExe) results.push(join(pkgDir, consoleExe))
       } catch {
         // Skip unreadable package directories

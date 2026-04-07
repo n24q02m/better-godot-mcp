@@ -9,7 +9,6 @@ import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
 import { escapeRegExp } from '../helpers/scene-parser.js'
-import { parseCommaSeparatedList } from '../helpers/strings.js'
 
 /**
  * Godot 4.x Key enum numeric values (@GlobalScope.Key)
@@ -136,6 +135,29 @@ function resolveMouseCode(value: string): number {
   )
 }
 
+/**
+ * Fast-path parser for comma-separated lists, avoiding split/map/filter allocations.
+ */
+function parseEventsList(str: string): string[] {
+  if (!str) return []
+  const results: string[] = []
+  let start = 0
+  const len = str.length
+  while (start < len) {
+    let end = str.indexOf(',', start)
+    if (end === -1) end = len
+    let i = start
+    while (i < end && str.charCodeAt(i) <= 32) i++
+    let j = end - 1
+    while (j >= i && str.charCodeAt(j) <= 32) j--
+    if (i <= j) {
+      results.push(str.slice(i, j + 1))
+    }
+    start = end + 1
+  }
+  return results
+}
+
 async function getProjectGodotPath(projectPath: string | null | undefined, baseDir: string): Promise<string> {
   if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
   const configPath = join(safeResolve(baseDir, projectPath), 'project.godot')
@@ -153,62 +175,54 @@ function parseInputActions(content: string): Map<string, string[]> {
   let currentActionName: string | null = null
   let currentActionAccumulator = ''
 
-  let pos = 0
-  const len = content.length
+  for (const line of content.split('\n')) {
+    const trimmed = line.trim()
 
-  while (pos < len) {
-    let nextNewline = content.indexOf('\n', pos)
-    if (nextNewline === -1) nextNewline = len
+    // Handle multi-line continuation
+    if (currentActionName !== null) {
+      currentActionAccumulator += trimmed
+      if (trimmed.endsWith('}')) {
+        // End of multi-line action
+        const eventsMatch = currentActionAccumulator.match(/"events":\s*\[([^\]]*)\]/)
+        const events = eventsMatch ? parseEventsList(eventsMatch[1]) : []
+        actions.set(currentActionName, events)
+        currentActionName = null
+        currentActionAccumulator = ''
+      }
+      continue
+    }
 
-    // Trim line manually (whitespace <= 32)
-    let start = pos
-    let end = nextNewline
-    while (start < end && content.charCodeAt(start) <= 32) start++
-    while (end > start && content.charCodeAt(end - 1) <= 32) end--
+    if (trimmed === '[input]') {
+      inInputSection = true
+      continue
+    }
 
-    if (start < end) {
-      const trimmed = content.slice(start, end)
+    // Stop if we hit another section
+    if (trimmed.startsWith('[') && inInputSection) {
+      inInputSection = false
+      break
+    }
 
-      // Handle multi-line continuation
-      if (currentActionName !== null) {
-        currentActionAccumulator += trimmed
-        if (trimmed.endsWith('}')) {
-          // End of multi-line action
-          const eventsMatch = currentActionAccumulator.match(/"events":\s*\[([^\]]*)\]/)
-          const events = eventsMatch ? parseCommaSeparatedList(eventsMatch[1]) : []
-          actions.set(currentActionName, events)
-          currentActionName = null
-          currentActionAccumulator = ''
-        }
-      } else if (trimmed === '[input]') {
-        inInputSection = true
-      } else if (trimmed.startsWith('[') && inInputSection) {
-        // Stop if we hit another section
-        inInputSection = false
-        break
-      } else if (inInputSection) {
-        // Single-line format: action_name={...}
-        const match = trimmed.match(/^(\w+)=\{(.+)\}$/)
-        if (match) {
-          const actionName = match[1]
-          const eventsMatch = match[2].match(/"events":\s*\[([^\]]*)\]/)
-          const events = eventsMatch ? parseCommaSeparatedList(eventsMatch[1]) : []
-          actions.set(actionName, events)
-        } else {
-          // Multi-line format start: action_name={
-          //   "deadzone": 0.2,
-          //   "events": [...]
-          // }
-          const startMatch = trimmed.match(/^(\w+)=\{(.*)$/)
-          if (startMatch) {
-            currentActionName = startMatch[1]
-            currentActionAccumulator = startMatch[2]
-          }
+    if (inInputSection) {
+      // Single-line format: action_name={...}
+      const match = trimmed.match(/^(\w+)=\{(.+)\}$/)
+      if (match) {
+        const actionName = match[1]
+        const eventsMatch = match[2].match(/"events":\s*\[([^\]]*)\]/)
+        const events = eventsMatch ? parseEventsList(eventsMatch[1]) : []
+        actions.set(actionName, events)
+      } else {
+        // Multi-line format start: action_name={
+        //   "deadzone": 0.2,
+        //   "events": [...]
+        // }
+        const startMatch = trimmed.match(/^(\w+)=\{(.*)$/)
+        if (startMatch) {
+          currentActionName = startMatch[1]
+          currentActionAccumulator = startMatch[2]
         }
       }
     }
-
-    pos = nextNewline + 1
   }
 
   return actions

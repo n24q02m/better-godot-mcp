@@ -31,8 +31,17 @@ describe('strings helpers', () => {
       expect(parseCommaSeparatedList('')).toEqual([])
     })
 
+    it('should handle null or undefined-like values', () => {
+      expect(parseCommaSeparatedList(null as unknown as string)).toEqual([])
+      expect(parseCommaSeparatedList(undefined as unknown as string)).toEqual([])
+    })
+
     it('should handle items with inner spaces', () => {
       expect(parseCommaSeparatedList('word1 word2, word3 word4')).toEqual(['word1 word2', 'word3 word4'])
+    })
+
+    it('should handle items that are just quotes or whitespace', () => {
+      expect(parseCommaSeparatedList('" " , ""')).toEqual([])
     })
   })
 })

@@ -2,11 +2,12 @@
  * Tests for .tscn scene parser and manipulation functions
  */
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   escapeRegExp,
   findNode,
   getNodeProperty,
+  parseScene,
   parseSceneContent,
   removeNodeFromContent,
   renameNodeInContent,
@@ -14,7 +15,25 @@ import {
 } from '../../src/tools/helpers/scene-parser.js'
 import { COMPLEX_TSCN, MINIMAL_TSCN, SCENE_WITH_GROUPS } from '../fixtures.js'
 
+vi.mock('node:fs/promises', () => ({
+  readFile: vi.fn(),
+}))
+
 describe('scene-parser', () => {
+  // ==========================================
+  // parseScene
+  // ==========================================
+  describe('parseScene', () => {
+    it('should read file and parse content', async () => {
+      const { readFile } = await import('node:fs/promises')
+      vi.mocked(readFile).mockResolvedValue(MINIMAL_TSCN)
+
+      const scene = await parseScene('test.tscn')
+      expect(readFile).toHaveBeenCalledWith('test.tscn', 'utf-8')
+      expect(scene.header.format).toBe(3)
+    })
+  })
+
   // ==========================================
   // parseSceneContent
   // ==========================================
@@ -125,6 +144,13 @@ describe('scene-parser', () => {
       expect(scene.nodes[0].name).toBe('Root')
     })
 
+    it('should handle leading and trailing whitespace on lines', () => {
+      const content = '  [gd_scene format=3]  \n  [node name="Root" type="Node"]  '
+      const scene = parseSceneContent(content)
+      expect(scene.nodes).toHaveLength(1)
+      expect(scene.nodes[0].name).toBe('Root')
+    })
+
     it('should preserve raw content', () => {
       const scene = parseSceneContent(MINIMAL_TSCN)
       expect(scene.raw).toBe(MINIMAL_TSCN)
@@ -208,6 +234,11 @@ describe('scene-parser', () => {
       expect(result).toContain('from="Hero"')
       expect(result).toContain('to="Hero"')
     })
+
+    it('should return original content if oldName is not present', () => {
+      const result = renameNodeInContent(MINIMAL_TSCN, 'NonExistent', 'NewName')
+      expect(result).toBe(MINIMAL_TSCN)
+    })
   })
 
   // ==========================================
@@ -230,6 +261,11 @@ describe('scene-parser', () => {
     it('should add property to last node in file', () => {
       const result = setNodePropertyInContent(COMPLEX_TSCN, 'Label', 'visible', 'true')
       expect(result).toContain('visible = true')
+    })
+
+    it('should return original content if node is not found', () => {
+      const result = setNodePropertyInContent(MINIMAL_TSCN, 'NonExistent', 'visible', 'false')
+      expect(result).toBe(MINIMAL_TSCN)
     })
   })
 
@@ -273,6 +309,14 @@ describe('scene-parser', () => {
 
     it('should escape special characters mixed with plain text', () => {
       expect(escapeRegExp('node.name[1]')).toBe('node\\.name\\[1\\]')
+    })
+
+    it('should handle repeated special characters', () => {
+      expect(escapeRegExp('...***')).toBe('\\.\\.\\.\\*\\*\\*')
+    })
+
+    it('should handle special characters at the start and end', () => {
+      expect(escapeRegExp('*abc.')).toBe('\\*abc\\.')
     })
   })
 })

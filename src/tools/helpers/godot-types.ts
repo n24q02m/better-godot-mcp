@@ -163,8 +163,12 @@ export function parseGodotValue(expr: string, _depth = 0): unknown {
       else if (char === ')') parenLevel--
       else if (char === ',' && bracketLevel === 0 && parenLevel === 0) {
         const item = inner.slice(start, i).trim()
-        if (item || results.length > 0 || i < inner.length) {
+        if (item) {
           results.push(parseGodotValue(item, _depth + 1))
+        } else if (results.length > 0 && i < inner.length) {
+          // Empty item in the middle of an array (e.g., [1, , 2])
+          // In Godot, this might be an error or null, but we'll treat as null for consistency
+          results.push(null)
         }
         start = i + 1
       }

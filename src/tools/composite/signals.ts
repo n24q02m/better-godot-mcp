@@ -98,19 +98,34 @@ export async function handleSignals(action: string, args: Record<string, unknown
       }
 
       const content = await readScene()
-      const lines = content.split('\n')
-      const filtered = lines.filter((line) => {
+      const filtered: string[] = []
+      let pos = 0
+      const len = content.length
+      let found = false
+
+      while (pos < len) {
+        let nextNewline = content.indexOf('\n', pos)
+        if (nextNewline === -1) nextNewline = len
+
+        const line = content.substring(pos, nextNewline)
         const trimmed = line.trim()
-        if (!trimmed.startsWith('[connection')) return true
-        return !(
+
+        if (
+          trimmed.startsWith('[connection') &&
           trimmed.includes(`signal="${signal}"`) &&
           trimmed.includes(`from="${from}"`) &&
           trimmed.includes(`to="${to}"`) &&
           trimmed.includes(`method="${method}"`)
-        )
-      })
+        ) {
+          found = true
+        } else {
+          filtered.push(line)
+        }
 
-      if (filtered.length === lines.length) {
+        pos = nextNewline + 1
+      }
+
+      if (!found) {
         throw new GodotMCPError(
           'Connection not found',
           'SIGNAL_ERROR',

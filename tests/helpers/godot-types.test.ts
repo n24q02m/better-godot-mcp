@@ -241,6 +241,10 @@ describe('godot-types', () => {
     it('should serialize mixed array', () => {
       expect(toGodotValue([1, 'test', true])).toBe('[1, "test", true]')
     })
+
+    it('should fallback to string representation for unhandled objects', () => {
+      expect(toGodotValue({ unhandled: true })).toBe('[object Object]')
+    })
   })
 
   // ==========================================

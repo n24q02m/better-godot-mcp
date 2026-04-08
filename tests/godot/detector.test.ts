@@ -129,11 +129,11 @@ describe('detector', () => {
       expect(parseGodotVersion('git version 2.43.0')).toBeNull()
       expect(parseGodotVersion('node v20.10.0')).toBeNull()
     })
-  })
 
-  it('should reject versions with unsupported major numbers', () => {
-    expect(parseGodotVersion('v2.0.stable')).toBeNull()
-    expect(parseGodotVersion('v7.0.stable')).toBeNull()
+    it('should reject versions with unsupported major numbers', () => {
+      expect(parseGodotVersion('v2.0.stable')).toBeNull()
+      expect(parseGodotVersion('v7.0.stable')).toBeNull()
+    })
   })
 
   // ==========================================

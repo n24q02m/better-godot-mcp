@@ -189,7 +189,7 @@ export function toGodotValue(value: unknown): string {
       if (i > 0) result += ', '
       result += toGodotValue(value[i])
     }
-    return result + ']'
+    return `${result}]`
   }
 
   if (typeof value === 'object' && value !== null) {

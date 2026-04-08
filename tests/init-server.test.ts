@@ -3,6 +3,9 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { detectGodot } from '../src/godot/detector.js'
+import { pathExists } from '../src/tools/helpers/paths.js'
+import { registerTools } from '../src/tools/registry.js'
 
 const mockServerConstructor = vi.fn()
 const mockConnect = vi.fn().mockResolvedValue(undefined)
@@ -30,15 +33,23 @@ vi.mock('@modelcontextprotocol/sdk/server/stdio.js', () => {
 
 vi.mock('../src/godot/detector.js', () => ({
   detectGodot: vi.fn(),
+  parseGodotVersion: vi.fn(),
+  isVersionSupported: vi.fn(),
+  tryGetVersion: vi.fn(),
+  isExecutable: vi.fn(),
 }))
 
 vi.mock('../src/tools/registry.js', () => ({
   registerTools: vi.fn(),
 }))
 
-vi.mock('../src/tools/helpers/paths.js', () => ({
-  pathExists: vi.fn().mockResolvedValue(true),
-}))
+vi.mock('../src/tools/helpers/paths.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../src/tools/helpers/paths.js')>()
+  return {
+    ...actual,
+    pathExists: vi.fn().mockResolvedValue(true),
+  }
+})
 
 // Mock node:fs to test getVersion catch block
 vi.mock('node:fs', async (importOriginal) => {
@@ -59,10 +70,9 @@ describe('initServer', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     process.env = { ...originalEnv }
 
-    // Default pathExists to true
-    import('../src/tools/helpers/paths.js').then((m) => {
-      vi.mocked(m.pathExists).mockResolvedValue(true)
-    })
+    // Default mocks
+    vi.mocked(pathExists).mockResolvedValue(true)
+    vi.mocked(detectGodot).mockReturnValue(null)
   })
 
   afterEach(() => {
@@ -71,7 +81,6 @@ describe('initServer', () => {
   })
 
   it('should initialize server when Godot is detected', async () => {
-    const { detectGodot } = await import('../src/godot/detector.js')
     vi.mocked(detectGodot).mockReturnValue({
       path: '/usr/bin/godot',
       version: { major: 4, minor: 3, patch: 0, label: 'stable', raw: '4.3.stable' },
@@ -81,25 +90,21 @@ describe('initServer', () => {
     const { initServer } = await import('../src/init-server.js')
     await initServer()
 
-    const { registerTools } = await import('../src/tools/registry.js')
     expect(registerTools).toHaveBeenCalledOnce()
     expect(console.error).toHaveBeenCalledWith(expect.stringContaining('Godot detected'))
   })
 
   it('should initialize server when Godot is not found', async () => {
-    const { detectGodot } = await import('../src/godot/detector.js')
     vi.mocked(detectGodot).mockReturnValue(null)
 
     const { initServer } = await import('../src/init-server.js')
     await initServer()
 
-    const { registerTools } = await import('../src/tools/registry.js')
     expect(registerTools).toHaveBeenCalledOnce()
     expect(console.error).toHaveBeenCalledWith(expect.stringContaining('Godot not found'))
   })
 
   it('should pass correct config when Godot is detected', async () => {
-    const { detectGodot } = await import('../src/godot/detector.js')
     const mockVersion = { major: 4, minor: 6, patch: 0, label: 'stable', raw: '4.6.stable' }
     vi.mocked(detectGodot).mockReturnValue({
       path: '/opt/godot',
@@ -110,7 +115,6 @@ describe('initServer', () => {
     const { initServer } = await import('../src/init-server.js')
     await initServer()
 
-    const { registerTools } = await import('../src/tools/registry.js')
     expect(registerTools).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
@@ -121,13 +125,11 @@ describe('initServer', () => {
   })
 
   it('should pass null config when Godot is not found', async () => {
-    const { detectGodot } = await import('../src/godot/detector.js')
     vi.mocked(detectGodot).mockReturnValue(null)
 
     const { initServer } = await import('../src/init-server.js')
     await initServer()
 
-    const { registerTools } = await import('../src/tools/registry.js')
     expect(registerTools).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
@@ -138,14 +140,12 @@ describe('initServer', () => {
   })
 
   it('should read GODOT_PROJECT_PATH from environment', async () => {
-    const { detectGodot } = await import('../src/godot/detector.js')
-    vi.mocked(detectGodot).mockReturnValue(null)
     process.env.GODOT_PROJECT_PATH = '/path/to/my/project'
+    vi.mocked(pathExists).mockResolvedValue(true)
 
     const { initServer } = await import('../src/init-server.js')
     await initServer()
 
-    const { registerTools } = await import('../src/tools/registry.js')
     expect(registerTools).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
@@ -155,14 +155,11 @@ describe('initServer', () => {
   })
 
   it('should pass null projectPath if GODOT_PROJECT_PATH is not set', async () => {
-    const { detectGodot } = await import('../src/godot/detector.js')
-    vi.mocked(detectGodot).mockReturnValue(null)
     delete process.env.GODOT_PROJECT_PATH
 
     const { initServer } = await import('../src/init-server.js')
     await initServer()
 
-    const { registerTools } = await import('../src/tools/registry.js')
     expect(registerTools).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
@@ -172,9 +169,6 @@ describe('initServer', () => {
   })
 
   it('should instantiate Server with correct name, version, and capabilities', async () => {
-    const { detectGodot } = await import('../src/godot/detector.js')
-    vi.mocked(detectGodot).mockReturnValue(null)
-
     const { initServer } = await import('../src/init-server.js')
     await initServer()
 
@@ -192,9 +186,6 @@ describe('initServer', () => {
   })
 
   it('should connect server transport and log server started', async () => {
-    const { detectGodot } = await import('../src/godot/detector.js')
-    vi.mocked(detectGodot).mockReturnValue(null)
-
     const { initServer } = await import('../src/init-server.js')
     await initServer()
 
@@ -202,9 +193,6 @@ describe('initServer', () => {
   })
 
   it('should handle errors during server initialization (connect failure)', async () => {
-    const { detectGodot } = await import('../src/godot/detector.js')
-    vi.mocked(detectGodot).mockReturnValue(null)
-
     const testError = new Error('Connection failed')
     mockConnect.mockRejectedValue(testError)
 
@@ -215,10 +203,6 @@ describe('initServer', () => {
   })
 
   it('should handle errors when registerTools fails', async () => {
-    const { detectGodot } = await import('../src/godot/detector.js')
-    vi.mocked(detectGodot).mockReturnValue(null)
-
-    const { registerTools } = await import('../src/tools/registry.js')
     const testError = new Error('Registration failed')
     vi.mocked(registerTools).mockImplementation(() => {
       throw testError
@@ -230,7 +214,6 @@ describe('initServer', () => {
   })
 
   it('should handle errors when detectGodot fails', async () => {
-    const { detectGodot } = await import('../src/godot/detector.js')
     const testError = new Error('Detection failed')
     vi.mocked(detectGodot).mockImplementation(() => {
       throw testError
@@ -244,9 +227,6 @@ describe('initServer', () => {
   it('should handle missing version in package.json', async () => {
     const { readFileSync } = await import('node:fs')
     vi.mocked(readFileSync).mockReturnValue(JSON.stringify({}))
-
-    const { detectGodot } = await import('../src/godot/detector.js')
-    vi.mocked(detectGodot).mockReturnValue(null)
 
     const { initServer } = await import('../src/init-server.js')
     await initServer()
@@ -265,9 +245,6 @@ describe('initServer', () => {
       throw new Error('File not found')
     })
 
-    const { detectGodot } = await import('../src/godot/detector.js')
-    vi.mocked(detectGodot).mockReturnValue(null)
-
     const { initServer } = await import('../src/init-server.js')
     await initServer()
 
@@ -280,12 +257,7 @@ describe('initServer', () => {
   })
 
   it('should handle invalid GODOT_PROJECT_PATH', async () => {
-    const { detectGodot } = await import('../src/godot/detector.js')
-    vi.mocked(detectGodot).mockReturnValue(null)
-
-    const { pathExists } = await import('../src/tools/helpers/paths.js')
     vi.mocked(pathExists).mockResolvedValue(false)
-
     process.env.GODOT_PROJECT_PATH = '/invalid/path'
 
     const { initServer } = await import('../src/init-server.js')

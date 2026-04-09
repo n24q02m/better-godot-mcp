@@ -36,6 +36,16 @@ export interface Transform2D {
   origin: Vector2
 }
 
+const NUMBER_RE = /^-?\d+(\.\d+)?$/
+const V2_RE = /^Vector2\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\)$/
+const V2I_RE = /^Vector2i\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\)$/
+const V3_RE = /^Vector3\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\)$/
+const COLOR_RE = /^Color\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*(?:,\s*(-?[\d.]+)\s*)?\)$/
+const RECT2_RE = /^Rect2\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\)$/
+const NODE_PATH_RE = /^NodePath\("([^"]*)"\)$/
+const EXT_RESOURCE_RE = /^ExtResource\("([^"]*)"\)$/
+const SUB_RESOURCE_RE = /^SubResource\("([^"]*)"\)$/
+
 /**
  * Parse a Godot value expression string into a JavaScript value
  */
@@ -53,7 +63,7 @@ export function parseGodotValue(expr: string, _depth = 0): unknown {
   if (trimmed === 'null') return null
 
   // Number (int or float)
-  if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
+  if (NUMBER_RE.test(trimmed)) {
     return Number.parseFloat(trimmed)
   }
 
@@ -63,19 +73,19 @@ export function parseGodotValue(expr: string, _depth = 0): unknown {
   }
 
   // Vector2
-  const v2Match = trimmed.match(/^Vector2\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\)$/)
+  const v2Match = trimmed.match(V2_RE)
   if (v2Match) {
     return { x: Number.parseFloat(v2Match[1]), y: Number.parseFloat(v2Match[2]) } as Vector2
   }
 
   // Vector2i
-  const v2iMatch = trimmed.match(/^Vector2i\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\)$/)
+  const v2iMatch = trimmed.match(V2I_RE)
   if (v2iMatch) {
     return { x: Number.parseInt(v2iMatch[1], 10), y: Number.parseInt(v2iMatch[2], 10) } as Vector2
   }
 
   // Vector3
-  const v3Match = trimmed.match(/^Vector3\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\)$/)
+  const v3Match = trimmed.match(V3_RE)
   if (v3Match) {
     return {
       x: Number.parseFloat(v3Match[1]),
@@ -85,9 +95,7 @@ export function parseGodotValue(expr: string, _depth = 0): unknown {
   }
 
   // Color
-  const colorMatch = trimmed.match(
-    /^Color\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*(?:,\s*(-?[\d.]+)\s*)?\)$/,
-  )
+  const colorMatch = trimmed.match(COLOR_RE)
   if (colorMatch) {
     return {
       r: Number.parseFloat(colorMatch[1]),
@@ -98,7 +106,7 @@ export function parseGodotValue(expr: string, _depth = 0): unknown {
   }
 
   // Rect2
-  const rectMatch = trimmed.match(/^Rect2\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\)$/)
+  const rectMatch = trimmed.match(RECT2_RE)
   if (rectMatch) {
     return {
       x: Number.parseFloat(rectMatch[1]),
@@ -109,15 +117,15 @@ export function parseGodotValue(expr: string, _depth = 0): unknown {
   }
 
   // NodePath
-  const npMatch = trimmed.match(/^NodePath\("([^"]*)"\)$/)
+  const npMatch = trimmed.match(NODE_PATH_RE)
   if (npMatch) return npMatch[1]
 
   // ExtResource reference
-  const extMatch = trimmed.match(/^ExtResource\("([^"]*)"\)$/)
+  const extMatch = trimmed.match(EXT_RESOURCE_RE)
   if (extMatch) return `ExtResource("${extMatch[1]}")`
 
   // SubResource reference
-  const subMatch = trimmed.match(/^SubResource\("([^"]*)"\)$/)
+  const subMatch = trimmed.match(SUB_RESOURCE_RE)
   if (subMatch) return `SubResource("${subMatch[1]}")`
 
   // Array
@@ -176,7 +184,12 @@ export function toGodotValue(value: unknown): string {
   if (typeof value === 'string') return `"${value}"`
 
   if (Array.isArray(value)) {
-    return `[${value.map(toGodotValue).join(', ')}]`
+    let result = '['
+    for (let i = 0; i < value.length; i++) {
+      if (i > 0) result += ', '
+      result += toGodotValue(value[i])
+    }
+    return `${result}]`
   }
 
   if (typeof value === 'object' && value !== null) {

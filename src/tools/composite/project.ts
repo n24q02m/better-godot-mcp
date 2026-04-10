@@ -109,6 +109,12 @@ export async function handleProject(action: string, args: Record<string, unknown
       for (const pid of config.activePids) {
         try {
           if (process.platform === 'win32') {
+            // Verify process exists before trying to kill it on Windows
+            try {
+              process.kill(pid, 0)
+            } catch {
+              continue
+            }
             execFileSync('taskkill', ['/F', '/PID', pid.toString(), '/T'], { stdio: 'pipe' })
           } else {
             process.kill(pid, 'SIGTERM')

@@ -12,15 +12,19 @@ import { createTmpProject, makeConfig } from '../fixtures.js'
 
 // Mock headless execution
 vi.mock('../../src/godot/headless.js', () => ({
-  execGodotAsync: vi.fn().mockResolvedValue({ success: true, stdout: '', stderr: '', exitCode: 0 }),
+  execGodotAsync: vi.fn().mockResolvedValue({ success: true, stdout: '4.4', stderr: '', exitCode: 0 }),
   execGodotSync: vi.fn(),
   runGodotProject: vi.fn(),
 }))
 
 // Mock child_process for stop command
-vi.mock('node:child_process', () => ({
-  execFileSync: vi.fn(),
-}))
+vi.mock('node:child_process', async (importActual) => {
+  const actual = await importActual<typeof import('node:child_process')>()
+  return {
+    ...actual,
+    execFileSync: vi.fn(),
+  }
+})
 
 import { execGodotAsync, runGodotProject } from '../../src/godot/headless.js'
 
@@ -79,7 +83,7 @@ describe('project', () => {
   // ==========================================
   describe('version', () => {
     it('should return godot version', async () => {
-      vi.mocked(execGodotAsync).mockResolvedValue({ stdout: '4.4.stable', stderr: '', exitCode: 0 })
+      vi.mocked(execGodotAsync).mockResolvedValue({ success: true, stdout: '4.4.stable', stderr: '', exitCode: 0 })
 
       const result = await handleProject('version', {}, config)
       expect(result.content[0].text).toContain('Godot version: 4.4.stable')
@@ -126,6 +130,7 @@ describe('project', () => {
       const result = await handleProject('stop', {}, config)
       expect(result.content[0].text).toContain('Godot processes stopped')
       if (process.platform === 'win32') {
+        expect(processKillSpy).toHaveBeenCalledWith(1234, 0)
         expect(execFileSync).toHaveBeenCalled()
       } else {
         expect(processKillSpy).toHaveBeenCalledWith(1234, 'SIGTERM')
@@ -237,7 +242,12 @@ describe('project', () => {
   // ==========================================
   describe('export', () => {
     it('should export project', async () => {
-      vi.mocked(execGodotAsync).mockResolvedValue({ stdout: 'Export successful', stderr: '', exitCode: 0 })
+      vi.mocked(execGodotAsync).mockResolvedValue({
+        success: true,
+        stdout: 'Export successful',
+        stderr: '',
+        exitCode: 0,
+      })
 
       const result = await handleProject(
         'export',

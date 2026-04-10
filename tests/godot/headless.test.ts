@@ -10,12 +10,14 @@ const { execFileAsyncMock } = vi.hoisted(() => ({
     vi.fn<(cmd: string, args: string[], opts: unknown) => Promise<{ stdout: string; stderr: string }>>(),
 }))
 
-vi.mock('node:child_process', async () => {
+vi.mock('node:child_process', async (importActual) => {
+  const actual = await importActual<typeof import('node:child_process')>()
   const { promisify: _promisify } = await import('node:util')
   const execFileMock = vi.fn()
   // @ts-expect-error - attaching custom promisify implementation
   execFileMock[_promisify.custom] = execFileAsyncMock
   return {
+    ...actual,
     spawnSync: vi.fn(),
     spawn: vi.fn(),
     execFile: execFileMock,

@@ -113,23 +113,15 @@ async function handleCreateControl(projectPath: string | null | undefined, args:
 async function handleSetTheme(projectPath: string | null | undefined, args: Record<string, unknown>) {
   const themePath = args.theme_path as string
   if (!themePath)
-    throw new GodotMCPError(
-      'No theme_path specified',
-      'INVALID_ARGS',
-      'Provide theme_path (e.g., "themes/main.tres").',
-    )
+    throw new GodotMCPError('No theme_path specified', 'INVALID_ARGS', 'Provide theme_path (e.g., "themes/main.tres").')
 
   const fullPath = safeResolve(projectPath || process.cwd(), themePath)
 
   const fontSize = (args.font_size as number) || 16
 
-  const content = [
-    '[gd_resource type="Theme" format=3]',
-    '',
-    '[resource]',
-    `default_font_size = ${fontSize}`,
-    '',
-  ].join('\n')
+  const content = ['[gd_resource type="Theme" format=3]', '', '[resource]', `default_font_size = ${fontSize}`, ''].join(
+    '\n',
+  )
 
   await mkdir(dirname(fullPath), { recursive: true })
   await writeFile(fullPath, content, 'utf-8')

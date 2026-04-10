@@ -34,7 +34,7 @@ function getVersion(): string {
 export async function initServer(): Promise<void> {
   try {
     // Detect Godot binary
-    const detection = detectGodot()
+    const detection = await detectGodot()
 
     if (detection) {
       console.error(

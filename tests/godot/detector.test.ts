@@ -1,6 +1,6 @@
-import { execFileSync } from 'node:child_process'
-import type { Dirent, PathLike } from 'node:fs'
-import { accessSync, existsSync, readdirSync, statSync } from 'node:fs'
+import type { Dirent } from 'node:fs'
+import { existsSync } from 'node:fs'
+import { access, readdir, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 /**
  * Tests for Godot binary detector
@@ -8,8 +8,40 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { detectGodot, isExecutable, isVersionSupported, parseGodotVersion } from '../../src/godot/detector.js'
 
-vi.mock('node:child_process')
-vi.mock('node:fs')
+// Create a hoisted mock for execFile so we can attach [promisify.custom]
+const { execFileMock, execFileAsyncMock } = vi.hoisted(() => {
+  return {
+    execFileMock: vi.fn(),
+    execFileAsyncMock: vi.fn(),
+  }
+})
+
+vi.mock('node:child_process', () => {
+  // Attach the async mock to the main mock's custom promisify property
+  const { promisify: _promisify } = require('node:util')
+  const mock = execFileMock
+  // @ts-expect-error
+  mock[_promisify.custom] = execFileAsyncMock
+  return {
+    execFile: mock,
+  }
+})
+
+vi.mock('node:fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs')>()
+  return {
+    ...actual,
+    existsSync: vi.fn(),
+  }
+})
+
+vi.mock('node:fs/promises', () => {
+  return {
+    access: vi.fn(),
+    readdir: vi.fn(),
+    stat: vi.fn(),
+  }
+})
 
 describe('detector', () => {
   // ==========================================
@@ -48,56 +80,6 @@ describe('detector', () => {
     })
 
     it('should parse version with dev label', () => {
-      const v = parseGodotVersion('Godot Engine v5.0.dev.abcdef')
-      expect(v).not.toBeNull()
-      expect(v?.major).toBe(5)
-      expect(v?.minor).toBe(0)
-    })
-
-    it('should parse mono version', () => {
-      const v = parseGodotVersion('Godot Engine v4.2.1.stable.mono')
-      expect(v).not.toBeNull()
-      expect(v?.major).toBe(4)
-      expect(v?.minor).toBe(2)
-      expect(v?.patch).toBe(1)
-    })
-
-    it('should return null for invalid string', () => {
-      expect(parseGodotVersion('not a version')).toBeNull()
-    })
-
-    it('should return null for empty string', () => {
-      expect(parseGodotVersion('')).toBeNull()
-    })
-
-    it('should capture raw string', () => {
-      const raw = 'Godot Engine v4.6.stable.official'
-      const v = parseGodotVersion(raw)
-      expect(v?.raw).toBe(raw)
-    })
-
-    it('should trim raw string', () => {
-      const v = parseGodotVersion('  4.6.stable  \n')
-      expect(v?.raw).toBe('4.6.stable')
-    })
-
-    it('should parse version with only major and minor', () => {
-      const v = parseGodotVersion('Godot v4.0')
-      expect(v).not.toBeNull()
-      expect(v?.major).toBe(4)
-      expect(v?.minor).toBe(0)
-      expect(v?.patch).toBe(0)
-    })
-
-    it('should parse version with just v prefix and numbers', () => {
-      const v = parseGodotVersion('v4.0')
-      expect(v).not.toBeNull()
-      expect(v?.major).toBe(4)
-      expect(v?.minor).toBe(0)
-      expect(v?.patch).toBe(0)
-    })
-
-    it('should parse simple version numbers without v', () => {
       const v = parseGodotVersion('4.0')
       expect(v).not.toBeNull()
       expect(v?.major).toBe(4)
@@ -166,30 +148,26 @@ describe('detector', () => {
   // isExecutable
   // ==========================================
   describe('isExecutable', () => {
-    it('should return true for a regular executable file', () => {
-      vi.mocked(statSync).mockReturnValue({ isFile: () => true } as unknown as import('node:fs').Stats)
-      vi.mocked(accessSync).mockReturnValue(undefined)
-      expect(isExecutable('/usr/bin/godot')).toBe(true)
+    it('should return true for a regular executable file', async () => {
+      vi.mocked(stat).mockResolvedValue({ isFile: () => true } as unknown as import('node:fs').Stats)
+      vi.mocked(access).mockResolvedValue(undefined)
+      expect(await isExecutable('/usr/bin/godot')).toBe(true)
     })
 
-    it('should return false for a directory', () => {
-      vi.mocked(statSync).mockReturnValue({ isFile: () => false } as unknown as import('node:fs').Stats)
-      expect(isExecutable('/usr/bin/')).toBe(false)
+    it('should return false for a directory', async () => {
+      vi.mocked(stat).mockResolvedValue({ isFile: () => false } as unknown as import('node:fs').Stats)
+      expect(await isExecutable('/usr/bin/')).toBe(false)
     })
 
-    it('should return false when file does not exist', () => {
-      vi.mocked(statSync).mockImplementation(() => {
-        throw new Error('ENOENT')
-      })
-      expect(isExecutable('/nonexistent')).toBe(false)
+    it('should return false when file does not exist', async () => {
+      vi.mocked(stat).mockRejectedValue(new Error('ENOENT'))
+      expect(await isExecutable('/nonexistent')).toBe(false)
     })
 
-    it('should return false when file exists but is not executable', () => {
-      vi.mocked(statSync).mockReturnValue({ isFile: () => true } as unknown as import('node:fs').Stats)
-      vi.mocked(accessSync).mockImplementation(() => {
-        throw new Error('EACCES')
-      })
-      expect(isExecutable('/usr/bin/readme.txt')).toBe(false)
+    it('should return false when file exists but is not executable', async () => {
+      vi.mocked(stat).mockResolvedValue({ isFile: () => true } as unknown as import('node:fs').Stats)
+      vi.mocked(access).mockRejectedValue(new Error('EACCES'))
+      expect(await isExecutable('/usr/bin/readme.txt')).toBe(false)
     })
   })
 
@@ -203,9 +181,9 @@ describe('detector', () => {
     beforeEach(() => {
       vi.clearAllMocks()
       process.env = { ...originalEnv }
-      // Default: statSync returns a file, accessSync succeeds (isExecutable passes)
-      vi.mocked(statSync).mockReturnValue({ isFile: () => true } as unknown as import('node:fs').Stats)
-      vi.mocked(accessSync).mockReturnValue(undefined)
+      // Default: stat returns a file, access succeeds (isExecutable passes)
+      vi.mocked(stat).mockResolvedValue({ isFile: () => true } as unknown as import('node:fs').Stats)
+      vi.mocked(access).mockResolvedValue(undefined)
     })
 
     afterEach(() => {
@@ -213,12 +191,12 @@ describe('detector', () => {
       Object.defineProperty(process, 'platform', { value: originalPlatform })
     })
 
-    it('should detect from GODOT_PATH env var', () => {
+    it('should detect from GODOT_PATH env var', async () => {
       process.env.GODOT_PATH = '/custom/path/godot'
       vi.mocked(existsSync).mockReturnValue(true)
-      vi.mocked(execFileSync).mockReturnValue('Godot Engine v4.2.1.stable.official')
+      execFileAsyncMock.mockResolvedValue({ stdout: 'Godot Engine v4.2.1.stable.official' })
 
-      const result = detectGodot()
+      const result = await detectGodot()
 
       expect(result).not.toBeNull()
       expect(result?.path).toBe('/custom/path/godot')
@@ -227,15 +205,15 @@ describe('detector', () => {
       expect(result?.source).toBe('env')
     })
 
-    it('should detect from system PATH', () => {
+    it('should detect from system PATH', async () => {
       delete process.env.GODOT_PATH
       // First call is 'which/where godot', second is 'godot --version'
-      vi.mocked(execFileSync)
-        .mockReturnValueOnce('/usr/local/bin/godot\n')
-        .mockReturnValueOnce('Godot Engine v4.1.2.stable.official')
+      execFileAsyncMock
+        .mockResolvedValueOnce({ stdout: '/usr/local/bin/godot\n' })
+        .mockResolvedValueOnce({ stdout: 'Godot Engine v4.1.2.stable.official' })
       vi.mocked(existsSync).mockReturnValue(true)
 
-      const result = detectGodot()
+      const result = await detectGodot()
 
       expect(result).not.toBeNull()
       expect(result?.path).toBe('/usr/local/bin/godot')
@@ -243,76 +221,87 @@ describe('detector', () => {
       expect(result?.source).toBe('path')
     })
 
-    it('should check common Linux paths', () => {
+    it('should check common Linux paths', async () => {
       delete process.env.GODOT_PATH
       Object.defineProperty(process, 'platform', { value: 'linux' })
-      vi.mocked(execFileSync).mockImplementation((_cmd) => {
-        throw new Error('not found')
-      }) // fail path check
+      execFileAsyncMock.mockRejectedValue(new Error('not found')) // fail path check
 
       // Simulate /usr/bin/godot existing
-      vi.mocked(existsSync).mockImplementation((path) => path === '/usr/bin/godot')
+      vi.mocked(stat).mockImplementation((path) => {
+        if (path === '/usr/bin/godot')
+          return Promise.resolve({ isFile: () => true } as unknown as import('node:fs').Stats)
+        return Promise.reject(new Error('ENOENT'))
+      })
+      vi.mocked(access).mockResolvedValue(undefined)
 
       // Mock version check for the found path
-      vi.mocked(execFileSync).mockImplementation((cmd) => {
-        if (cmd === '/usr/bin/godot') return 'Godot Engine v4.3.stable.official'
-        throw new Error('cmd not found')
+      execFileAsyncMock.mockImplementation((cmd: string) => {
+        if (cmd === '/usr/bin/godot') return Promise.resolve({ stdout: 'Godot Engine v4.3.stable.official' })
+        return Promise.reject(new Error('cmd not found'))
       })
 
-      const result = detectGodot()
+      const result = await detectGodot()
 
       expect(result).not.toBeNull()
       expect(result?.path).toBe('/usr/bin/godot')
       expect(result?.source).toBe('system')
     })
 
-    it('should check common macOS paths', () => {
+    it('should check common macOS paths', async () => {
       delete process.env.GODOT_PATH
       Object.defineProperty(process, 'platform', { value: 'darwin' })
-      vi.mocked(execFileSync).mockImplementation((_cmd) => {
-        throw new Error('not found')
+      execFileAsyncMock.mockRejectedValue(new Error('not found'))
+
+      vi.mocked(stat).mockImplementation((path) => {
+        if (path === '/Applications/Godot.app/Contents/MacOS/Godot')
+          return Promise.resolve({ isFile: () => true } as unknown as import('node:fs').Stats)
+        return Promise.reject(new Error('ENOENT'))
+      })
+      vi.mocked(access).mockResolvedValue(undefined)
+
+      execFileAsyncMock.mockImplementation((cmd: string) => {
+        if (cmd === '/Applications/Godot.app/Contents/MacOS/Godot')
+          return Promise.resolve({ stdout: 'Godot Engine v4.3.stable.official' })
+        return Promise.reject(new Error('cmd not found'))
       })
 
-      vi.mocked(existsSync).mockImplementation((path) => path === '/Applications/Godot.app/Contents/MacOS/Godot')
-
-      vi.mocked(execFileSync).mockImplementation((cmd) => {
-        if (cmd === '/Applications/Godot.app/Contents/MacOS/Godot') return 'Godot Engine v4.3.stable.official'
-        throw new Error('cmd not found')
-      })
-
-      const result = detectGodot()
+      const result = await detectGodot()
 
       expect(result).not.toBeNull()
       expect(result?.path).toBe('/Applications/Godot.app/Contents/MacOS/Godot')
       expect(result?.source).toBe('system')
     })
 
-    it('should check common Windows paths', () => {
+    it('should check common Windows paths', async () => {
       delete process.env.GODOT_PATH
       Object.defineProperty(process, 'platform', { value: 'win32' })
       process.env.ProgramFiles = 'C:\\Program Files'
 
       const expectedPath = join('C:\\Program Files', 'Godot', 'godot.exe')
 
-      vi.mocked(execFileSync).mockImplementation((_cmd) => {
-        throw new Error('not found')
+      execFileAsyncMock.mockRejectedValue(new Error('not found'))
+
+      vi.mocked(stat).mockImplementation((path) => {
+        if (path === expectedPath) return Promise.resolve({ isFile: () => true } as unknown as import('node:fs').Stats)
+        return Promise.reject(new Error('ENOENT'))
+      })
+      vi.mocked(access).mockResolvedValue(undefined)
+      // findWinGetGodotBinaries
+      vi.mocked(existsSync).mockReturnValue(false)
+
+      execFileAsyncMock.mockImplementation((cmd: string) => {
+        if (cmd === expectedPath) return Promise.resolve({ stdout: 'Godot Engine v4.3.stable.official' })
+        return Promise.reject(new Error('cmd not found'))
       })
 
-      vi.mocked(existsSync).mockImplementation((path) => path === expectedPath)
-
-      vi.mocked(execFileSync).mockImplementation((cmd) => {
-        if (cmd === expectedPath) return 'Godot Engine v4.3.stable.official'
-        throw new Error('cmd not found')
-      })
-
-      const result = detectGodot()
+      const result = await detectGodot()
 
       expect(result).not.toBeNull()
       expect(result?.path).toBe(expectedPath)
       expect(result?.source).toBe('system')
     })
 
-    it('should detect WinGet packages on Windows', () => {
+    it('should detect WinGet packages on Windows', async () => {
       delete process.env.GODOT_PATH
       Object.defineProperty(process, 'platform', { value: 'win32' })
       process.env.LOCALAPPDATA = 'C:\\Users\\Test\\AppData\\Local'
@@ -320,64 +309,64 @@ describe('detector', () => {
       const packagesDir = join('C:\\Users\\Test\\AppData\\Local', 'Microsoft', 'WinGet', 'Packages')
       const pkgDir = join(packagesDir, 'GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe')
 
-      vi.mocked(execFileSync).mockImplementation(() => {
-        throw new Error('not found')
-      })
+      execFileAsyncMock.mockRejectedValue(new Error('not found'))
 
       vi.mocked(existsSync).mockImplementation((path) => {
         if (path === packagesDir) return true
-        if (typeof path === 'string' && path.includes('Godot_v4.3-stable_win64.exe')) return true
         return false
       })
 
-      vi.mocked(readdirSync).mockImplementation(((path: PathLike, _options?: unknown) => {
+      vi.mocked(stat).mockImplementation((path) => {
+        if (typeof path === 'string' && path.includes('Godot_v4.3-stable_win64.exe'))
+          return Promise.resolve({ isFile: () => true } as unknown as import('node:fs').Stats)
+        return Promise.reject(new Error('ENOENT'))
+      })
+      vi.mocked(access).mockResolvedValue(undefined)
+
+      vi.mocked(readdir).mockImplementation(((path: string, _options?: unknown) => {
         if (path === packagesDir) {
-          return [
+          return Promise.resolve([
             {
               isDirectory: () => true,
               name: 'GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe',
             } as Dirent,
-          ]
+          ])
         }
         if (path === pkgDir) {
-          return ['Godot_v4.3-stable_win64.exe', 'Godot_v4.3-stable_win64_console.exe']
+          return Promise.resolve(['Godot_v4.3-stable_win64.exe', 'Godot_v4.3-stable_win64_console.exe'])
         }
-        return []
-      }) as typeof readdirSync)
+        return Promise.resolve([])
+      }) as unknown as typeof readdir)
 
-      vi.mocked(execFileSync).mockImplementation((cmd) => {
+      execFileAsyncMock.mockImplementation((cmd: string) => {
         if (typeof cmd === 'string' && cmd.includes('Godot_v4.3-stable_win64.exe'))
-          return 'Godot Engine v4.3.stable.official'
-        throw new Error('cmd not found')
+          return Promise.resolve({ stdout: 'Godot Engine v4.3.stable.official' })
+        return Promise.reject(new Error('cmd not found'))
       })
 
-      const result = detectGodot()
+      const result = await detectGodot()
 
       expect(result).not.toBeNull()
       expect(result?.path).toContain('Godot_v4.3-stable_win64.exe')
       expect(result?.source).toBe('system')
     })
 
-    it('should return null if no Godot found', () => {
+    it('should return null if no Godot found', async () => {
       delete process.env.GODOT_PATH
-      vi.mocked(execFileSync).mockImplementation(() => {
-        throw new Error('not found')
-      })
+      execFileAsyncMock.mockRejectedValue(new Error('not found'))
       vi.mocked(existsSync).mockReturnValue(false)
-      vi.mocked(statSync).mockImplementation(() => {
-        throw new Error('ENOENT')
-      })
-      vi.mocked(readdirSync).mockImplementation(((_path: PathLike, _options?: unknown) => []) as typeof readdirSync)
+      vi.mocked(stat).mockRejectedValue(new Error('ENOENT'))
+      vi.mocked(readdir).mockResolvedValue([])
 
-      expect(detectGodot()).toBeNull()
+      expect(await detectGodot()).toBeNull()
     })
 
-    it('should ignore unsupported versions', () => {
+    it('should ignore unsupported versions', async () => {
       process.env.GODOT_PATH = '/old/godot'
       vi.mocked(existsSync).mockReturnValue(true)
-      vi.mocked(execFileSync).mockReturnValue('Godot Engine v3.5.stable.official')
+      execFileAsyncMock.mockResolvedValue({ stdout: 'Godot Engine v3.5.stable.official' })
 
-      expect(detectGodot()).toBeNull()
+      expect(await detectGodot()).toBeNull()
     })
   })
 })

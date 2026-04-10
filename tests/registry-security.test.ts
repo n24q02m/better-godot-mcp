@@ -32,6 +32,7 @@ describe('registerTools security integration', () => {
     // Create a mock server that captures the registered handlers
     const mockServer = {
       setRequestHandler: vi.fn((_schema: unknown, handler: unknown) => {
+        // The schema objects have different identities, so check by the order of registration
         if (!listToolsHandler) {
           listToolsHandler = handler as () => Promise<{ tools: unknown[] }>
         } else {
@@ -96,7 +97,7 @@ describe('registerTools security integration', () => {
     vi.mocked(handleScripts).mockResolvedValueOnce({
       isError: true,
       content: [{ type: 'text', text: 'returned error message' }],
-    } as unknown as { content: Array<{ type: string; text: string }> })
+    } as never)
 
     const result = (await callToolHandler?.({
       params: { name: 'scripts', arguments: { action: 'list' } },

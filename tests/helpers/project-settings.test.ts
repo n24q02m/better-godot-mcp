@@ -166,5 +166,15 @@ describe('project-settings', () => {
       const result = setSettingInContent(original, 'noslash', 'value')
       expect(result).toBe(original)
     })
+
+    it('should handle single-segment path (section_only)', () => {
+      const result = setSettingInContent(SAMPLE_PROJECT_GODOT, 'section_only', 'value')
+      expect(result).toBe(SAMPLE_PROJECT_GODOT)
+    })
+
+    it('should handle empty path', () => {
+      const result = setSettingInContent(SAMPLE_PROJECT_GODOT, '', 'value')
+      expect(result).toBe(SAMPLE_PROJECT_GODOT)
+    })
   })
 })

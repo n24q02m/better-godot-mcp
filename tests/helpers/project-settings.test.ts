@@ -2,18 +2,51 @@
  * Tests for project.godot settings parser and manipulation
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   getSetting,
+  parseProjectSettingsAsync,
   parseProjectSettingsContent,
   setSettingInContent,
 } from '../../src/tools/helpers/project-settings.js'
 import { SAMPLE_PROJECT_GODOT } from '../fixtures.js'
 
 describe('project-settings', () => {
+  let testDir: string
+
+  beforeAll(async () => {
+    testDir = await mkdtemp(join(tmpdir(), 'godot-mcp-settings-test-'))
+  })
+
+  afterAll(async () => {
+    await rm(testDir, { recursive: true, force: true })
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
   })
+
+  // ==========================================
+  // parseProjectSettingsAsync
+  // ==========================================
+  describe('parseProjectSettingsAsync', () => {
+    it('should parse project settings asynchronously', async () => {
+      const filePath = join(testDir, 'project.godot')
+      const content = '[application]\nconfig/name="AsyncTest"'
+      await writeFile(filePath, content, 'utf-8')
+
+      const settings = await parseProjectSettingsAsync(filePath)
+      expect(settings.sections.get('application')?.get('config/name')).toBe('"AsyncTest"')
+    })
+
+    it('should propagate errors from readFile', async () => {
+      await expect(parseProjectSettingsAsync(join(testDir, 'nonexistent.godot'))).rejects.toThrow()
+    })
+  })
+
   // ==========================================
   // parseProjectSettingsContent
   // ==========================================

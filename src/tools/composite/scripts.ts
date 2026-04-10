@@ -10,6 +10,7 @@ import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '..
 import { pathExists, safeResolve } from '../helpers/paths.js'
 import { escapeRegExp } from '../helpers/scene-parser.js'
 
+// Pre-compiled regex for replacing backslashes with forward slashes in paths
 const BACKSLASH_RE = /\\/g
 
 const SCRIPT_TEMPLATES: Record<string, string> = {

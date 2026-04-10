@@ -31,6 +31,41 @@ const CONTROL_TEMPLATES: Record<string, Record<string, string>> = {
   GridContainer: { columns: '2' },
 }
 
+const CONTROL_TYPES = new Set([
+  'Control',
+  'Button',
+  'Label',
+  'LineEdit',
+  'TextEdit',
+  'RichTextLabel',
+  'ProgressBar',
+  'HSlider',
+  'VSlider',
+  'CheckBox',
+  'CheckButton',
+  'OptionButton',
+  'SpinBox',
+  'ColorPickerButton',
+  'TextureRect',
+  'TextureButton',
+  'Panel',
+  'PanelContainer',
+  'TabContainer',
+  'ScrollContainer',
+  'MarginContainer',
+  'HBoxContainer',
+  'VBoxContainer',
+  'GridContainer',
+  'CenterContainer',
+  'AspectRatioContainer',
+  'SubViewportContainer',
+  'ItemList',
+  'Tree',
+  'GraphEdit',
+  'ColorRect',
+  'NinePatchRect',
+])
+
 async function resolveScene(projectPath: string | null | undefined, scenePath: string): Promise<string> {
   const fullPath = safeResolve(projectPath || process.cwd(), scenePath)
   if (!(await pathExists(fullPath)))
@@ -38,182 +73,155 @@ async function resolveScene(projectPath: string | null | undefined, scenePath: s
   return fullPath
 }
 
+async function handleCreateControl(projectPath: string | null | undefined, args: Record<string, unknown>) {
+  const scenePath = args.scene_path as string
+  if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
+  const controlName = args.name as string
+  const controlType = (args.type as string) || 'Control'
+  const parent = (args.parent as string) || '.'
+
+  if (!controlName) throw new GodotMCPError('No name specified', 'INVALID_ARGS', 'Provide control node name.')
+
+  const fullPath = await resolveScene(projectPath, scenePath)
+  let content = await readFile(fullPath, 'utf-8')
+
+  const parentAttr = parent === '.' ? '' : ` parent="${parent}"`
+  let nodeDecl = `\n[node name="${controlName}" type="${controlType}"${parentAttr}]\n`
+
+  // Add default properties for known control types
+  const defaults = CONTROL_TEMPLATES[controlType]
+  if (defaults) {
+    for (const [key, value] of Object.entries(defaults)) {
+      nodeDecl += `${key} = ${value}\n`
+    }
+  }
+
+  // Add custom properties
+  const props = args.properties as Record<string, string> | undefined
+  if (props) {
+    for (const [key, value] of Object.entries(props)) {
+      nodeDecl += `${key} = ${value}\n`
+    }
+  }
+
+  content = `${content.trimEnd()}\n${nodeDecl}`
+  await writeFile(fullPath, content, 'utf-8')
+
+  return formatSuccess(`Created UI control: ${controlName} (${controlType}) under ${parent}`)
+}
+
+async function handleSetTheme(projectPath: string | null | undefined, args: Record<string, unknown>) {
+  const themePath = args.theme_path as string
+  if (!themePath)
+    throw new GodotMCPError(
+      'No theme_path specified',
+      'INVALID_ARGS',
+      'Provide theme_path (e.g., "themes/main.tres").',
+    )
+
+  const fullPath = safeResolve(projectPath || process.cwd(), themePath)
+
+  const fontSize = (args.font_size as number) || 16
+
+  const content = [
+    '[gd_resource type="Theme" format=3]',
+    '',
+    '[resource]',
+    `default_font_size = ${fontSize}`,
+    '',
+  ].join('\n')
+
+  await mkdir(dirname(fullPath), { recursive: true })
+  await writeFile(fullPath, content, 'utf-8')
+
+  return formatSuccess(`Created theme: ${themePath} (font size: ${fontSize})`)
+}
+
+async function handleLayout(projectPath: string | null | undefined, args: Record<string, unknown>) {
+  const scenePath = args.scene_path as string
+  if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
+  const nodeName = args.name as string
+  if (!nodeName) throw new GodotMCPError('No name specified', 'INVALID_ARGS', 'Provide node name.')
+  const preset = (args.preset as string) || 'full_rect'
+
+  const fullPath = await resolveScene(projectPath, scenePath)
+  let content = await readFile(fullPath, 'utf-8')
+
+  const nodeRegex = new RegExp(`(\\[node name="${escapeRegExp(nodeName)}"[^\\]]*\\])`)
+  const match = content.match(nodeRegex)
+  if (!match) throw new GodotMCPError(`Node "${nodeName}" not found`, 'NODE_ERROR', 'Check node name.')
+
+  let layoutProps = ''
+  switch (preset) {
+    case 'full_rect':
+      layoutProps =
+        '\nanchors_preset = 15\nanchor_right = 1.0\nanchor_bottom = 1.0\ngrow_horizontal = 2\ngrow_vertical = 2'
+      break
+    case 'center':
+      layoutProps =
+        '\nanchors_preset = 8\nanchor_left = 0.5\nanchor_top = 0.5\nanchor_right = 0.5\nanchor_bottom = 0.5\ngrow_horizontal = 2\ngrow_vertical = 2'
+      break
+    case 'top_wide':
+      layoutProps = '\nanchors_preset = 10\nanchor_right = 1.0\ngrow_horizontal = 2'
+      break
+    case 'bottom_wide':
+      layoutProps =
+        '\nanchors_preset = 12\nanchor_top = 1.0\nanchor_right = 1.0\nanchor_bottom = 1.0\ngrow_horizontal = 2\ngrow_vertical = 0'
+      break
+    case 'left_wide':
+      layoutProps = '\nanchors_preset = 9\nanchor_bottom = 1.0\ngrow_vertical = 2'
+      break
+    case 'right_wide':
+      layoutProps =
+        '\nanchors_preset = 11\nanchor_left = 1.0\nanchor_right = 1.0\nanchor_bottom = 1.0\ngrow_horizontal = 0\ngrow_vertical = 2'
+      break
+    default:
+      throw new GodotMCPError(
+        `Unknown layout preset: ${preset}`,
+        'INVALID_ARGS',
+        'Valid presets: full_rect, center, top_wide, bottom_wide, left_wide, right_wide.',
+      )
+  }
+
+  if (match.index === undefined)
+    throw new GodotMCPError(`Node "${nodeName}" not found`, 'NODE_ERROR', 'Check node name.')
+  const insertPoint = match.index + match[0].length
+  content = `${content.slice(0, insertPoint)}${layoutProps}${content.slice(insertPoint)}`
+  await writeFile(fullPath, content, 'utf-8')
+
+  return formatSuccess(`Set layout preset "${preset}" on ${nodeName}`)
+}
+
+async function handleListControls(projectPath: string | null | undefined, args: Record<string, unknown>) {
+  const scenePath = args.scene_path as string
+  if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
+
+  const fullPath = await resolveScene(projectPath, scenePath)
+  const scene = await parseScene(fullPath)
+
+  const controls: { name: string; type: string; parent: string }[] = []
+
+  for (const node of scene.nodes) {
+    if (node.type && CONTROL_TYPES.has(node.type)) {
+      controls.push({ name: node.name, type: node.type, parent: node.parent || '(root)' })
+    }
+  }
+
+  return formatJSON({ scene: scenePath, count: controls.length, controls })
+}
+
 export async function handleUI(action: string, args: Record<string, unknown>, config: GodotConfig) {
   const projectPath = (args.project_path as string) || config.projectPath
 
   switch (action) {
-    case 'create_control': {
-      const scenePath = args.scene_path as string
-      if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
-      const controlName = args.name as string
-      const controlType = (args.type as string) || 'Control'
-      const parent = (args.parent as string) || '.'
-
-      if (!controlName) throw new GodotMCPError('No name specified', 'INVALID_ARGS', 'Provide control node name.')
-
-      const fullPath = await resolveScene(projectPath, scenePath)
-      let content = await readFile(fullPath, 'utf-8')
-
-      const parentAttr = parent === '.' ? '' : ` parent="${parent}"`
-      let nodeDecl = `\n[node name="${controlName}" type="${controlType}"${parentAttr}]\n`
-
-      // Add default properties for known control types
-      const defaults = CONTROL_TEMPLATES[controlType]
-      if (defaults) {
-        for (const [key, value] of Object.entries(defaults)) {
-          nodeDecl += `${key} = ${value}\n`
-        }
-      }
-
-      // Add custom properties
-      const props = args.properties as Record<string, string> | undefined
-      if (props) {
-        for (const [key, value] of Object.entries(props)) {
-          nodeDecl += `${key} = ${value}\n`
-        }
-      }
-
-      content = `${content.trimEnd()}\n${nodeDecl}`
-      await writeFile(fullPath, content, 'utf-8')
-
-      return formatSuccess(`Created UI control: ${controlName} (${controlType}) under ${parent}`)
-    }
-
-    case 'set_theme': {
-      const themePath = args.theme_path as string
-      if (!themePath)
-        throw new GodotMCPError(
-          'No theme_path specified',
-          'INVALID_ARGS',
-          'Provide theme_path (e.g., "themes/main.tres").',
-        )
-
-      const fullPath = safeResolve(projectPath || process.cwd(), themePath)
-
-      const fontSize = (args.font_size as number) || 16
-
-      const content = [
-        '[gd_resource type="Theme" format=3]',
-        '',
-        '[resource]',
-        `default_font_size = ${fontSize}`,
-        '',
-      ].join('\n')
-
-      await mkdir(dirname(fullPath), { recursive: true })
-      await writeFile(fullPath, content, 'utf-8')
-
-      return formatSuccess(`Created theme: ${themePath} (font size: ${fontSize})`)
-    }
-
-    case 'layout': {
-      const scenePath = args.scene_path as string
-      if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
-      const nodeName = args.name as string
-      if (!nodeName) throw new GodotMCPError('No name specified', 'INVALID_ARGS', 'Provide node name.')
-      const preset = (args.preset as string) || 'full_rect'
-
-      const fullPath = await resolveScene(projectPath, scenePath)
-      let content = await readFile(fullPath, 'utf-8')
-
-      const nodeRegex = new RegExp(`(\\[node name="${escapeRegExp(nodeName)}"[^\\]]*\\])`)
-      const match = content.match(nodeRegex)
-      if (!match) throw new GodotMCPError(`Node "${nodeName}" not found`, 'NODE_ERROR', 'Check node name.')
-
-      let layoutProps = ''
-      switch (preset) {
-        case 'full_rect':
-          layoutProps =
-            '\nanchors_preset = 15\nanchor_right = 1.0\nanchor_bottom = 1.0\ngrow_horizontal = 2\ngrow_vertical = 2'
-          break
-        case 'center':
-          layoutProps =
-            '\nanchors_preset = 8\nanchor_left = 0.5\nanchor_top = 0.5\nanchor_right = 0.5\nanchor_bottom = 0.5\ngrow_horizontal = 2\ngrow_vertical = 2'
-          break
-        case 'top_wide':
-          layoutProps = '\nanchors_preset = 10\nanchor_right = 1.0\ngrow_horizontal = 2'
-          break
-        case 'bottom_wide':
-          layoutProps =
-            '\nanchors_preset = 12\nanchor_top = 1.0\nanchor_right = 1.0\nanchor_bottom = 1.0\ngrow_horizontal = 2\ngrow_vertical = 0'
-          break
-        case 'left_wide':
-          layoutProps = '\nanchors_preset = 9\nanchor_bottom = 1.0\ngrow_vertical = 2'
-          break
-        case 'right_wide':
-          layoutProps =
-            '\nanchors_preset = 11\nanchor_left = 1.0\nanchor_right = 1.0\nanchor_bottom = 1.0\ngrow_horizontal = 0\ngrow_vertical = 2'
-          break
-        default:
-          throw new GodotMCPError(
-            `Unknown layout preset: ${preset}`,
-            'INVALID_ARGS',
-            'Valid presets: full_rect, center, top_wide, bottom_wide, left_wide, right_wide.',
-          )
-      }
-
-      if (match.index === undefined)
-        throw new GodotMCPError(`Node "${nodeName}" not found`, 'NODE_ERROR', 'Check node name.')
-      const insertPoint = match.index + match[0].length
-      content = `${content.slice(0, insertPoint)}${layoutProps}${content.slice(insertPoint)}`
-      await writeFile(fullPath, content, 'utf-8')
-
-      return formatSuccess(`Set layout preset "${preset}" on ${nodeName}`)
-    }
-
-    case 'list_controls': {
-      const scenePath = args.scene_path as string
-      if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
-
-      const fullPath = await resolveScene(projectPath, scenePath)
-      const scene = await parseScene(fullPath)
-
-      const controlTypes = new Set([
-        'Control',
-        'Button',
-        'Label',
-        'LineEdit',
-        'TextEdit',
-        'RichTextLabel',
-        'ProgressBar',
-        'HSlider',
-        'VSlider',
-        'CheckBox',
-        'CheckButton',
-        'OptionButton',
-        'SpinBox',
-        'ColorPickerButton',
-        'TextureRect',
-        'TextureButton',
-        'Panel',
-        'PanelContainer',
-        'TabContainer',
-        'ScrollContainer',
-        'MarginContainer',
-        'HBoxContainer',
-        'VBoxContainer',
-        'GridContainer',
-        'CenterContainer',
-        'AspectRatioContainer',
-        'SubViewportContainer',
-        'ItemList',
-        'Tree',
-        'GraphEdit',
-        'ColorRect',
-        'NinePatchRect',
-      ])
-
-      const controls: { name: string; type: string; parent: string }[] = []
-
-      for (const node of scene.nodes) {
-        if (node.type && controlTypes.has(node.type)) {
-          controls.push({ name: node.name, type: node.type, parent: node.parent || '(root)' })
-        }
-      }
-
-      return formatJSON({ scene: scenePath, count: controls.length, controls })
-    }
-
+    case 'create_control':
+      return handleCreateControl(projectPath, args)
+    case 'set_theme':
+      return handleSetTheme(projectPath, args)
+    case 'layout':
+      return handleLayout(projectPath, args)
+    case 'list_controls':
+      return handleListControls(projectPath, args)
     default:
       throwUnknownAction(action, ['create_control', 'set_theme', 'layout', 'list_controls'])
   }

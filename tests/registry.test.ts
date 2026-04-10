@@ -62,7 +62,7 @@ describe('registry', () => {
       registrySource = readFileSync(resolve(import.meta.dirname, '../src/tools/registry.ts'), 'utf-8')
 
       // Count annotations blocks (each tool should have one)
-      const annotationsMatches = registrySource.match(/annotations:\s*\{/g)
+      const annotationsMatches = registrySource.match(/annotations:\s*createAnnotations/g)
       expect(annotationsMatches?.length).toBe(17)
     })
 
@@ -71,18 +71,14 @@ describe('registry', () => {
       const { resolve } = await import('node:path')
       registrySource = readFileSync(resolve(import.meta.dirname, '../src/tools/registry.ts'), 'utf-8')
 
-      // Each annotation block should have all 5 fields
-      const titleCount = (registrySource.match(/title:/g) || []).length
-      const readOnlyCount = (registrySource.match(/readOnlyHint:/g) || []).length
-      const destructiveCount = (registrySource.match(/destructiveHint:/g) || []).length
-      const idempotentCount = (registrySource.match(/idempotentHint:/g) || []).length
-      const openWorldCount = (registrySource.match(/openWorldHint:/g) || []).length
+      const annotationCalls = (registrySource.match(/annotations: createAnnotations/g) || []).length
+      expect(annotationCalls).toBe(17)
 
-      expect(titleCount).toBe(17)
-      expect(readOnlyCount).toBe(17)
-      expect(destructiveCount).toBe(17)
-      expect(idempotentCount).toBe(17)
-      expect(openWorldCount).toBe(17)
+      // The individual hint fields now appear exactly once in the helper function
+      expect(registrySource).toContain('readOnlyHint: options.readOnly ?? false')
+      expect(registrySource).toContain('destructiveHint: options.destructive ?? false')
+      expect(registrySource).toContain('idempotentHint: options.idempotent ?? false')
+      expect(registrySource).toContain('openWorldHint: false')
     })
 
     it('all tools should have inputSchema with required action', async () => {
@@ -243,7 +239,7 @@ describe('registry', () => {
 
       // help should be read-only
       const helpSection = source.slice(source.indexOf("name: 'help'"), source.indexOf('const P1_TOOLS'))
-      expect(helpSection).toContain('readOnlyHint: true')
+      expect(helpSection).toContain('readOnly: true')
     })
 
     it('destructive tools should have destructiveHint=true', async () => {
@@ -256,7 +252,7 @@ describe('registry', () => {
         const start = source.indexOf(`name: '${toolName}'`)
         const end = source.indexOf('},\n', start + 1)
         const section = source.slice(start, end)
-        expect(section, `${toolName} should be destructive`).toContain('destructiveHint: true')
+        expect(section, `${toolName} should be destructive`).toContain('destructive: true')
       }
     })
   })

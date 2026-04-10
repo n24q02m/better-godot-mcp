@@ -215,3 +215,13 @@ export function toGodotValue(value: unknown): string {
 
   return String(value)
 }
+
+/**
+ * Serialize a Godot Object to an expression string
+ */
+export function toGodotObject(className: string, properties: Record<string, unknown>): string {
+  const props = Object.entries(properties)
+    .map(([key, value]) => `"${key}":${toGodotValue(value)}`)
+    .join(',')
+  return `Object(${className},${props})`
+}

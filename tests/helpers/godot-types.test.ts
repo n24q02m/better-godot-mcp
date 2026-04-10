@@ -4,7 +4,7 @@
 
 import { describe, expect, it } from 'vitest'
 import type { GodotColor, Rect2, Vector2, Vector3 } from '../../src/tools/helpers/godot-types.js'
-import { parseGodotValue, toGodotValue } from '../../src/tools/helpers/godot-types.js'
+import { parseGodotValue, toGodotObject, toGodotValue } from '../../src/tools/helpers/godot-types.js'
 
 describe('godot-types', () => {
   // ==========================================
@@ -275,5 +275,24 @@ describe('godot-types', () => {
     it('should roundtrip number', () => {
       expect(toGodotValue(parseGodotValue('42'))).toBe('42')
     })
+  })
+})
+
+// ==========================================
+// toGodotObject
+// ==========================================
+describe('toGodotObject', () => {
+  it('should serialize simple object', () => {
+    const result = toGodotObject('MyClass', { a: 1, b: 'test' })
+    expect(result).toBe('Object(MyClass,"a":1,"b":"test")')
+  })
+
+  it('should serialize object with nested Godot types', () => {
+    const result = toGodotObject('InputEventKey', {
+      device: -1,
+      pressed: false,
+      position: { x: 10, y: 20 },
+    })
+    expect(result).toBe('Object(InputEventKey,"device":-1,"pressed":false,"position":Vector2(10, 20))')
   })
 })

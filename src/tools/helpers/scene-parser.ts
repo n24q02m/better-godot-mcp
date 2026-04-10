@@ -85,6 +85,117 @@ export async function parseScene(filePath: string): Promise<ParsedScene> {
 }
 
 /**
+ * Helper to parse [gd_scene ...] line
+ */
+function parseHeader(line: string, header: TscnHeader): void {
+  const formatMatch = line.includes('format=') ? line.match(rxGdSceneFormat) : null
+  const stepsMatch = line.includes('load_steps=') ? line.match(rxGdSceneSteps) : null
+  const uidMatch = line.includes('uid=') ? line.match(rxUid) : null
+  if (formatMatch) header.format = Number.parseInt(formatMatch[1], 10)
+  if (stepsMatch) header.loadSteps = Number.parseInt(stepsMatch[1], 10)
+  if (uidMatch) header.uid = uidMatch[1]
+}
+
+/**
+ * Helper to parse [ext_resource ...] line
+ */
+function parseExtResource(line: string): ExtResource | null {
+  const typeMatch = line.includes('type="') ? line.match(rxType) : null
+  const uidMatch = line.includes('uid=') ? line.match(rxUid) : null
+  const pathMatch = line.includes('path="') ? line.match(rxPath) : null
+  const idMatch = line.includes(' id="') ? line.match(rxId) : null
+  if (typeMatch && pathMatch && idMatch) {
+    return {
+      type: typeMatch[1],
+      uid: uidMatch?.[1],
+      path: pathMatch[1],
+      id: idMatch[1],
+    }
+  }
+  return null
+}
+
+/**
+ * Helper to parse [sub_resource ...] line
+ */
+function parseSubResource(line: string): SubResource | null {
+  const typeMatch = line.includes('type="') ? line.match(rxType) : null
+  const idMatch = line.includes(' id="') ? line.match(rxId) : null
+  if (typeMatch && idMatch) {
+    return { type: typeMatch[1], id: idMatch[1], properties: {} }
+  }
+  return null
+}
+
+/**
+ * Helper to parse [node ...] line
+ */
+function parseNode(line: string): SceneNodeInfo | null {
+  const nameMatch = line.includes('name="') ? line.match(rxName) : null
+  const typeMatch = line.includes('type="') ? line.match(rxType) : null
+  const parentMatch = line.includes('parent="') ? line.match(rxParent) : null
+  const instanceMatch = line.includes('instance=') ? line.match(rxInstance) : null
+  const groupsMatch = line.includes('groups=') ? line.match(rxGroups) : null
+  if (nameMatch) {
+    return {
+      name: nameMatch[1],
+      type: typeMatch?.[1],
+      parent: parentMatch?.[1],
+      instance: instanceMatch?.[1],
+      properties: {},
+      groups: groupsMatch ? parseCommaSeparatedList(groupsMatch[1]) : undefined,
+    }
+  }
+  return null
+}
+
+/**
+ * Helper to parse [connection ...] line
+ */
+function parseConnection(line: string): SignalConnection | null {
+  const signalMatch = line.includes('signal="') ? line.match(rxSignal) : null
+  const fromMatch = line.includes('from="') ? line.match(rxFrom) : null
+  const toMatch = line.includes('to="') ? line.match(rxTo) : null
+  const methodMatch = line.includes('method="') ? line.match(rxMethod) : null
+  const flagsMatch = line.includes('flags=') ? line.match(rxFlags) : null
+  if (signalMatch && fromMatch && toMatch && methodMatch) {
+    return {
+      signal: signalMatch[1],
+      from: fromMatch[1],
+      to: toMatch[1],
+      method: methodMatch[1],
+      flags: flagsMatch ? Number.parseInt(flagsMatch[1], 10) : undefined,
+    }
+  }
+  return null
+}
+
+/**
+ * Helper to parse key = value property line
+ */
+function parseProperty(content: string, start: number, end: number): { key: string; value: string } | null {
+  const eqIdx = content.indexOf('=', start)
+  if (eqIdx !== -1 && eqIdx < end) {
+    // Trim key
+    let kEnd = eqIdx
+    while (kEnd > start && content.charCodeAt(kEnd - 1) <= 32) {
+      kEnd--
+    }
+    const key = content.slice(start, kEnd)
+
+    // Trim value
+    let vStart = eqIdx + 1
+    while (vStart < end && content.charCodeAt(vStart) <= 32) {
+      vStart++
+    }
+    const value = content.slice(vStart, end)
+
+    return { key, value }
+  }
+  return null
+}
+
+/**
  * Parse .tscn content string into structured data
  */
 export function parseSceneContent(content: string): ParsedScene {
@@ -130,101 +241,41 @@ export function parseSceneContent(content: string): ParsedScene {
           currentSubResource = null
 
           const secondChar = content.charCodeAt(start + 1)
+          const line = content.slice(start, end)
+
           if (secondChar === 103) {
             // 'g' -> [gd_scene
             currentSection = 'header'
-            const line = content.slice(start, end)
-            const formatMatch = line.includes('format=') ? line.match(rxGdSceneFormat) : null
-            const stepsMatch = line.includes('load_steps=') ? line.match(rxGdSceneSteps) : null
-            const uidMatch = line.includes('uid=') ? line.match(rxUid) : null
-            if (formatMatch) header.format = Number.parseInt(formatMatch[1], 10)
-            if (stepsMatch) header.loadSteps = Number.parseInt(stepsMatch[1], 10)
-            if (uidMatch) header.uid = uidMatch[1]
+            parseHeader(line, header)
           } else if (secondChar === 101) {
             // 'e' -> [ext_resource
             currentSection = 'ext_resource'
-            const line = content.slice(start, end)
-            const typeMatch = line.includes('type="') ? line.match(rxType) : null
-            const uidMatch = line.includes('uid=') ? line.match(rxUid) : null
-            const pathMatch = line.includes('path="') ? line.match(rxPath) : null
-            const idMatch = line.includes(' id="') ? line.match(rxId) : null
-            if (typeMatch && pathMatch && idMatch) {
-              extResources.push({
-                type: typeMatch[1],
-                uid: uidMatch?.[1],
-                path: pathMatch[1],
-                id: idMatch[1],
-              })
-            }
+            const res = parseExtResource(line)
+            if (res) extResources.push(res)
           } else if (secondChar === 115) {
             // 's' -> [sub_resource
             currentSection = 'sub_resource'
-            const line = content.slice(start, end)
-            const typeMatch = line.includes('type="') ? line.match(rxType) : null
-            const idMatch = line.includes(' id="') ? line.match(rxId) : null
-            if (typeMatch && idMatch) {
-              currentSubResource = { type: typeMatch[1], id: idMatch[1], properties: {} }
-            }
+            const res = parseSubResource(line)
+            if (res) currentSubResource = res
           } else if (secondChar === 110) {
             // 'n' -> [node
             currentSection = 'node'
-            const line = content.slice(start, end)
-            const nameMatch = line.includes('name="') ? line.match(rxName) : null
-            const typeMatch = line.includes('type="') ? line.match(rxType) : null
-            const parentMatch = line.includes('parent="') ? line.match(rxParent) : null
-            const instanceMatch = line.includes('instance=') ? line.match(rxInstance) : null
-            const groupsMatch = line.includes('groups=') ? line.match(rxGroups) : null
-            if (nameMatch) {
-              currentNode = {
-                name: nameMatch[1],
-                type: typeMatch?.[1],
-                parent: parentMatch?.[1],
-                instance: instanceMatch?.[1],
-                properties: {},
-                groups: groupsMatch ? parseCommaSeparatedList(groupsMatch[1]) : undefined,
-              }
-            }
+            const res = parseNode(line)
+            if (res) currentNode = res
           } else if (secondChar === 99) {
             // 'c' -> [connection
             currentSection = 'connection'
-            const line = content.slice(start, end)
-            const signalMatch = line.includes('signal="') ? line.match(rxSignal) : null
-            const fromMatch = line.includes('from="') ? line.match(rxFrom) : null
-            const toMatch = line.includes('to="') ? line.match(rxTo) : null
-            const methodMatch = line.includes('method="') ? line.match(rxMethod) : null
-            const flagsMatch = line.includes('flags=') ? line.match(rxFlags) : null
-            if (signalMatch && fromMatch && toMatch && methodMatch) {
-              connections.push({
-                signal: signalMatch[1],
-                from: fromMatch[1],
-                to: toMatch[1],
-                method: methodMatch[1],
-                flags: flagsMatch ? Number.parseInt(flagsMatch[1], 10) : undefined,
-              })
-            }
+            const res = parseConnection(line)
+            if (res) connections.push(res)
           }
         } else if (currentSection === 'node' || currentSection === 'sub_resource') {
           // Fast parsing of key-value properties without regex
-          const eqIdx = content.indexOf('=', start)
-          if (eqIdx !== -1 && eqIdx < end) {
-            // Trim key
-            let kEnd = eqIdx
-            while (kEnd > start && content.charCodeAt(kEnd - 1) <= 32) {
-              kEnd--
-            }
-            const key = content.slice(start, kEnd)
-
-            // Trim value
-            let vStart = eqIdx + 1
-            while (vStart < end && content.charCodeAt(vStart) <= 32) {
-              vStart++
-            }
-            const value = content.slice(vStart, end)
-
+          const prop = parseProperty(content, start, end)
+          if (prop) {
             if (currentSection === 'node' && currentNode) {
-              currentNode.properties[key] = value
+              currentNode.properties[prop.key] = prop.value
             } else if (currentSection === 'sub_resource' && currentSubResource) {
-              currentSubResource.properties[key] = value
+              currentSubResource.properties[prop.key] = prop.value
             }
           }
         }

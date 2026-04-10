@@ -9,6 +9,18 @@ import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '..
 import { safeResolve } from '../helpers/paths.js'
 import { parseSceneContent } from '../helpers/scene-parser.js'
 
+function validateParameters(...params: string[]) {
+  for (const param of params) {
+    if (param.includes('\n') || param.includes('\r') || param.includes('"')) {
+      throw new GodotMCPError(
+        'Invalid characters in parameters',
+        'INVALID_ARGS',
+        'Signal parameters (signal, from, to, method) must not contain newlines or double quotes.',
+      )
+    }
+  }
+}
+
 export async function handleSignals(action: string, args: Record<string, unknown>, config: GodotConfig) {
   const projectPath = (args.project_path as string) || config.projectPath
   const scenePath = args.scene_path as string
@@ -58,6 +70,8 @@ export async function handleSignals(action: string, args: Record<string, unknown
         )
       }
 
+      validateParameters(signal, from, to, method)
+
       const flags = args.flags as number | undefined
 
       let content = await readScene()
@@ -96,6 +110,8 @@ export async function handleSignals(action: string, args: Record<string, unknown
           'All four parameters are required.',
         )
       }
+
+      validateParameters(signal, from, to, method)
 
       const content = await readScene()
       const filtered: string[] = []

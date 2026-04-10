@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import type { Dirent, PathLike } from 'node:fs'
-import { accessSync, existsSync, readdirSync, statSync } from 'node:fs'
+import { accessSync, existsSync, openSync, readdirSync, readSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 /**
  * Tests for Godot binary detector
@@ -169,6 +169,12 @@ describe('detector', () => {
     it('should return true for a regular executable file', () => {
       vi.mocked(statSync).mockReturnValue({ isFile: () => true } as unknown as import('node:fs').Stats)
       vi.mocked(accessSync).mockReturnValue(undefined)
+      vi.mocked(openSync).mockReturnValue(999)
+      vi.mocked(readSync).mockImplementation((_fd, buffer) => {
+        const b = buffer as Buffer
+        b.write('Godot Engine')
+        return 'Godot Engine'.length
+      })
       expect(isExecutable('/usr/bin/godot')).toBe(true)
     })
 
@@ -206,6 +212,12 @@ describe('detector', () => {
       // Default: statSync returns a file, accessSync succeeds (isExecutable passes)
       vi.mocked(statSync).mockReturnValue({ isFile: () => true } as unknown as import('node:fs').Stats)
       vi.mocked(accessSync).mockReturnValue(undefined)
+      vi.mocked(openSync).mockReturnValue(999)
+      vi.mocked(readSync).mockImplementation((_fd, buffer) => {
+        const b = buffer as Buffer
+        b.write('Godot Engine')
+        return 'Godot Engine'.length
+      })
     })
 
     afterEach(() => {

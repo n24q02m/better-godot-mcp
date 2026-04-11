@@ -4,7 +4,7 @@
  */
 
 import { readFile, writeFile } from 'node:fs/promises'
-import type { GodotConfig, SceneNode } from '../../godot/types.js'
+import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
 import {
@@ -12,30 +12,8 @@ import {
   parseSceneContent,
   removeNodeFromContent,
   renameNodeInContent,
-  type SceneNodeInfo,
   setNodePropertyInContent,
 } from '../helpers/scene-parser.js'
-
-/**
- * Map scene-parser's SceneNodeInfo to internal SceneNode format
- */
-function mapToSceneNode(node: SceneNodeInfo): SceneNode {
-  const properties = { ...node.properties }
-  let script: string | null = null
-
-  if (properties.script) {
-    script = properties.script
-    delete properties.script
-  }
-
-  return {
-    name: node.name,
-    type: node.type || 'Node',
-    parent: node.parent || null,
-    properties,
-    script,
-  }
-}
 
 function resolveScenePath(projectPath: string, scenePath: string): string {
   return safeResolve(projectPath, scenePath)
@@ -165,17 +143,22 @@ export async function handleNodes(action: string, args: Record<string, unknown>,
 
       const content = await readFile(fullPath, 'utf-8')
       const scene = parseSceneContent(content)
-      const nodes = scene.nodes.map(mapToSceneNode)
+      // ⚡ Bolt: Removed double .map() passes and expensive object spread (...node.properties) in mapToSceneNode.
+      // Iterating scene.nodes directly in a single pass reduces O(N) allocation overhead for scenes with many nodes.
+      const nodes = []
+      for (const n of scene.nodes) {
+        nodes.push({
+          name: n.name,
+          type: n.type || 'Node',
+          parent: n.parent || '(root)',
+          hasScript: !!n.properties.script,
+        })
+      }
 
       return formatJSON({
         scene: scenePath,
-        nodeCount: nodes.length,
-        nodes: nodes.map((n) => ({
-          name: n.name,
-          type: n.type,
-          parent: n.parent || '(root)',
-          hasScript: n.script !== null,
-        })),
+        nodeCount: scene.nodes.length,
+        nodes,
       })
     }
 

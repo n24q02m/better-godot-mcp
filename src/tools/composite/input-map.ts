@@ -175,54 +175,64 @@ function parseInputActions(content: string): Map<string, string[]> {
   let currentActionName: string | null = null
   let currentActionAccumulator = ''
 
-  for (const line of content.split('\n')) {
-    const trimmed = line.trim()
+  let pos = 0
+  const len = content.length
 
-    // Handle multi-line continuation
-    if (currentActionName !== null) {
-      currentActionAccumulator += trimmed
-      if (trimmed.endsWith('}')) {
-        // End of multi-line action
-        const eventsMatch = currentActionAccumulator.match(/"events":\s*\[([^\]]*)\]/)
-        const events = eventsMatch ? parseEventsList(eventsMatch[1]) : []
-        actions.set(currentActionName, events)
-        currentActionName = null
-        currentActionAccumulator = ''
-      }
-      continue
-    }
+  while (pos < len) {
+    let nextNewline = content.indexOf('\n', pos)
+    if (nextNewline === -1) nextNewline = len
 
-    if (trimmed === '[input]') {
-      inInputSection = true
-      continue
-    }
+    // manual trim
+    let start = pos
+    let end = nextNewline
+    while (start < end && content.charCodeAt(start) <= 32) start++
+    while (end > start && content.charCodeAt(end - 1) <= 32) end--
 
-    // Stop if we hit another section
-    if (trimmed.startsWith('[') && inInputSection) {
-      inInputSection = false
-      break
-    }
+    if (start < end) {
+      const trimmed = content.slice(start, end)
 
-    if (inInputSection) {
-      // Single-line format: action_name={...}
-      const match = trimmed.match(/^(\w+)=\{(.+)\}$/)
-      if (match) {
-        const actionName = match[1]
-        const eventsMatch = match[2].match(/"events":\s*\[([^\]]*)\]/)
-        const events = eventsMatch ? parseEventsList(eventsMatch[1]) : []
-        actions.set(actionName, events)
+      // Handle multi-line continuation
+      if (currentActionName !== null) {
+        currentActionAccumulator += trimmed
+        if (trimmed.endsWith('}')) {
+          // End of multi-line action
+          const eventsMatch = currentActionAccumulator.match(/"events":\s*\[([^\]]*)\]/)
+          const events = eventsMatch ? parseEventsList(eventsMatch[1]) : []
+          actions.set(currentActionName, events)
+          currentActionName = null
+          currentActionAccumulator = ''
+        }
       } else {
-        // Multi-line format start: action_name={
-        //   "deadzone": 0.2,
-        //   "events": [...]
-        // }
-        const startMatch = trimmed.match(/^(\w+)=\{(.*)$/)
-        if (startMatch) {
-          currentActionName = startMatch[1]
-          currentActionAccumulator = startMatch[2]
+        if (trimmed === '[input]') {
+          inInputSection = true
+        } else if (trimmed.startsWith('[') && inInputSection) {
+          // Stop if we hit another section
+          inInputSection = false
+          break
+        } else if (inInputSection) {
+          // Single-line format: action_name={...}
+          const match = trimmed.match(/^(\w+)=\{(.+)\}$/)
+          if (match) {
+            const actionName = match[1]
+            const eventsMatch = match[2].match(/"events":\s*\[([^\]]*)\]/)
+            const events = eventsMatch ? parseEventsList(eventsMatch[1]) : []
+            actions.set(actionName, events)
+          } else {
+            // Multi-line format start: action_name={
+            //   "deadzone": 0.2,
+            //   "events": [...]
+            // }
+            const startMatch = trimmed.match(/^(\w+)=\{(.*)$/)
+            if (startMatch) {
+              currentActionName = startMatch[1]
+              currentActionAccumulator = startMatch[2]
+            }
+          }
         }
       }
     }
+
+    pos = nextNewline + 1
   }
 
   return actions

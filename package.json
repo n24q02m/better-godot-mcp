@@ -20,6 +20,8 @@
   "scripts": {
     "build": "tsc --build && node scripts/build-cli.js",
     "dev": "tsx watch scripts/start-server.ts",
+    "dev:http": "tsx watch scripts/start-server.ts",
+    "dev:stdio": "MCP_TRANSPORT=stdio tsx watch scripts/start-server.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "biome check .",

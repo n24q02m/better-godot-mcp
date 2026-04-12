@@ -2,6 +2,7 @@
 
 MCP Server cho Godot Engine. TypeScript, Node.js >= 24, bun, ESM.
 17 composite mega-tools cho game development. Zod v4 schema validation.
+Dual-mode: HTTP (default) + stdio (backward compat via `--stdio` flag or `MCP_TRANSPORT=stdio`).
 
 ## Commands
 
@@ -24,7 +25,9 @@ bun x vitest run -t "test name"                   # single test
 
 # Build & Dev
 bun run build                    # tsc --build + esbuild CLI bundle
-bun run dev                      # tsx watch dev server
+bun run dev                      # tsx watch dev server (HTTP mode, default)
+bun run dev:http                 # tsx watch dev server (HTTP mode, explicit)
+bun run dev:stdio                # tsx watch dev server (stdio mode)
 
 # Mise shortcuts
 mise run setup     # full dev setup
@@ -37,7 +40,10 @@ mise run fix       # bun run check:fix
 
 ```
 src/
-  init-server.ts                 # Entry point
+  init-server.ts                 # Entry point, transport mode detection
+  transports/
+    stdio.ts                     # Stdio transport (backward compat)
+    http.ts                      # HTTP transport (StreamableHTTPServerTransport, no auth)
   godot/                         # Binary detection, headless execution, types
   tools/
     registry.ts                  # Tool definitions (P0-P3 priority) + routing
@@ -53,6 +59,8 @@ tests/
 
 - `GODOT_PROJECT_PATH` -- default project path (tools cung nhan `project_path` param)
 - `GODOT_PATH` -- duong dan toi Godot binary (auto-detect neu khong set)
+- `MCP_TRANSPORT` -- `stdio` de dung stdio mode (default: HTTP)
+- `PORT` -- HTTP port (default: 0 = auto-assign)
 
 ## Code conventions
 

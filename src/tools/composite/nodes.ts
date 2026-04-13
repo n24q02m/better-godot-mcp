@@ -69,9 +69,25 @@ export async function handleNodes(action: string, args: Record<string, unknown>,
       if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
       const nodeName = args.name as string
       if (!nodeName) throw new GodotMCPError('No node name specified', 'INVALID_ARGS', 'Provide name for the new node.')
+
+      if (nodeName.includes('"') || nodeName.includes('\n') || nodeName.includes('\r')) {
+        throw new GodotMCPError('Invalid node name', 'INVALID_ARGS', 'Node name must not contain quotes or newlines.')
+      }
+
       const nodeType = (args.type as string) || 'Node'
+      if (nodeType.includes('"') || nodeType.includes('\n') || nodeType.includes('\r')) {
+        throw new GodotMCPError('Invalid node type', 'INVALID_ARGS', 'Node type must not contain quotes or newlines.')
+      }
+
       const rawParent = (args.parent as string) || '.'
       const { path: parent } = normalizeNodePath(rawParent)
+      if (parent.includes('"') || parent.includes('\n') || parent.includes('\r')) {
+        throw new GodotMCPError(
+          'Invalid parent path',
+          'INVALID_ARGS',
+          'Parent path must not contain quotes or newlines.',
+        )
+      }
 
       const fullPath = resolveScenePath(projectPath, scenePath)
       if (!(await pathExists(fullPath)))
@@ -106,6 +122,20 @@ export async function handleNodes(action: string, args: Record<string, unknown>,
               'Invalid property value',
               'INVALID_ARGS',
               'Property keys and values must be strings.',
+            )
+          }
+          if (key.includes('=') || key.includes('\n') || key.includes('\r')) {
+            throw new GodotMCPError(
+              'Invalid property key',
+              'INVALID_ARGS',
+              'Property keys must not contain "=", newlines.',
+            )
+          }
+          if (value.includes('\n') || value.includes('\r')) {
+            throw new GodotMCPError(
+              'Invalid property value',
+              'INVALID_ARGS',
+              'Property values must not contain newlines.',
             )
           }
           nodeDecl += `${key} = ${value}\n`
@@ -143,6 +173,14 @@ export async function handleNodes(action: string, args: Record<string, unknown>,
       const newName = args.new_name as string
       if (!nodeName || !newName)
         throw new GodotMCPError('Both name and new_name required', 'INVALID_ARGS', 'Provide name and new_name.')
+
+      if (newName.includes('"') || newName.includes('\n') || newName.includes('\r')) {
+        throw new GodotMCPError(
+          'Invalid node name',
+          'INVALID_ARGS',
+          'New node name must not contain quotes or newlines.',
+        )
+      }
 
       const fullPath = resolveScenePath(projectPath, scenePath)
       if (!(await pathExists(fullPath)))
@@ -191,6 +229,13 @@ export async function handleNodes(action: string, args: Record<string, unknown>,
           'INVALID_ARGS',
           'Provide name, property, and value.',
         )
+      }
+
+      if (property.includes('=') || property.includes('\n') || property.includes('\r')) {
+        throw new GodotMCPError('Invalid property key', 'INVALID_ARGS', 'Property keys must not contain "=", newlines.')
+      }
+      if (value.includes('\n') || value.includes('\r')) {
+        throw new GodotMCPError('Invalid property value', 'INVALID_ARGS', 'Property values must not contain newlines.')
       }
 
       const fullPath = resolveScenePath(projectPath, scenePath)

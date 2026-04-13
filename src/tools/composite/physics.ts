@@ -7,6 +7,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
+import { toGodotValue } from '../helpers/godot-types.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
 import { parseProjectSettingsAsync, setSettingInContent } from '../helpers/project-settings.js'
 import { escapeRegExp } from '../helpers/scene-parser.js'
@@ -61,8 +62,20 @@ export async function handlePhysics(action: string, args: Record<string, unknown
         throw new GodotMCPError(`Node "${nodeName}" not found`, 'NODE_ERROR', 'Check node name.')
       const insertPoint = match.index + match[0].length
       let props = ''
-      if (collisionLayer !== undefined) props += `\ncollision_layer = ${collisionLayer}`
-      if (collisionMask !== undefined) props += `\ncollision_mask = ${collisionMask}`
+      if (collisionLayer !== undefined) {
+        const val = toGodotValue(collisionLayer)
+        if (val.includes('\n') || val.includes('\r')) {
+          throw new GodotMCPError('Invalid collision_layer: newlines not allowed', 'INVALID_ARGS')
+        }
+        props += `\ncollision_layer = ${val}`
+      }
+      if (collisionMask !== undefined) {
+        const val = toGodotValue(collisionMask)
+        if (val.includes('\n') || val.includes('\r')) {
+          throw new GodotMCPError('Invalid collision_mask: newlines not allowed', 'INVALID_ARGS')
+        }
+        props += `\ncollision_mask = ${val}`
+      }
 
       content = `${content.slice(0, insertPoint)}${props}${content.slice(insertPoint)}`
       await writeFile(fullPath, content, 'utf-8')
@@ -88,11 +101,16 @@ export async function handlePhysics(action: string, args: Record<string, unknown
       if (!match) throw new GodotMCPError(`Node "${nodeName}" not found`, 'NODE_ERROR', 'Check node name.')
 
       let props = ''
-      if (args.gravity_scale !== undefined) props += `\ngravity_scale = ${args.gravity_scale}`
-      if (args.mass !== undefined) props += `\nmass = ${args.mass}`
-      if (args.linear_damp !== undefined) props += `\nlinear_damp = ${args.linear_damp}`
-      if (args.angular_damp !== undefined) props += `\nangular_damp = ${args.angular_damp}`
-      if (args.freeze !== undefined) props += `\nfreeze = ${args.freeze}`
+      const physicsProps = ['gravity_scale', 'mass', 'linear_damp', 'angular_damp', 'freeze']
+      for (const prop of physicsProps) {
+        if (args[prop] !== undefined) {
+          const val = toGodotValue(args[prop])
+          if (val.includes('\n') || val.includes('\r')) {
+            throw new GodotMCPError(`Invalid ${prop}: newlines not allowed`, 'INVALID_ARGS')
+          }
+          props += `\n${prop} = ${val}`
+        }
+      }
 
       if (match.index === undefined)
         throw new GodotMCPError(`Node "${nodeName}" not found`, 'NODE_ERROR', 'Check node name.')

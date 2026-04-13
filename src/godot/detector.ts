@@ -9,7 +9,7 @@
  */
 
 import { execFileSync } from 'node:child_process'
-import { accessSync, constants, existsSync, readdirSync, statSync } from 'node:fs'
+import { accessSync, closeSync, constants, existsSync, openSync, readdirSync, readSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import type { DetectionResult, GodotVersion } from './types.js'
 
@@ -46,6 +46,7 @@ export function isVersionSupported(version: GodotVersion): boolean {
  * Try to get Godot version from a binary path
  */
 export function tryGetVersion(binaryPath: string): GodotVersion | null {
+  if (!isLikelyGodotBinary(binaryPath)) return null
   try {
     const output = execFileSync(binaryPath, ['--version'], {
       timeout: 5000,
@@ -55,6 +56,36 @@ export function tryGetVersion(binaryPath: string): GodotVersion | null {
     return parseGodotVersion(output)
   } catch {
     return null
+  }
+}
+
+/**
+ * Check if a file is likely a Godot binary by looking for specific signatures.
+ * This is a security measure to prevent execution of arbitrary binaries via config.
+ */
+export function isLikelyGodotBinary(filePath: string): boolean {
+  let fd: number | null = null
+  try {
+    fd = openSync(filePath, 'r')
+    // Read first 4MB - Godot binaries are typically 40MB-100MB+
+    // Signatures like "Godot Engine" or "GDScript" are usually present early or scattered
+    const buffer = Buffer.alloc(4 * 1024 * 1024)
+    const bytesRead = readSync(fd, buffer, 0, buffer.length, 0)
+
+    const sig1 = Buffer.from('Godot Engine')
+    const sig2 = Buffer.from('GDScript')
+
+    return buffer.subarray(0, bytesRead).includes(sig1) || buffer.subarray(0, bytesRead).includes(sig2)
+  } catch {
+    return false
+  } finally {
+    if (fd !== null) {
+      try {
+        closeSync(fd)
+      } catch {
+        /* ignore */
+      }
+    }
   }
 }
 

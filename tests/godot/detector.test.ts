@@ -349,13 +349,16 @@ describe('detector', () => {
               isDirectory: () => true,
               name: 'GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe',
             } as Dirent,
-          ]
+          ] as unknown as ReturnType<typeof readdirSync>
         }
         if (path === pkgDir) {
-          return ['Godot_v4.3-stable_win64.exe', 'Godot_v4.3-stable_win64_console.exe']
+          return ['Godot_v4.3-stable_win64.exe', 'Godot_v4.3-stable_win64_console.exe'] as unknown as ReturnType<
+            typeof readdirSync
+          >
         }
-        return []
-      }) as typeof readdirSync)
+        return [] as unknown as ReturnType<typeof readdirSync>
+        // biome-ignore lint/suspicious/noExplicitAny: mock overload
+      }) as any)
 
       vi.mocked(execFileSync).mockImplementation((cmd) => {
         if (typeof cmd === 'string' && cmd.includes('Godot_v4.3-stable_win64.exe'))
@@ -379,7 +382,10 @@ describe('detector', () => {
       vi.mocked(statSync).mockImplementation(() => {
         throw new Error('ENOENT')
       })
-      vi.mocked(readdirSync).mockImplementation(((_path: PathLike, _options?: unknown) => []) as typeof readdirSync)
+      vi.mocked(readdirSync).mockImplementation(
+        // biome-ignore lint/suspicious/noExplicitAny: mock overload
+        ((_path: PathLike, _options?: unknown) => [] as unknown as ReturnType<typeof readdirSync>) as any,
+      )
 
       expect(detectGodot()).toBeNull()
     })

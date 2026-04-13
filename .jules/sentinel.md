@@ -7,3 +7,7 @@
 **Vulnerability:** The `export` action in `src/tools/composite/project.ts` passed the user-provided `preset` and `output_path` parameters directly to `execGodotAsync` without checking for leading hyphens. This allowed argument injection, where an attacker could provide a value like `--script=malicious.gd` to execute arbitrary code within the Godot project context.
 **Learning:** Even when using a safe array-based execution function like `execFile`, arguments passed to command-line utilities can still be parsed as arbitrary operational flags if they start with hyphens.
 **Prevention:** Validate user inputs passed to CLI utilities to ensure they do not start with a hyphen if they are intended to be positional arguments. Explicitly reject payloads starting with `-` or `--`.
+
+## 2024-05-18 - String Manipulation over Regex in Hot Paths
+**Learning:** In highly-executed parser loops (like `parseGodotValue`), using Regular Expressions for simple structure matching (e.g., `NodePath("...")` or quoted strings) introduces measurable overhead due to regex engine execution and array allocation.
+**Action:** Replace `match(REGEX)` and `startsWith('"')` with fast boundary checks using `trimmed.charCodeAt(i)`, `startsWith`, `endsWith`, and `slice` for significant performance gains without sacrificing readability.

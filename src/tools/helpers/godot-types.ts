@@ -42,10 +42,6 @@ const V2I_RE = /^Vector2i\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\)$/
 const V3_RE = /^Vector3\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\)$/
 const COLOR_RE = /^Color\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*(?:,\s*(-?[\d.]+)\s*)?\)$/
 const RECT2_RE = /^Rect2\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\)$/
-const NODE_PATH_RE = /^NodePath\("([^"]*)"\)$/
-const EXT_RESOURCE_RE = /^ExtResource\("([^"]*)"\)$/
-const SUB_RESOURCE_RE = /^SubResource\("([^"]*)"\)$/
-
 /**
  * Parse a Godot value expression string into a JavaScript value
  */
@@ -68,8 +64,12 @@ export function parseGodotValue(expr: string, _depth = 0): unknown {
   }
 
   // String (quoted)
-  if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
-    return trimmed.slice(1, -1)
+  if (trimmed.length >= 2) {
+    const first = trimmed.charCodeAt(0)
+    const last = trimmed.charCodeAt(trimmed.length - 1)
+    if ((first === 34 && last === 34) || (first === 39 && last === 39)) {
+      return trimmed.slice(1, -1)
+    }
   }
 
   // Vector2
@@ -117,16 +117,19 @@ export function parseGodotValue(expr: string, _depth = 0): unknown {
   }
 
   // NodePath
-  const npMatch = trimmed.match(NODE_PATH_RE)
-  if (npMatch) return npMatch[1]
+  if (trimmed.startsWith('NodePath("') && trimmed.endsWith('")')) {
+    return trimmed.slice(10, -2)
+  }
 
   // ExtResource reference
-  const extMatch = trimmed.match(EXT_RESOURCE_RE)
-  if (extMatch) return `ExtResource("${extMatch[1]}")`
+  if (trimmed.startsWith('ExtResource("') && trimmed.endsWith('")')) {
+    return trimmed // already in correct format
+  }
 
   // SubResource reference
-  const subMatch = trimmed.match(SUB_RESOURCE_RE)
-  if (subMatch) return `SubResource("${subMatch[1]}")`
+  if (trimmed.startsWith('SubResource("') && trimmed.endsWith('")')) {
+    return trimmed // already in correct format
+  }
 
   // Array
   if (trimmed.startsWith('[') && trimmed.endsWith(']')) {

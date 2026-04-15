@@ -9,11 +9,11 @@
  */
 
 import { execFileSync } from 'node:child_process'
-import { accessSync, closeSync, constants, existsSync, openSync, readdirSync, readSync, statSync } from 'node:fs'
+import { accessSync, closeSync, constants, existsSync, fstatSync, openSync, readdirSync, readSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import type { DetectionResult, GodotVersion } from './types.js'
 
-const GODOT_BINARY_NAMES = ['godot', 'godot4', 'Godot_v4']
+const GODOT_BINARY_NAMES = ['godot', 'godot4', 'godot-preview', 'Godot_v4']
 const MIN_VERSION = { major: 4, minor: 1 }
 
 /**
@@ -69,7 +69,7 @@ export function isLikelyGodotBinary(filePath: string): boolean {
   let fd: number | null = null
   try {
     fd = openSync(filePath, 'r')
-    const stats = statSync(filePath)
+    const stats = fstatSync(fd)
     const fileSize = stats.size
     const chunkSize = 4 * 1024 * 1024
     const sig1 = Buffer.from('Godot Engine')
@@ -195,6 +195,7 @@ function getSystemPaths(): string[] {
     paths.push(
       '/Applications/Godot.app/Contents/MacOS/Godot',
       '/Applications/Godot_mono.app/Contents/MacOS/Godot',
+      '/Applications/Godot_preview.app/Contents/MacOS/Godot',
       // Homebrew
       '/opt/homebrew/bin/godot',
       '/usr/local/bin/godot',
@@ -205,6 +206,8 @@ function getSystemPaths(): string[] {
       '/usr/bin/godot',
       '/usr/local/bin/godot',
       '/usr/bin/godot4',
+      '/usr/bin/godot-preview',
+      '/opt/godot-preview/godot-preview',
       // Snap
       '/snap/bin/godot',
       '/snap/bin/godot-4',

@@ -193,10 +193,10 @@ describe('detector', () => {
       let callCount = 0
       vi.mocked(statSync).mockReturnValue({ isFile: () => true, size: largeSize } as unknown as import('node:fs').Stats)
       vi.mocked(openSync).mockReturnValue(999)
-      vi.mocked(readSync).mockImplementation((_fd, buffer, _len, offset) => {
+      vi.mocked(readSync).mockImplementation((_fd, buffer, _bufferOffset, _length, filePosition) => {
         callCount++
         const b = buffer as Buffer
-        if (offset > 70 * 1024 * 1024) {
+        if (typeof filePosition === 'number' && filePosition > 70 * 1024 * 1024) {
           b.write('Godot Engine')
           return 'Godot Engine'.length
         }
@@ -246,15 +246,15 @@ describe('detector', () => {
       let callCount = 0
       vi.mocked(statSync).mockReturnValue({ isFile: () => true, size: fileSize } as unknown as import('node:fs').Stats)
       vi.mocked(openSync).mockReturnValue(999)
-      vi.mocked(readSync).mockImplementation((_fd, buffer, _len, offset) => {
+      vi.mocked(readSync).mockImplementation((_fd, buffer, _bufferOffset, _length, filePosition) => {
         callCount++
         const b = buffer as Buffer
-        if (offset >= step) {
+        if (typeof filePosition === 'number' && filePosition >= step) {
           b.write('Godot Engine')
           return maxSigLen
         }
         b.fill(0)
-        return Math.min(chunkSize, fileSize - offset)
+        return Math.min(chunkSize, fileSize - (filePosition ?? 0))
       })
       expect(isLikelyGodotBinary('/usr/bin/godot-boundary')).toBe(true)
       expect(callCount).toBeGreaterThan(1)

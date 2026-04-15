@@ -71,9 +71,20 @@ export function isLikelyGodotBinary(filePath: string): boolean {
     fd = openSync(filePath, 'r')
     const stats = fstatSync(fd)
     const fileSize = stats.size
-    const chunkSize = 4 * 1024 * 1024
     const sig1 = Buffer.from('Godot Engine')
     const sig2 = Buffer.from('GDScript')
+
+    const fastSize = 64 * 1024
+    const fastBuf = Buffer.alloc(fastSize)
+    const headRead = readSync(fd, fastBuf, 0, Math.min(fastSize, fileSize), 0)
+    if (headRead > 0 && (fastBuf.subarray(0, headRead).includes(sig1) || fastBuf.subarray(0, headRead).includes(sig2))) return true
+    if (fileSize > fastSize) {
+      const tailOffset = fileSize - fastSize
+      const tailRead = readSync(fd, fastBuf, 0, fastSize, tailOffset)
+      if (tailRead > 0 && (fastBuf.subarray(0, tailRead).includes(sig1) || fastBuf.subarray(0, tailRead).includes(sig2))) return true
+    }
+
+    const chunkSize = 4 * 1024 * 1024
     const maxSigLen = Math.max(sig1.length, sig2.length)
     const overlap = maxSigLen - 1
     const step = chunkSize - overlap

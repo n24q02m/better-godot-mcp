@@ -237,6 +237,42 @@ describe('detector', () => {
       expect(isLikelyGodotBinary('/nonexistent')).toBe(false)
     })
 
+    it('should find signature via head fast path', () => {
+      vi.mocked(statSync).mockReturnValue({ isFile: () => true, size: 50 * 1024 * 1024 } as unknown as import('node:fs').Stats)
+      vi.mocked(openSync).mockReturnValue(999)
+      let readCalls = 0
+      vi.mocked(readSync).mockImplementation((_fd, buffer, _bufOff, _len, pos) => {
+        readCalls++
+        const b = buffer as Buffer
+        if (typeof pos === 'number' && pos === 0) {
+          b.write('Godot Engine')
+          return 'Godot Engine'.length
+        }
+        b.fill(0)
+        return 64 * 1024
+      })
+      expect(isLikelyGodotBinary('/usr/bin/godot-fast-head')).toBe(true)
+      expect(readCalls).toBe(1)
+    })
+
+    it('should find signature via tail fast path', () => {
+      vi.mocked(statSync).mockReturnValue({ isFile: () => true, size: 100 * 1024 * 1024 } as unknown as import('node:fs').Stats)
+      vi.mocked(openSync).mockReturnValue(999)
+      let readCalls = 0
+      vi.mocked(readSync).mockImplementation((_fd, buffer, _bufOff, _len, pos) => {
+        readCalls++
+        const b = buffer as Buffer
+        const p = typeof pos === 'number' ? pos : 0
+        if (p > 90 * 1024 * 1024) {
+          b.write('Godot Engine')
+          return 'Godot Engine'.length
+        }
+        b.fill(0)
+        return _len as number
+      })
+      expect(isLikelyGodotBinary('/usr/bin/godot-fast-tail')).toBe(true)
+    })
+
     it('should detect signature that straddles a chunk boundary', () => {
       const chunkSize = 4 * 1024 * 1024
       const maxSigLen = 12

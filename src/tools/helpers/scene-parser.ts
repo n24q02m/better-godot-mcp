@@ -323,18 +323,21 @@ export function renameNodeInContent(content: string, oldName: string, newName: s
     return content
   }
 
-  const escapedOldName = escapeRegExp(oldName)
+  // ⚡ Bolt: Use exact string replacements via replaceAll instead of new RegExp(..., 'g')
+  // This avoids expensive regex compilation and matching overhead for simple exact matches.
+  let result = content.replaceAll(`name="${oldName}"`, `name="${newName}"`)
+  result = result.replaceAll(`parent="${oldName}"`, `parent="${newName}"`)
+  result = result.replaceAll(`from="${oldName}"`, `from="${newName}"`)
+  result = result.replaceAll(`to="${oldName}"`, `to="${newName}"`)
 
-  // Replace in node declarations
-  let result = content.replace(new RegExp(`name="${escapedOldName}"`, 'g'), `name="${newName}"`)
-  // Replace in parent references
-  result = result.replace(new RegExp(`parent="${escapedOldName}"`, 'g'), `parent="${newName}"`)
-  // Replace in parent paths containing the old name
-  result = result.replace(new RegExp(`parent="([^"]*/)${escapedOldName}(/[^"]*)"`, 'g'), `parent="$1${newName}$2"`)
-  result = result.replace(new RegExp(`parent="([^"]*/)${escapedOldName}"`, 'g'), `parent="$1${newName}"`)
-  // Replace in connection references
-  result = result.replace(new RegExp(`from="${escapedOldName}"`, 'g'), `from="${newName}"`)
-  result = result.replace(new RegExp(`to="${escapedOldName}"`, 'g'), `to="${newName}"`)
+  // Fallback to RegExp only for complex hierarchical path replacements
+  // e.g., parent="Root/OldName/Child" or parent="Root/OldName"
+  if (result.includes(`/${oldName}/`) || result.includes(`/${oldName}"`)) {
+    const escapedOldName = escapeRegExp(oldName)
+    result = result.replace(new RegExp(`parent="([^"]*/)${escapedOldName}(/[^"]*)"`, 'g'), `parent="$1${newName}$2"`)
+    result = result.replace(new RegExp(`parent="([^"]*/)${escapedOldName}"`, 'g'), `parent="$1${newName}"`)
+  }
+
   return result
 }
 

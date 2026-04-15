@@ -43,10 +43,12 @@ export function isVersionSupported(version: GodotVersion): boolean {
 }
 
 /**
- * Try to get Godot version from a binary path
+ * Try to get Godot version from a binary path.
+ * When skipSignatureCheck is true (e.g. user explicitly provided the path),
+ * the binary signature heuristic is skipped and only --version validation is used.
  */
-export function tryGetVersion(binaryPath: string): GodotVersion | null {
-  if (!isLikelyGodotBinary(binaryPath)) return null
+export function tryGetVersion(binaryPath: string, skipSignatureCheck = false): GodotVersion | null {
+  if (!skipSignatureCheck && !isLikelyGodotBinary(binaryPath)) return null
   try {
     const output = execFileSync(binaryPath, ['--version'], {
       timeout: 5000,
@@ -67,15 +69,21 @@ export function isLikelyGodotBinary(filePath: string): boolean {
   let fd: number | null = null
   try {
     fd = openSync(filePath, 'r')
-    // Read first 4MB - Godot binaries are typically 40MB-100MB+
-    // Signatures like "Godot Engine" or "GDScript" are usually present early or scattered
-    const buffer = Buffer.alloc(4 * 1024 * 1024)
-    const bytesRead = readSync(fd, buffer, 0, buffer.length, 0)
-
+    const stats = statSync(filePath)
+    const fileSize = stats.size
+    const chunkSize = 4 * 1024 * 1024
     const sig1 = Buffer.from('Godot Engine')
     const sig2 = Buffer.from('GDScript')
-
-    return buffer.subarray(0, bytesRead).includes(sig1) || buffer.subarray(0, bytesRead).includes(sig2)
+    const maxSigLen = Math.max(sig1.length, sig2.length)
+    const overlap = maxSigLen - 1
+    const step = chunkSize - overlap
+    const buffer = Buffer.alloc(chunkSize)
+    for (let offset = 0; offset < fileSize; offset += step) {
+      const readLen = Math.min(chunkSize, fileSize - offset)
+      const bytesRead = readSync(fd, buffer, 0, readLen, offset)
+      if (buffer.subarray(0, bytesRead).includes(sig1) || buffer.subarray(0, bytesRead).includes(sig2)) return true
+    }
+    return false
   } catch {
     return false
   } finally {
@@ -221,10 +229,10 @@ function getSystemPaths(): string[] {
  * @returns Detection result or null if not found
  */
 export function detectGodot(): DetectionResult | null {
-  // 1. Check GODOT_PATH env var
+  // 1. Check GODOT_PATH env var — skip signature heuristic since user explicitly provided the path
   const envPath = process.env.GODOT_PATH
   if (envPath && isExecutable(envPath)) {
-    const version = tryGetVersion(envPath)
+    const version = tryGetVersion(envPath, true)
     if (version && isVersionSupported(version)) {
       return { path: envPath, version, source: 'env' }
     }

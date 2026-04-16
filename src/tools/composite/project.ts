@@ -26,39 +26,52 @@ async function parseProjectGodot(projectPath: string): Promise<ProjectInfo> {
   }
 
   const content = await readFile(configPath, 'utf-8')
-  const lines = content.split('\n')
-
   const info: ProjectInfo = { name: 'Unknown', configVersion: 5, mainScene: null, features: [], settings: {} }
   let currentSection = ''
 
-  for (const line of lines) {
-    const trimmed = line.trim()
+  let pos = 0
+  const len = content.length
 
-    const sectionMatch = trimmed.match(/^\[(.+)\]$/)
-    if (sectionMatch) {
-      currentSection = sectionMatch[1]
-      continue
-    }
+  while (pos < len) {
+    let nextNewline = content.indexOf('\n', pos)
+    if (nextNewline === -1) nextNewline = len
 
-    const kvMatch = trimmed.match(/^(\S+)\s*=\s*(.+)$/)
-    if (!kvMatch) continue
+    // manual trim
+    let start = pos
+    let end = nextNewline
+    while (start < end && content.charCodeAt(start) <= 32) start++
+    while (end > start && content.charCodeAt(end - 1) <= 32) end--
 
-    const [, key, rawValue] = kvMatch
-    const value = rawValue.replace(/^"(.*)"$/, '$1')
+    if (start < end) {
+      const trimmed = content.slice(start, end)
 
-    if (currentSection === '' || currentSection === 'application') {
-      if (key === 'config/name') info.name = value
-      if (key === 'run/main_scene') info.mainScene = value
-      if (key === 'config/features') {
-        const featMatch = rawValue.match(/PackedStringArray\((.+)\)/)
-        if (featMatch) {
-          info.features = parseCommaSeparatedList(featMatch[1])
+      const sectionMatch = trimmed.match(/^\[(.+)\]$/)
+      if (sectionMatch) {
+        currentSection = sectionMatch[1]
+      } else {
+        const kvMatch = trimmed.match(/^(\S+)\s*=\s*(.+)$/)
+        if (kvMatch) {
+          const [, key, rawValue] = kvMatch
+          const value = rawValue.replace(/^"(.*)"$/, '$1')
+
+          if (currentSection === '' || currentSection === 'application') {
+            if (key === 'config/name') info.name = value
+            if (key === 'run/main_scene') info.mainScene = value
+            if (key === 'config/features') {
+              const featMatch = rawValue.match(/PackedStringArray\((.+)\)/)
+              if (featMatch) {
+                info.features = parseCommaSeparatedList(featMatch[1])
+              }
+            }
+          }
+
+          if (key === 'config_version') info.configVersion = Number.parseInt(value, 10)
+          info.settings[`${currentSection ? `${currentSection}/` : ''}${key}`] = value
         }
       }
     }
 
-    if (key === 'config_version') info.configVersion = Number.parseInt(value, 10)
-    info.settings[`${currentSection ? `${currentSection}/` : ''}${key}`] = value
+    pos = nextNewline === -1 ? len : nextNewline + 1
   }
 
   return info

@@ -107,34 +107,67 @@ export function setSettingInContent(content: string, path: string, value: string
   const section = parts[0]
   const key = parts.slice(1).join('/')
   const sectionHeader = `[${section}]`
-  const lines = content.split('\n')
   const result: string[] = []
   let inSection = false
   let keySet = false
   let sectionFound = false
 
-  for (let i = 0; i < lines.length; i++) {
-    const trimmed = lines[i].trim()
+  let pos = 0
+  const len = content.length
+  const keyPrefix = `${key}=`
 
-    // Check for section header
-    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-      if (inSection && !keySet) {
-        // Add key before leaving section
-        result.push(`${key}=${value}`)
-        keySet = true
+  while (pos < len) {
+    const nextNewline = content.indexOf('\n', pos)
+    const lineEnd = nextNewline === -1 ? len : nextNewline
+
+    // Trim line manually for logic
+    let start = pos
+    let end = lineEnd
+    while (start < end && content.charCodeAt(start) <= 32) start++
+    while (end > start && content.charCodeAt(end - 1) <= 32) end--
+
+    if (start < end) {
+      const firstChar = content.charCodeAt(start)
+      const lastChar = content.charCodeAt(end - 1)
+
+      // Check for section header
+      if (firstChar === 91 && lastChar === 93) {
+        if (inSection && !keySet) {
+          // Add key before leaving section
+          result.push(`${key}=${value}`)
+          keySet = true
+        }
+        const currentHeader = content.slice(start, end)
+        inSection = currentHeader === sectionHeader
+        if (inSection) sectionFound = true
       }
-      inSection = trimmed === sectionHeader
-      if (inSection) sectionFound = true
+
+      // Replace existing key in current section
+      if (inSection && !keySet) {
+        // Optimized check: starts with key=
+        let match = true
+        if (end - start >= keyPrefix.length) {
+          for (let i = 0; i < keyPrefix.length; i++) {
+            if (content[start + i] !== keyPrefix[i]) {
+              match = false
+              break
+            }
+          }
+        } else {
+          match = false
+        }
+
+        if (match) {
+          result.push(`${key}=${value}`)
+          keySet = true
+          pos = nextNewline === -1 ? len : nextNewline + 1
+          continue
+        }
+      }
     }
 
-    // Replace existing key in current section
-    if (inSection && trimmed.startsWith(`${key}=`)) {
-      result.push(`${key}=${value}`)
-      keySet = true
-      continue
-    }
-
-    result.push(lines[i])
+    result.push(content.slice(pos, lineEnd))
+    pos = nextNewline === -1 ? len : nextNewline + 1
   }
 
   // Handle last section

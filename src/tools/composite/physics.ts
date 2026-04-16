@@ -22,13 +22,10 @@ export async function handlePhysics(action: string, args: Record<string, unknown
       if (!(await pathExists(configPath)))
         throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify project path.')
 
-      // Performance optimization: using async file reading instead of sync
-      // to avoid blocking the Node.js event loop during I/O operations
       const settings = await parseProjectSettingsAsync(configPath)
       const layers2d: Record<string, string> = {}
       const layers3d: Record<string, string> = {}
 
-      // Read layer names from layer_names section
       for (const [key, value] of settings.sections.get('layer_names') || []) {
         if (key.startsWith('2d_physics/layer_')) {
           layers2d[key] = value.replace(/"/g, '')
@@ -45,8 +42,13 @@ export async function handlePhysics(action: string, args: Record<string, unknown
       if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
       const nodeName = args.name as string
       if (!nodeName) throw new GodotMCPError('No node name specified', 'INVALID_ARGS', 'Provide node name.')
-      const collisionLayer = args.collision_layer as number
-      const collisionMask = args.collision_mask as number
+
+      if (scenePath.includes('\n') || scenePath.includes('\r') || nodeName.includes('\n') || nodeName.includes('\r')) {
+        throw new GodotMCPError('Invalid arguments: newlines not allowed', 'INVALID_ARGS')
+      }
+
+      const collisionLayer = args.collision_layer
+      const collisionMask = args.collision_mask
 
       const fullPath = safeResolve(safeResolve(config.projectPath || process.cwd(), projectPath), scenePath)
       if (!(await pathExists(fullPath)))
@@ -57,7 +59,6 @@ export async function handlePhysics(action: string, args: Record<string, unknown
       const match = content.match(nodeRegex)
       if (!match) throw new GodotMCPError(`Node "${nodeName}" not found`, 'NODE_ERROR', 'Check node name.')
 
-      // Find or create properties after node declaration
       if (match.index === undefined)
         throw new GodotMCPError(`Node "${nodeName}" not found`, 'NODE_ERROR', 'Check node name.')
       const insertPoint = match.index + match[0].length
@@ -91,6 +92,10 @@ export async function handlePhysics(action: string, args: Record<string, unknown
       const nodeName = args.name as string
       if (!nodeName) throw new GodotMCPError('No node name specified', 'INVALID_ARGS', 'Provide node name.')
 
+      if (scenePath.includes('\n') || scenePath.includes('\r') || nodeName.includes('\n') || nodeName.includes('\r')) {
+        throw new GodotMCPError('Invalid arguments: newlines not allowed', 'INVALID_ARGS')
+      }
+
       const fullPath = safeResolve(safeResolve(config.projectPath || process.cwd(), projectPath), scenePath)
       if (!(await pathExists(fullPath)))
         throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check file path.')
@@ -123,10 +128,26 @@ export async function handlePhysics(action: string, args: Record<string, unknown
 
     case 'set_layer_name': {
       if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
-      const layerNum = (args.layer_number as number) || 1
+      const layerNumRaw = args.layer_number !== undefined ? String(args.layer_number) : '1'
       const dimension = (args.dimension as string) || '2d'
       const name = args.name as string
       if (!name) throw new GodotMCPError('No name specified', 'INVALID_ARGS', 'Provide layer name.')
+
+      if (
+        name.includes('\n') ||
+        name.includes('\r') ||
+        dimension.includes('\n') ||
+        dimension.includes('\r') ||
+        layerNumRaw.includes('\n') ||
+        layerNumRaw.includes('\r')
+      ) {
+        throw new GodotMCPError('Invalid arguments: newlines not allowed', 'INVALID_ARGS')
+      }
+
+      const layerNum = Number.parseInt(layerNumRaw, 10)
+      if (Number.isNaN(layerNum)) {
+        throw new GodotMCPError('Invalid layer_number: must be a number', 'INVALID_ARGS')
+      }
 
       const configPath = join(safeResolve(config.projectPath || process.cwd(), projectPath), 'project.godot')
       if (!(await pathExists(configPath)))

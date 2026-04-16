@@ -38,14 +38,12 @@ vi.mock('../src/tools/registry.js', () => ({
   registerTools: vi.fn(),
 }))
 
-// Mock node:fs to test getVersion catch block
-vi.mock('node:fs', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('node:fs')>()
-  return {
-    ...actual,
-    readFileSync: vi.fn(actual.readFileSync),
-  }
-})
+// Mock package.json
+vi.mock('../package.json', () => ({
+  default: {
+    version: '1.2.3',
+  },
+}))
 
 // Mock mcp-core runLocalServer to avoid starting real server.
 // init-server.ts dynamically imports '@n24q02m/mcp-core' only for HTTP mode.
@@ -350,10 +348,7 @@ describe('initServer', () => {
   })
 
   describe('getVersion', () => {
-    it('should handle missing version in package.json', async () => {
-      const { readFileSync } = await import('node:fs')
-      vi.mocked(readFileSync).mockReturnValue(JSON.stringify({}))
-
+    it('should return version from package.json', async () => {
       const { detectGodot } = await import('../src/godot/detector.js')
       vi.mocked(detectGodot).mockReturnValue(null)
 
@@ -362,27 +357,7 @@ describe('initServer', () => {
 
       expect(mockServerConstructor).toHaveBeenCalledWith(
         expect.objectContaining({
-          version: '0.0.0',
-        }),
-        expect.anything(),
-      )
-    })
-
-    it('should handle errors in getVersion by returning default version', async () => {
-      const { readFileSync } = await import('node:fs')
-      vi.mocked(readFileSync).mockImplementation(() => {
-        throw new Error('File not found')
-      })
-
-      const { detectGodot } = await import('../src/godot/detector.js')
-      vi.mocked(detectGodot).mockReturnValue(null)
-
-      const { createGodotServer } = await import('../src/init-server.js')
-      createGodotServer()
-
-      expect(mockServerConstructor).toHaveBeenCalledWith(
-        expect.objectContaining({
-          version: '0.0.0',
+          version: '1.2.3',
         }),
         expect.anything(),
       )

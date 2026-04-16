@@ -10,10 +10,8 @@
  * Defaults to HTTP mode. Use --stdio flag or MCP_TRANSPORT=stdio for stdio mode.
  */
 
-import { readFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
+import pkg from '../package.json' with { type: 'json' }
 import { detectGodot } from './godot/detector.js'
 import type { GodotConfig } from './godot/types.js'
 import { registerTools } from './tools/registry.js'
@@ -21,15 +19,7 @@ import { registerTools } from './tools/registry.js'
 const SERVER_NAME = 'better-godot-mcp'
 
 function getVersion(): string {
-  try {
-    const __filename = fileURLToPath(import.meta.url)
-    const __dirname = dirname(__filename)
-    const pkgPath = join(__dirname, '..', 'package.json')
-    const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'))
-    return pkg.version ?? '0.0.0'
-  } catch {
-    return '0.0.0'
-  }
+  return pkg.version ?? '0.0.0'
 }
 
 export function createGodotServer(): Server {

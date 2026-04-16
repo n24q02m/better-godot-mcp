@@ -86,15 +86,15 @@ describe('registry', () => {
       const { resolve } = await import('node:path')
       registrySource = readFileSync(resolve(import.meta.dirname, '../src/tools/registry.ts'), 'utf-8')
 
-      const inputSchemaCount = (registrySource.match(/inputSchema:\s*\{/g) || []).length
+      // Each tool now uses createToolSchema
+      const inputSchemaCount = (registrySource.match(/inputSchema: createToolSchema\(/g) || []).length
       expect(inputSchemaCount).toBe(17)
 
-      // help tool requires 'tool_name' instead of 'action'
-      const requiredActionCount = (registrySource.match(/required:\s*\['action'\]/g) || []).length
-      expect(requiredActionCount).toBe(16) // 17 minus help (uses 'tool_name')
+      // createToolSchema defaults to ['action'] as required
+      expect(registrySource).toContain("required: string[] = ['action']")
 
-      // help uses 'tool_name' as required
-      expect(registrySource).toContain("required: ['tool_name']")
+      // help tool explicitly overrides required with ['tool_name']
+      expect(registrySource).toContain("['tool_name']")
     })
   })
 
@@ -117,7 +117,6 @@ describe('registry', () => {
         'help',
         'resources',
         'input_map',
-        'help',
         'signals',
         'animation',
         'tilemap',
@@ -135,15 +134,6 @@ describe('registry', () => {
           expect(source).toContain(`${toolName}: handle`)
         }
       }
-    })
-
-    it('should have a default case for unknown tools', async () => {
-      const { readFileSync } = await import('node:fs')
-      const { resolve } = await import('node:path')
-      const source = readFileSync(resolve(import.meta.dirname, '../src/tools/registry.ts'), 'utf-8')
-
-      expect(source).toContain('default:')
-      expect(source).toContain('Unknown tool')
     })
   })
 

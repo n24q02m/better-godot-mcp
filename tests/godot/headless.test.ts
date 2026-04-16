@@ -255,6 +255,14 @@ describe('headless', () => {
       const result = runGodotProject('/usr/bin/godot', '/tmp/project')
       expect(result.pid).toBeUndefined()
     })
+
+    it('should throw if spawn throws', () => {
+      vi.mocked(child_process.spawn).mockImplementation(() => {
+        throw new Error('Spawn failed')
+      })
+
+      expect(() => runGodotProject('/usr/bin/godot', '/tmp/project')).toThrow('Spawn failed')
+    })
   })
 
   // ==========================================
@@ -280,6 +288,14 @@ describe('headless', () => {
 
       const result = launchGodotEditor('/usr/bin/godot', '/tmp/project')
       expect(result.pid).toBeUndefined()
+    })
+
+    it('should throw if editor spawn throws', () => {
+      vi.mocked(child_process.spawn).mockImplementation(() => {
+        throw new Error('Spawn failed')
+      })
+
+      expect(() => launchGodotEditor('/usr/bin/godot', '/tmp/project')).toThrow('Spawn failed')
     })
   })
 

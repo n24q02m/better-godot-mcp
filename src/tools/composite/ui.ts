@@ -31,6 +31,18 @@ const CONTROL_TEMPLATES: Record<string, Record<string, string>> = {
   GridContainer: { columns: '2' },
 }
 
+const LAYOUT_PRESETS: Record<string, string> = {
+  full_rect: '\nanchors_preset = 15\nanchor_right = 1.0\nanchor_bottom = 1.0\ngrow_horizontal = 2\ngrow_vertical = 2',
+  center:
+    '\nanchors_preset = 8\nanchor_left = 0.5\nanchor_top = 0.5\nanchor_right = 0.5\nanchor_bottom = 0.5\ngrow_horizontal = 2\ngrow_vertical = 2',
+  top_wide: '\nanchors_preset = 10\nanchor_right = 1.0\ngrow_horizontal = 2',
+  bottom_wide:
+    '\nanchors_preset = 12\nanchor_top = 1.0\nanchor_right = 1.0\nanchor_bottom = 1.0\ngrow_horizontal = 2\ngrow_vertical = 0',
+  left_wide: '\nanchors_preset = 9\nanchor_bottom = 1.0\ngrow_vertical = 2',
+  right_wide:
+    '\nanchors_preset = 11\nanchor_left = 1.0\nanchor_right = 1.0\nanchor_bottom = 1.0\ngrow_horizontal = 0\ngrow_vertical = 2',
+}
+
 const CONTROL_TYPES = new Set([
   'Control',
   'Button',
@@ -143,36 +155,13 @@ async function handleLayout(projectPath: string | null | undefined, args: Record
   const match = content.match(nodeRegex)
   if (!match) throw new GodotMCPError(`Node "${nodeName}" not found`, 'NODE_ERROR', 'Check node name.')
 
-  let layoutProps = ''
-  switch (preset) {
-    case 'full_rect':
-      layoutProps =
-        '\nanchors_preset = 15\nanchor_right = 1.0\nanchor_bottom = 1.0\ngrow_horizontal = 2\ngrow_vertical = 2'
-      break
-    case 'center':
-      layoutProps =
-        '\nanchors_preset = 8\nanchor_left = 0.5\nanchor_top = 0.5\nanchor_right = 0.5\nanchor_bottom = 0.5\ngrow_horizontal = 2\ngrow_vertical = 2'
-      break
-    case 'top_wide':
-      layoutProps = '\nanchors_preset = 10\nanchor_right = 1.0\ngrow_horizontal = 2'
-      break
-    case 'bottom_wide':
-      layoutProps =
-        '\nanchors_preset = 12\nanchor_top = 1.0\nanchor_right = 1.0\nanchor_bottom = 1.0\ngrow_horizontal = 2\ngrow_vertical = 0'
-      break
-    case 'left_wide':
-      layoutProps = '\nanchors_preset = 9\nanchor_bottom = 1.0\ngrow_vertical = 2'
-      break
-    case 'right_wide':
-      layoutProps =
-        '\nanchors_preset = 11\nanchor_left = 1.0\nanchor_right = 1.0\nanchor_bottom = 1.0\ngrow_horizontal = 0\ngrow_vertical = 2'
-      break
-    default:
-      throw new GodotMCPError(
-        `Unknown layout preset: ${preset}`,
-        'INVALID_ARGS',
-        'Valid presets: full_rect, center, top_wide, bottom_wide, left_wide, right_wide.',
-      )
+  const layoutProps = LAYOUT_PRESETS[preset]
+  if (!layoutProps) {
+    throw new GodotMCPError(
+      `Unknown layout preset: ${preset}`,
+      'INVALID_ARGS',
+      `Valid presets: ${Object.keys(LAYOUT_PRESETS).join(', ')}.`,
+    )
   }
 
   if (match.index === undefined)

@@ -75,6 +75,9 @@ export async function handleProject(action: string, args: Record<string, unknown
           'Provide project_path argument or set it via config.set action.',
         )
       }
+      if (typeof args.project_path === 'string' && args.project_path.startsWith('-')) {
+        throw new GodotMCPError('Invalid project path', 'INVALID_ARGS', 'Project path must not start with a hyphen.')
+      }
       const info = await parseProjectGodot(safeResolve(config.projectPath || process.cwd(), projectPath))
       return formatJSON(info)
     }
@@ -93,6 +96,9 @@ export async function handleProject(action: string, args: Record<string, unknown
       const projectPath = (args.project_path as string) || config.projectPath
       if (!projectPath)
         throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path argument.')
+      if (typeof args.project_path === 'string' && args.project_path.startsWith('-')) {
+        throw new GodotMCPError('Invalid project path', 'INVALID_ARGS', 'Project path must not start with a hyphen.')
+      }
       const { pid } = runGodotProject(config.godotPath, safeResolve(config.projectPath || process.cwd(), projectPath))
       if (pid) {
         config.activePids.push(pid)
@@ -133,6 +139,9 @@ export async function handleProject(action: string, args: Record<string, unknown
     case 'settings_get': {
       const projectPath = (args.project_path as string) || config.projectPath
       if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
+      if (typeof args.project_path === 'string' && args.project_path.startsWith('-')) {
+        throw new GodotMCPError('Invalid project path', 'INVALID_ARGS', 'Project path must not start with a hyphen.')
+      }
       const key = args.key as string
       if (!key)
         throw new GodotMCPError('No key specified', 'INVALID_ARGS', 'Provide key (e.g., "application/config/name").')
@@ -152,6 +161,9 @@ export async function handleProject(action: string, args: Record<string, unknown
     case 'settings_set': {
       const projectPath = (args.project_path as string) || config.projectPath
       if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
+      if (typeof args.project_path === 'string' && args.project_path.startsWith('-')) {
+        throw new GodotMCPError('Invalid project path', 'INVALID_ARGS', 'Project path must not start with a hyphen.')
+      }
       const key = args.key as string
       const value = args.value as string
       if (!key || value === undefined)
@@ -181,6 +193,9 @@ export async function handleProject(action: string, args: Record<string, unknown
         throw new GodotMCPError('Godot not found', 'GODOT_NOT_FOUND', 'Set GODOT_PATH env var or install Godot.')
       const projectPath = (args.project_path as string) || config.projectPath
       if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
+      if (typeof args.project_path === 'string' && args.project_path.startsWith('-')) {
+        throw new GodotMCPError('Invalid project path', 'INVALID_ARGS', 'Project path must not start with a hyphen.')
+      }
       const preset = args.preset as string
       const outputPath = args.output_path as string
       if (!preset || !outputPath) {
@@ -189,6 +204,10 @@ export async function handleProject(action: string, args: Record<string, unknown
           'INVALID_ARGS',
           'Provide preset name and output path.',
         )
+      }
+
+      if (typeof preset !== 'string' || typeof outputPath !== 'string') {
+        throw new GodotMCPError('Invalid arguments', 'INVALID_ARGS', 'Preset and output path must be strings.')
       }
 
       if (preset.startsWith('-') || outputPath.startsWith('-')) {

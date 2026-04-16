@@ -107,7 +107,7 @@ export async function handleResources(action: string, args: Record<string, unkno
       for (let i = 0; i < resources.length; i++) {
         const r = resources[i]
         relativePaths[i] = {
-          path: r.path.substring(prefixLen).replace(/\\/g, '/'),
+          path: r.path.substring(prefixLen).replaceAll('\\', '/'),
           ext: extname(r.path),
           size: r.size,
         }

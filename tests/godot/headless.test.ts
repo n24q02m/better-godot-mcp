@@ -59,30 +59,28 @@ describe('headless', () => {
 
       const result = execGodotSync(godotPath, args, options)
 
+      expect(child_process.spawnSync).toHaveBeenCalledWith(godotPath, args, expect.objectContaining({
+        timeout: 1000,
+        cwd: '/tmp',
+        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      }))
       expect(result.success).toBe(true)
       expect(result.stdout).toBe('4.2.1')
-      expect(child_process.spawnSync).toHaveBeenCalledWith(
-        godotPath,
-        args,
-        expect.objectContaining({
-          timeout: options.timeout,
-          cwd: options.cwd,
-          encoding: 'utf-8',
-        }),
-      )
+      expect(result.exitCode).toBe(0)
     })
 
-    it('should use default timeout when not specified', () => {
+    it('should use default timeout of 30_000 when none specified', () => {
       vi.mocked(child_process.spawnSync).mockReturnValue({
-        stdout: 'output',
+        stdout: '',
         stderr: '',
         status: 0,
         output: [],
         pid: 0,
         signal: null,
       } as unknown as child_process.SpawnSyncReturns<string>)
-      const result = execGodotSync('/usr/bin/godot', ['--version'])
-      expect(result.success).toBe(true)
+
+      execGodotSync('/usr/bin/godot', ['--version'])
       expect(child_process.spawnSync).toHaveBeenCalledWith(
         '/usr/bin/godot',
         ['--version'],
@@ -90,30 +88,37 @@ describe('headless', () => {
       )
     })
 
-    it('handles execution errors', () => {
-      const godotPath = '/usr/bin/godot'
-      const args = ['--invalid']
-
-      // Mock execution error
-      const error = new Error('Command failed') as ExecError
-      error.status = 1
-      error.stdout = ''
-      error.stderr = 'Unknown argument'
-
+    it('returns failure result when status is non-zero', () => {
       vi.mocked(child_process.spawnSync).mockReturnValue({
-        error,
-        status: error.status ?? 1,
-        stdout: error.stdout ?? '',
-        stderr: error.stderr ?? '',
+        stdout: '',
+        stderr: 'Error: invalid argument',
+        status: 1,
         output: [],
         pid: 0,
         signal: null,
       } as unknown as child_process.SpawnSyncReturns<string>)
 
-      const result = execGodotSync(godotPath, args)
-
+      const result = execGodotSync('/usr/bin/godot', ['--invalid'])
       expect(result.success).toBe(false)
-      expect(result.stderr).toBe('Unknown argument')
+      expect(result.stderr).toBe('Error: invalid argument')
+      expect(result.exitCode).toBe(1)
+    })
+
+    it('returns failure result when spawnSync throws or returns error', () => {
+      const error = new Error('Spawn failed')
+      vi.mocked(child_process.spawnSync).mockReturnValue({
+        error,
+        status: 1,
+        stdout: '',
+        stderr: '',
+        output: [],
+        pid: 0,
+        signal: null,
+      } as unknown as child_process.SpawnSyncReturns<string>)
+
+      const result = execGodotSync('/usr/bin/godot', ['--version'])
+      expect(result.success).toBe(false)
+      expect(result.stderr).toBe('Spawn failed')
       expect(result.exitCode).toBe(1)
     })
 
@@ -255,13 +260,21 @@ describe('headless', () => {
       const result = runGodotProject('/usr/bin/godot', '/tmp/project')
       expect(result.pid).toBeUndefined()
     })
+
+    it('should throw if spawn throws synchronously', () => {
+      vi.mocked(child_process.spawn).mockImplementationOnce(() => {
+        throw new Error('Spawn failed')
+      })
+
+      expect(() => runGodotProject('/usr/bin/godot', '/tmp/project')).toThrow('Spawn failed')
+    })
   })
 
   // ==========================================
   // launchGodotEditor
   // ==========================================
   describe('launchGodotEditor', () => {
-    it('should spawn Godot editor with --editor flag', () => {
+    it('should spawn Godot editor with --editor and --path flags', () => {
       const mockChild = { unref: vi.fn(), pid: 99 }
       vi.mocked(child_process.spawn).mockReturnValue(mockChild as never)
 
@@ -280,6 +293,14 @@ describe('headless', () => {
 
       const result = launchGodotEditor('/usr/bin/godot', '/tmp/project')
       expect(result.pid).toBeUndefined()
+    })
+
+    it('should throw if editor spawn throws synchronously', () => {
+      vi.mocked(child_process.spawn).mockImplementationOnce(() => {
+        throw new Error('Spawn failed')
+      })
+
+      expect(() => launchGodotEditor('/usr/bin/godot', '/tmp/project')).toThrow('Spawn failed')
     })
   })
 

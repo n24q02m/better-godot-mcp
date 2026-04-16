@@ -218,3 +218,14 @@ export function toGodotValue(value: unknown): string {
 
   return String(value)
 }
+
+/**
+ * Serialize a Godot Object with class name and properties
+ */
+export function serializeGodotObject(className: string, properties: Record<string, unknown>): string {
+  let result = `Object(${className}`
+  for (const [key, value] of Object.entries(properties)) {
+    result += `,"${key}":${toGodotValue(value)}`
+  }
+  return `${result})`
+}

@@ -7,6 +7,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
+import { serializeGodotObject } from '../helpers/godot-types.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
 import { escapeRegExp } from '../helpers/scene-parser.js'
 
@@ -341,16 +342,59 @@ export async function handleInputMap(action: string, args: Record<string, unknow
       switch (eventType) {
         case 'key': {
           const keyCode = resolveKeyCode(eventValue)
-          eventObj = `Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":${keyCode},"key_label":0,"unicode":0,"location":0,"echo":false,"script":null)`
+          eventObj = serializeGodotObject('InputEventKey', {
+            resource_local_to_scene: false,
+            resource_name: '',
+            device: -1,
+            window_id: 0,
+            alt_pressed: false,
+            shift_pressed: false,
+            ctrl_pressed: false,
+            meta_pressed: false,
+            pressed: false,
+            keycode: 0,
+            physical_keycode: keyCode,
+            key_label: 0,
+            unicode: 0,
+            location: 0,
+            echo: false,
+            script: null,
+          })
           break
         }
         case 'mouse': {
           const mouseCode = resolveMouseCode(eventValue)
-          eventObj = `Object(InputEventMouseButton,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"button_mask":0,"position":Vector2(0,0),"global_position":Vector2(0,0),"factor":1.0,"button_index":${mouseCode},"canceled":false,"pressed":true,"double_click":false,"script":null)`
+          eventObj = serializeGodotObject('InputEventMouseButton', {
+            resource_local_to_scene: false,
+            resource_name: '',
+            device: -1,
+            window_id: 0,
+            alt_pressed: false,
+            shift_pressed: false,
+            ctrl_pressed: false,
+            meta_pressed: false,
+            button_mask: 0,
+            position: { x: 0, y: 0 },
+            global_position: { x: 0, y: 0 },
+            factor: 1.0,
+            button_index: mouseCode,
+            canceled: false,
+            pressed: true,
+            double_click: false,
+            script: null,
+          })
           break
         }
         case 'joypad':
-          eventObj = `Object(InputEventJoypadButton,"resource_local_to_scene":false,"resource_name":"","device":-1,"button_index":${eventValue},"pressure":0.0,"pressed":true,"script":null)`
+          eventObj = serializeGodotObject('InputEventJoypadButton', {
+            resource_local_to_scene: false,
+            resource_name: '',
+            device: -1,
+            button_index: Number.parseInt(eventValue, 10),
+            pressure: 0.0,
+            pressed: true,
+            script: null,
+          })
           break
         default:
           throw new GodotMCPError(

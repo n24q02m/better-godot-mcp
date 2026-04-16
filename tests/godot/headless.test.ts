@@ -59,12 +59,16 @@ describe('headless', () => {
 
       const result = execGodotSync(godotPath, args, options)
 
-      expect(child_process.spawnSync).toHaveBeenCalledWith(godotPath, args, expect.objectContaining({
-        timeout: 1000,
-        cwd: '/tmp',
-        encoding: 'utf-8',
-        stdio: ['pipe', 'pipe', 'pipe'],
-      }))
+      expect(child_process.spawnSync).toHaveBeenCalledWith(
+        godotPath,
+        args,
+        expect.objectContaining({
+          timeout: 1000,
+          cwd: '/tmp',
+          encoding: 'utf-8',
+          stdio: ['pipe', 'pipe', 'pipe'],
+        }),
+      )
       expect(result.success).toBe(true)
       expect(result.stdout).toBe('4.2.1')
       expect(result.exitCode).toBe(0)

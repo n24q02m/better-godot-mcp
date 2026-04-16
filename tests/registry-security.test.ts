@@ -15,6 +15,12 @@ vi.mock('../src/tools/composite/help.js', () => ({
 vi.mock('../src/tools/composite/project.js', () => ({
   handleProject: vi.fn(() => ({ content: [{ type: 'text', text: 'project content' }] })),
 }))
+vi.mock('../src/tools/composite/nodes.js', () => ({
+  handleNodes: vi.fn(() => ({ content: [{ type: 'text', text: 'nodes content' }] })),
+}))
+vi.mock('../src/tools/composite/editor.js', () => ({
+  handleEditor: vi.fn(() => ({ content: [{ type: 'text', text: 'editor content' }] })),
+}))
 
 describe('registerTools security integration', () => {
   let config: GodotConfig
@@ -59,6 +65,26 @@ describe('registerTools security integration', () => {
     expect(result.content[0].text).toContain('<untrusted_godot_content>')
     expect(result.content[0].text).toContain('original script content')
     expect(result.content[0].text).toContain('[SECURITY:')
+  })
+
+  it('should wrap all content items for multi-content response', async () => {
+    const { handleScripts } = await import('../src/tools/composite/scripts.js')
+    vi.mocked(handleScripts).mockResolvedValueOnce({
+      content: [
+        { type: 'text', text: 'content 1' },
+        { type: 'text', text: 'content 2' },
+      ],
+    })
+
+    const result = (await callToolHandler?.({
+      params: { name: 'scripts', arguments: { action: 'list' } },
+    })) as { content: Array<{ text: string }> }
+
+    expect(result.content).toHaveLength(2)
+    expect(result.content[0].text).toContain('content 1')
+    expect(result.content[0].text).toContain('<untrusted_godot_content>')
+    expect(result.content[1].text).toContain('content 2')
+    expect(result.content[1].text).toContain('<untrusted_godot_content>')
   })
 
   it('should NOT wrap results for config tool (internal content)', async () => {
@@ -115,6 +141,34 @@ describe('registerTools security integration', () => {
 
     expect(result.isError).toBe(true)
     expect(result.content[0].text).toContain('Unknown tool')
+    expect(result.content[0].text).not.toContain('<untrusted_godot_content>')
+  })
+
+  it('should suggest closest match for unknown tool', async () => {
+    const result = (await callToolHandler?.({
+      params: { name: 'scrip', arguments: {} },
+    })) as { isError: boolean; content: Array<{ text: string }> }
+
+    expect(result.isError).toBe(true)
+    expect(result.content[0].text).toContain("Did you mean 'scripts'?")
+    expect(result.content[0].text).not.toContain('<untrusted_godot_content>')
+  })
+
+  it('should wrap results for nodes tool (external content)', async () => {
+    const result = (await callToolHandler?.({
+      params: { name: 'nodes', arguments: { action: 'list' } },
+    })) as { content: Array<{ text: string }> }
+
+    expect(result.content[0].text).toContain('<untrusted_godot_content>')
+    expect(result.content[0].text).toContain('nodes content')
+  })
+
+  it('should NOT wrap results for editor tool (internal content)', async () => {
+    const result = (await callToolHandler?.({
+      params: { name: 'editor', arguments: { action: 'status' } },
+    })) as { content: Array<{ text: string }> }
+
+    expect(result.content[0].text).toBe('editor content')
     expect(result.content[0].text).not.toContain('<untrusted_godot_content>')
   })
 })

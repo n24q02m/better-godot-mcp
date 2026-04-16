@@ -10,6 +10,8 @@ import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '..
 import { pathExists, safeResolve } from '../helpers/paths.js'
 import { escapeRegExp } from '../helpers/scene-parser.js'
 
+const BACKSLASH_RE = /\\/g
+
 const SCRIPT_TEMPLATES: Record<string, string> = {
   Node: `extends Node
 
@@ -98,6 +100,13 @@ function getTemplate(extendsType: string): string {
   return SCRIPT_TEMPLATES[extendsType] || `extends ${extendsType}\n\n\nfunc _ready() -> void:\n\tpass\n`
 }
 
+function resolveScriptPath(projectPath: string | null | undefined, scriptPath: string): string {
+  if (!projectPath) {
+    throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path argument.')
+  }
+  return safeResolve(projectPath, scriptPath)
+}
+
 async function findScriptFiles(dir: string, results: string[] = []): Promise<string[]> {
   try {
     const entries = await readdir(dir, { withFileTypes: true })
@@ -126,14 +135,14 @@ async function findScriptFiles(dir: string, results: string[] = []): Promise<str
   }
 }
 
-async function createScript(args: Record<string, unknown>, resolvePath: (path: string) => string) {
+async function handleCreateScript(projectPath: string | null | undefined, args: Record<string, unknown>) {
   const scriptPath = args.script_path as string
   if (!scriptPath)
     throw new GodotMCPError('No script_path specified', 'INVALID_ARGS', 'Provide script_path (e.g., "player.gd").')
   const extendsType = (args.extends as string) || 'Node'
   const content = (args.content as string) || getTemplate(extendsType)
 
-  const fullPath = resolvePath(scriptPath)
+  const fullPath = resolveScriptPath(projectPath, scriptPath)
   if (await pathExists(fullPath)) {
     throw new GodotMCPError(
       `Script already exists: ${scriptPath}`,
@@ -147,11 +156,11 @@ async function createScript(args: Record<string, unknown>, resolvePath: (path: s
   return formatSuccess(`Created script: ${scriptPath}\nExtends: ${extendsType}`)
 }
 
-async function readScript(args: Record<string, unknown>, resolvePath: (path: string) => string) {
+async function handleReadScript(projectPath: string | null | undefined, args: Record<string, unknown>) {
   const scriptPath = args.script_path as string
   if (!scriptPath) throw new GodotMCPError('No script_path specified', 'INVALID_ARGS', 'Provide script_path.')
 
-  const fullPath = resolvePath(scriptPath)
+  const fullPath = resolveScriptPath(projectPath, scriptPath)
   if (!(await pathExists(fullPath)))
     throw new GodotMCPError(`Script not found: ${scriptPath}`, 'SCRIPT_ERROR', 'Check the file path.')
 
@@ -159,20 +168,20 @@ async function readScript(args: Record<string, unknown>, resolvePath: (path: str
   return formatSuccess(`File: ${scriptPath}\n\n${content}`)
 }
 
-async function writeScript(args: Record<string, unknown>, resolvePath: (path: string) => string) {
+async function handleWriteScript(projectPath: string | null | undefined, args: Record<string, unknown>) {
   const scriptPath = args.script_path as string
   if (!scriptPath) throw new GodotMCPError('No script_path specified', 'INVALID_ARGS', 'Provide script_path.')
   const content = args.content as string
   if (content === undefined || content === null)
     throw new GodotMCPError('No content specified', 'INVALID_ARGS', 'Provide content to write.')
 
-  const fullPath = resolvePath(scriptPath)
+  const fullPath = resolveScriptPath(projectPath, scriptPath)
   await mkdir(dirname(fullPath), { recursive: true })
   await writeFile(fullPath, content, 'utf-8')
   return formatSuccess(`Written: ${scriptPath} (${content.length} chars)`)
 }
 
-async function attachScript(args: Record<string, unknown>, resolvePath: (path: string) => string) {
+async function handleAttachScript(projectPath: string | null | undefined, args: Record<string, unknown>) {
   const scenePath = args.scene_path as string
   const scriptPath = args.script_path as string
   const nodeName = args.node_name as string
@@ -184,15 +193,15 @@ async function attachScript(args: Record<string, unknown>, resolvePath: (path: s
     )
   }
 
-  const sceneFullPath = resolvePath(scenePath)
+  const sceneFullPath = resolveScriptPath(projectPath, scenePath)
   if (!(await pathExists(sceneFullPath)))
     throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Create the scene first.')
 
   let content = await readFile(sceneFullPath, 'utf-8')
-  const resPath = `res://${scriptPath.replace(/\\/g, '/')}`
+  const resPath = `res://${scriptPath.replace(BACKSLASH_RE, '/')}`
 
   if (nodeName) {
-    const nodePattern = new RegExp(`(\\[node name="${escapeRegExp(nodeName)}"[^\\]]*\\])`)
+    const nodePattern = new RegExp(`(\\[node name="${escapeRegExp(nodeName)}"(\\s+[^\\]]*)?\\])`)
     const match = content.match(nodePattern)
     if (!match)
       throw new GodotMCPError(
@@ -209,29 +218,28 @@ async function attachScript(args: Record<string, unknown>, resolvePath: (path: s
   return formatSuccess(`Attached script ${scriptPath} to ${nodeName || 'root node'} in ${scenePath}`)
 }
 
-async function listScripts(baseDir: string, projectPath: string | undefined) {
+async function handleListScripts(projectPath: string | null | undefined, _args: Record<string, unknown>) {
   if (!projectPath)
     throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path argument.')
 
-  const resolvedPath = safeResolve(baseDir, projectPath)
-  const scripts = await findScriptFiles(resolvedPath)
+  const scripts = await findScriptFiles(projectPath)
 
   // OPTIMIZATION: Use substring and a pre-allocated array instead of .map() and node:path.relative
   // for significantly faster execution on large arrays of prefixed paths.
-  const prefixLen = resolvedPath.length + (resolvedPath.endsWith('/') || resolvedPath.endsWith('\\') ? 0 : 1)
+  const prefixLen = projectPath.length + (projectPath.endsWith('/') || projectPath.endsWith('\\') ? 0 : 1)
   const relativePaths = new Array(scripts.length)
   for (let i = 0; i < scripts.length; i++) {
-    relativePaths[i] = scripts[i].substring(prefixLen).replace(/\\/g, '/')
+    relativePaths[i] = scripts[i].substring(prefixLen).replace(BACKSLASH_RE, '/')
   }
 
-  return formatJSON({ project: resolvedPath, count: relativePaths.length, scripts: relativePaths })
+  return formatJSON({ project: projectPath, count: relativePaths.length, scripts: relativePaths })
 }
 
-async function deleteScript(args: Record<string, unknown>, resolvePath: (path: string) => string) {
+async function handleDeleteScript(projectPath: string | null | undefined, args: Record<string, unknown>) {
   const scriptPath = args.script_path as string
   if (!scriptPath) throw new GodotMCPError('No script_path specified', 'INVALID_ARGS', 'Provide script_path to delete.')
 
-  const fullPath = resolvePath(scriptPath)
+  const fullPath = resolveScriptPath(projectPath, scriptPath)
   if (!(await pathExists(fullPath)))
     throw new GodotMCPError(`Script not found: ${scriptPath}`, 'SCRIPT_ERROR', 'Check the file path.')
 
@@ -241,37 +249,21 @@ async function deleteScript(args: Record<string, unknown>, resolvePath: (path: s
 
 export async function handleScripts(action: string, args: Record<string, unknown>, config: GodotConfig) {
   const baseDir = config.projectPath || process.cwd()
-  // Validate args.project_path against the trusted baseDir to prevent path traversal vulnerabilities
   const projectPath = args.project_path ? safeResolve(baseDir, args.project_path as string) : config.projectPath
-
-  if (!projectPath && action !== 'list') {
-    // List handles missing projectPath internally, but others need it for safeResolve base
-    // Though list also throws if missing. Let's rely on standard checks inside but ensure projectPath is available for resolution.
-    // Actually, all actions check projectPath. We can resolve it early.
-  }
-
-  // Helper to resolve path securely
-  const resolvePath = (path: string) => {
-    if (!projectPath) {
-      // Should be caught by action-specific checks, but fallback for safety
-      throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path argument.')
-    }
-    return safeResolve(projectPath, path)
-  }
 
   switch (action) {
     case 'create':
-      return createScript(args, resolvePath)
+      return handleCreateScript(projectPath, args)
     case 'read':
-      return readScript(args, resolvePath)
+      return handleReadScript(projectPath, args)
     case 'write':
-      return writeScript(args, resolvePath)
+      return handleWriteScript(projectPath, args)
     case 'attach':
-      return attachScript(args, resolvePath)
+      return handleAttachScript(projectPath, args)
     case 'list':
-      return listScripts(baseDir, projectPath ?? undefined)
+      return handleListScripts(projectPath, args)
     case 'delete':
-      return deleteScript(args, resolvePath)
+      return handleDeleteScript(projectPath, args)
     default:
       throwUnknownAction(action, ['create', 'read', 'write', 'attach', 'list', 'delete'])
   }

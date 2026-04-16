@@ -200,6 +200,12 @@ describe('project-settings', () => {
       expect(result).toBe(original)
     })
 
+    it('should return original content for path with no slash', () => {
+      const content = '[section]\nkey=value'
+      const result = setSettingInContent(content, 'noslash', 'newvalue')
+      expect(result).toBe(content)
+    })
+
     it('should handle single-segment path (section_only)', () => {
       const result = setSettingInContent(SAMPLE_PROJECT_GODOT, 'section_only', 'value')
       expect(result).toBe(SAMPLE_PROJECT_GODOT)

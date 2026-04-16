@@ -1,11 +1,11 @@
 /**
- * Nodes tool - Scene node manipulation
+ * Nodes tool - Comprehensive Godot node management
  * Actions: add | remove | rename | list | set_property | get_property
  */
 
 import { readFile, writeFile } from 'node:fs/promises'
 import type { GodotConfig } from '../../godot/types.js'
-import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
+import { formatJSON, formatSuccess, GodotMCPError, requireArg, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
 import {
   getNodeProperty,
@@ -15,13 +15,12 @@ import {
   setNodePropertyInContent,
 } from '../helpers/scene-parser.js'
 
-function resolveScenePath(projectPath: string, scenePath: string): string {
-  return safeResolve(projectPath, scenePath)
+function resolveScenePath(projectPath: string | null | undefined, scenePath: string): string {
+  return safeResolve(projectPath || process.cwd(), scenePath)
 }
 
 /**
- * Normalize node path: strip common LLM mistakes like "/root/SceneName/" prefix.
- * Returns the corrected path and whether it was auto-corrected.
+ * Normalizes a Godot NodePath or LLM-generated path to a simple relative node path.
  */
 function normalizeNodePath(path: string): { path: string; corrected: boolean } {
   if (!path || path === '.') return { path, corrected: false }
@@ -43,10 +42,8 @@ export async function handleNodes(action: string, args: Record<string, unknown>,
 
   switch (action) {
     case 'add': {
-      const scenePath = args.scene_path as string
-      if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
-      const nodeName = args.name as string
-      if (!nodeName) throw new GodotMCPError('No node name specified', 'INVALID_ARGS', 'Provide name for the new node.')
+      const scenePath = requireArg<string>(args, 'scene_path', 'Provide scene_path.')
+      const nodeName = requireArg<string>(args, 'name', 'Provide name for the new node.', 'No node name specified')
 
       if (nodeName.includes('"') || nodeName.includes('\n') || nodeName.includes('\r')) {
         throw new GodotMCPError('Invalid node name', 'INVALID_ARGS', 'Node name must not contain quotes or newlines.')
@@ -127,10 +124,8 @@ export async function handleNodes(action: string, args: Record<string, unknown>,
     }
 
     case 'remove': {
-      const scenePath = args.scene_path as string
-      if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
-      const rawName = args.name as string
-      if (!rawName) throw new GodotMCPError('No node name specified', 'INVALID_ARGS', 'Provide name of node to remove.')
+      const scenePath = requireArg<string>(args, 'scene_path', 'Provide scene_path.')
+      const rawName = requireArg<string>(args, 'name', 'Provide name of node to remove.', 'No node name specified')
       const { path: nodeName } = normalizeNodePath(rawName)
 
       const fullPath = resolveScenePath(projectPath, scenePath)
@@ -145,12 +140,13 @@ export async function handleNodes(action: string, args: Record<string, unknown>,
     }
 
     case 'rename': {
-      const scenePath = args.scene_path as string
-      if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
-      const { path: nodeName } = normalizeNodePath((args.name as string) || '')
+      const scenePath = requireArg<string>(args, 'scene_path', 'Provide scene_path.')
+      const nodeNameArg = args.name as string
       const newName = args.new_name as string
-      if (!nodeName || !newName)
+      if (!nodeNameArg || !newName) {
         throw new GodotMCPError('Both name and new_name required', 'INVALID_ARGS', 'Provide name and new_name.')
+      }
+      const { path: nodeName } = normalizeNodePath(nodeNameArg)
 
       if (newName.includes('"') || newName.includes('\n') || newName.includes('\r')) {
         throw new GodotMCPError(
@@ -172,8 +168,7 @@ export async function handleNodes(action: string, args: Record<string, unknown>,
     }
 
     case 'list': {
-      const scenePath = args.scene_path as string
-      if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
+      const scenePath = requireArg<string>(args, 'scene_path', 'Provide scene_path.')
 
       const fullPath = resolveScenePath(projectPath, scenePath)
       if (!(await pathExists(fullPath)))
@@ -201,18 +196,18 @@ export async function handleNodes(action: string, args: Record<string, unknown>,
     }
 
     case 'set_property': {
-      const scenePath = args.scene_path as string
-      if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
-      const { path: nodeName } = normalizeNodePath((args.name as string) || '')
+      const scenePath = requireArg<string>(args, 'scene_path', 'Provide scene_path.')
+      const nodeNameArg = args.name as string
       const property = args.property as string
       const value = args.value as string
-      if (!nodeName || !property || value === undefined) {
+      if (!nodeNameArg || !property || value === undefined) {
         throw new GodotMCPError(
           'name, property, and value required',
           'INVALID_ARGS',
           'Provide name, property, and value.',
         )
       }
+      const { path: nodeName } = normalizeNodePath(nodeNameArg)
 
       if (property.includes('=') || property.includes('\n') || property.includes('\r')) {
         throw new GodotMCPError('Invalid property key', 'INVALID_ARGS', 'Property keys must not contain "=", newlines.')
@@ -233,13 +228,13 @@ export async function handleNodes(action: string, args: Record<string, unknown>,
     }
 
     case 'get_property': {
-      const scenePath = args.scene_path as string
-      if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
-      const { path: nodeName } = normalizeNodePath((args.name as string) || '')
+      const scenePath = requireArg<string>(args, 'scene_path', 'Provide scene_path.')
+      const nodeNameArg = args.name as string
       const property = args.property as string
-      if (!nodeName || !property) {
+      if (!nodeNameArg || !property) {
         throw new GodotMCPError('name and property required', 'INVALID_ARGS', 'Provide name and property.')
       }
+      const { path: nodeName } = normalizeNodePath(nodeNameArg)
 
       const fullPath = resolveScenePath(projectPath, scenePath)
       if (!(await pathExists(fullPath)))

@@ -137,3 +137,15 @@ export function throwUnknownAction(action: string, validActions: string[]): neve
     `Valid actions: ${validActions.join(', ')}. Use help tool for full docs.`,
   )
 }
+
+/**
+ * Validate that a required argument is present and not empty.
+ * Returns the value if valid, otherwise throws GodotMCPError.
+ */
+export function requireArg<T>(args: Record<string, unknown>, key: string, suggestion: string, message?: string): T {
+  const value = args[key]
+  if (value === undefined || value === null || value === '') {
+    throw new GodotMCPError(message ?? `No ${key} specified`, 'INVALID_ARGS', suggestion)
+  }
+  return value as T
+}

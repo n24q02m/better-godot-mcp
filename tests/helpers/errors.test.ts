@@ -9,6 +9,7 @@ import {
   formatJSON,
   formatSuccess,
   GodotMCPError,
+  requireArg,
   throwUnknownAction,
   withErrorHandling,
 } from '../../src/tools/helpers/errors.js'
@@ -258,6 +259,46 @@ describe('errors', () => {
         expect(error.message).toContain(`Unknown action: ${'a'.repeat(100)}...`)
         expect(error.message.length).toBeLessThan(250)
       }
+    })
+  })
+
+  // ==========================================
+  // requireArg
+  // ==========================================
+  describe('requireArg', () => {
+    it('should return value if present', () => {
+      const args = { name: 'test', count: 1 }
+      expect(requireArg<string>(args, 'name', 'Provide name')).toBe('test')
+      expect(requireArg<number>(args, 'count', 'Provide count')).toBe(1)
+    })
+
+    it('should throw if argument is missing', () => {
+      const args = { other: 'value' }
+      expect(() => requireArg(args, 'missing', 'Suggestion')).toThrow(GodotMCPError)
+      try {
+        requireArg(args, 'missing', 'Suggestion')
+      } catch (err) {
+        const error = err as GodotMCPError
+        expect(error.code).toBe('INVALID_ARGS')
+        expect(error.message).toBe('No missing specified')
+        expect(error.suggestion).toBe('Suggestion')
+      }
+    })
+
+    it('should throw if argument is null', () => {
+      const args = { val: null }
+      expect(() => requireArg(args, 'val', 'Suggestion')).toThrow('No val specified')
+    })
+
+    it('should throw if argument is empty string', () => {
+      const args = { val: '' }
+      expect(() => requireArg(args, 'val', 'Suggestion')).toThrow('No val specified')
+    })
+
+    it('should allow falsy values that are not null/undefined/empty string', () => {
+      const args = { count: 0, flag: false }
+      expect(requireArg(args, 'count', 's')).toBe(0)
+      expect(requireArg(args, 'flag', 's')).toBe(false)
     })
   })
 })

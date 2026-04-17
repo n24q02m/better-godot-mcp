@@ -82,6 +82,18 @@ async function handleCreateControl(projectPath: string | null | undefined, args:
 
   if (!controlName) throw new GodotMCPError('No name specified', 'INVALID_ARGS', 'Provide control node name.')
 
+  if (
+    controlName.includes('"') || controlName.includes('\n') || controlName.includes('\r') ||
+    controlType.includes('"') || controlType.includes('\n') || controlType.includes('\r') ||
+    parent.includes('"') || parent.includes('\n') || parent.includes('\r')
+  ) {
+    throw new GodotMCPError(
+      'Invalid characters in parameters',
+      'INVALID_ARGS',
+      'Parameters must not contain quotes or newlines.',
+    )
+  }
+
   const fullPath = await resolveScene(projectPath, scenePath)
   let content = await readFile(fullPath, 'utf-8')
 
@@ -135,6 +147,17 @@ async function handleLayout(projectPath: string | null | undefined, args: Record
   const nodeName = args.name as string
   if (!nodeName) throw new GodotMCPError('No name specified', 'INVALID_ARGS', 'Provide node name.')
   const preset = (args.preset as string) || 'full_rect'
+
+  if (
+    nodeName.includes('"') || nodeName.includes('\n') || nodeName.includes('\r') ||
+    preset.includes('"') || preset.includes('\n') || preset.includes('\r')
+  ) {
+    throw new GodotMCPError(
+      'Invalid characters in parameters',
+      'INVALID_ARGS',
+      'Parameters must not contain quotes or newlines.',
+    )
+  }
 
   const fullPath = await resolveScene(projectPath, scenePath)
   let content = await readFile(fullPath, 'utf-8')

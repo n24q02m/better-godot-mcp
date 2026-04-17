@@ -41,6 +41,17 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       if (!busName) throw new GodotMCPError('No bus_name specified', 'INVALID_ARGS', 'Provide bus name.')
       const sendTo = (args.send_to as string) || 'Master'
 
+      if (
+        busName.includes('"') || busName.includes('\n') || busName.includes('\r') ||
+        sendTo.includes('"') || sendTo.includes('\n') || sendTo.includes('\r')
+      ) {
+        throw new GodotMCPError(
+          'Invalid characters in parameters',
+          'INVALID_ARGS',
+          'Parameters must not contain quotes or newlines.',
+        )
+      }
+
       const busLayoutPath = join(safeResolve(baseDir, projectPath), 'default_bus_layout.tres')
       let content: string
 
@@ -87,6 +98,17 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
           'bus_name and effect_type required',
           'INVALID_ARGS',
           'Provide bus name and effect type (e.g., "Reverb", "Compressor", "Limiter", "EQ").',
+        )
+      }
+
+      if (
+        busName.includes('"') || busName.includes('\n') || busName.includes('\r') ||
+        effectType.includes('"') || effectType.includes('\n') || effectType.includes('\r')
+      ) {
+        throw new GodotMCPError(
+          'Invalid characters in parameters',
+          'INVALID_ARGS',
+          'Parameters must not contain quotes or newlines.',
         )
       }
 
@@ -157,6 +179,19 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       const streamType = (args.stream_type as string) || '2D'
       const parent = (args.parent as string) || '.'
       const bus = (args.bus as string) || 'Master'
+
+      if (
+        nodeName.includes('"') || nodeName.includes('\n') || nodeName.includes('\r') ||
+        streamType.includes('"') || streamType.includes('\n') || streamType.includes('\r') ||
+        parent.includes('"') || parent.includes('\n') || parent.includes('\r') ||
+        bus.includes('"') || bus.includes('\n') || bus.includes('\r')
+      ) {
+        throw new GodotMCPError(
+          'Invalid characters in parameters',
+          'INVALID_ARGS',
+          'Parameters must not contain quotes or newlines.',
+        )
+      }
 
       const fullPath = safeResolve(projectPath || process.cwd(), scenePath)
       if (!(await pathExists(fullPath)))

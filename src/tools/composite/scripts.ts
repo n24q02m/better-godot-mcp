@@ -10,6 +10,9 @@ import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '..
 import { pathExists, safeResolve } from '../helpers/paths.js'
 import { escapeRegExp } from '../helpers/scene-parser.js'
 
+const BACKSLASH_RE = /\\/g
+const NODE_SECTION_RE = /(\[node [^\]]+\])/
+
 const SCRIPT_TEMPLATES: Record<string, string> = {
   Node: `extends Node
 
@@ -189,7 +192,7 @@ async function attachScript(args: Record<string, unknown>, resolvePath: (path: s
     throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Create the scene first.')
 
   let content = await readFile(sceneFullPath, 'utf-8')
-  const resPath = `res://${scriptPath.replace(/\\/g, '/')}`
+  const resPath = `res://${scriptPath.replace(BACKSLASH_RE, '/')}`
 
   if (nodeName) {
     const nodePattern = new RegExp(`(\\[node name="${escapeRegExp(nodeName)}"[^\\]]*\\])`)
@@ -202,7 +205,7 @@ async function attachScript(args: Record<string, unknown>, resolvePath: (path: s
       )
     content = content.replace(nodePattern, `$1\nscript = ExtResource("${resPath}")`)
   } else {
-    content = content.replace(/(\[node [^\]]+\])/, `$1\nscript = ExtResource("${resPath}")`)
+    content = content.replace(NODE_SECTION_RE, `$1\nscript = ExtResource("${resPath}")`)
   }
 
   await writeFile(sceneFullPath, content, 'utf-8')
@@ -221,7 +224,7 @@ async function listScripts(baseDir: string, projectPath: string | undefined) {
   const prefixLen = resolvedPath.length + (resolvedPath.endsWith('/') || resolvedPath.endsWith('\\') ? 0 : 1)
   const relativePaths = new Array(scripts.length)
   for (let i = 0; i < scripts.length; i++) {
-    relativePaths[i] = scripts[i].substring(prefixLen).replace(/\\/g, '/')
+    relativePaths[i] = scripts[i].substring(prefixLen).replace(BACKSLASH_RE, '/')
   }
 
   return formatJSON({ project: resolvedPath, count: relativePaths.length, scripts: relativePaths })

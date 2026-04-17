@@ -1,9 +1,7 @@
-import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { GodotConfig } from '../../src/godot/types.js'
-import { handleUI } from '../../src/tools/composite/ui.js'
 import { handleAudio } from '../../src/tools/composite/audio.js'
+import { handleUI } from '../../src/tools/composite/ui.js'
 import { createTmpProject, createTmpScene, makeConfig } from '../fixtures.js'
 
 describe('Security: Scene Injection Prevention in UI and Audio tools', () => {

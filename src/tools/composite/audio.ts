@@ -42,8 +42,12 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       const sendTo = (args.send_to as string) || 'Master'
 
       if (
-        busName.includes('"') || busName.includes('\n') || busName.includes('\r') ||
-        sendTo.includes('"') || sendTo.includes('\n') || sendTo.includes('\r')
+        busName.includes('"') ||
+        busName.includes('\n') ||
+        busName.includes('\r') ||
+        sendTo.includes('"') ||
+        sendTo.includes('\n') ||
+        sendTo.includes('\r')
       ) {
         throw new GodotMCPError(
           'Invalid characters in parameters',
@@ -102,8 +106,12 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       }
 
       if (
-        busName.includes('"') || busName.includes('\n') || busName.includes('\r') ||
-        effectType.includes('"') || effectType.includes('\n') || effectType.includes('\r')
+        busName.includes('"') ||
+        busName.includes('\n') ||
+        busName.includes('\r') ||
+        effectType.includes('"') ||
+        effectType.includes('\n') ||
+        effectType.includes('\r')
       ) {
         throw new GodotMCPError(
           'Invalid characters in parameters',
@@ -181,10 +189,18 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       const bus = (args.bus as string) || 'Master'
 
       if (
-        nodeName.includes('"') || nodeName.includes('\n') || nodeName.includes('\r') ||
-        streamType.includes('"') || streamType.includes('\n') || streamType.includes('\r') ||
-        parent.includes('"') || parent.includes('\n') || parent.includes('\r') ||
-        bus.includes('"') || bus.includes('\n') || bus.includes('\r')
+        nodeName.includes('"') ||
+        nodeName.includes('\n') ||
+        nodeName.includes('\r') ||
+        streamType.includes('"') ||
+        streamType.includes('\n') ||
+        streamType.includes('\r') ||
+        parent.includes('"') ||
+        parent.includes('\n') ||
+        parent.includes('\r') ||
+        bus.includes('"') ||
+        bus.includes('\n') ||
+        bus.includes('\r')
       ) {
         throw new GodotMCPError(
           'Invalid characters in parameters',

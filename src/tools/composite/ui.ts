@@ -83,9 +83,15 @@ async function handleCreateControl(projectPath: string | null | undefined, args:
   if (!controlName) throw new GodotMCPError('No name specified', 'INVALID_ARGS', 'Provide control node name.')
 
   if (
-    controlName.includes('"') || controlName.includes('\n') || controlName.includes('\r') ||
-    controlType.includes('"') || controlType.includes('\n') || controlType.includes('\r') ||
-    parent.includes('"') || parent.includes('\n') || parent.includes('\r')
+    controlName.includes('"') ||
+    controlName.includes('\n') ||
+    controlName.includes('\r') ||
+    controlType.includes('"') ||
+    controlType.includes('\n') ||
+    controlType.includes('\r') ||
+    parent.includes('"') ||
+    parent.includes('\n') ||
+    parent.includes('\r')
   ) {
     throw new GodotMCPError(
       'Invalid characters in parameters',
@@ -149,8 +155,12 @@ async function handleLayout(projectPath: string | null | undefined, args: Record
   const preset = (args.preset as string) || 'full_rect'
 
   if (
-    nodeName.includes('"') || nodeName.includes('\n') || nodeName.includes('\r') ||
-    preset.includes('"') || preset.includes('\n') || preset.includes('\r')
+    nodeName.includes('"') ||
+    nodeName.includes('\n') ||
+    nodeName.includes('\r') ||
+    preset.includes('"') ||
+    preset.includes('\n') ||
+    preset.includes('\r')
   ) {
     throw new GodotMCPError(
       'Invalid characters in parameters',

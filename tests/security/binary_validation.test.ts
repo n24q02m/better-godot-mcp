@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { openSync, readSync, statSync } from 'node:fs'
+import { fstatSync, openSync, readSync, statSync } from 'node:fs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { tryGetVersion } from '../../src/godot/detector.js'
 import { handleConfig } from '../../src/tools/composite/config.js'
@@ -9,9 +9,11 @@ vi.mock('node:fs')
 
 describe('Binary Validation Security', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
-    // Default mock for statSync to pass isExecutable
-    vi.mocked(statSync).mockReturnValue({ isFile: () => true } as unknown as import('node:fs').Stats)
+    vi.resetAllMocks()
+    // Default mock for statSync/fstatSync to pass isExecutable and provide file size
+    const mockStats = { isFile: () => true, size: 50 * 1024 * 1024 } as unknown as import('node:fs').Stats
+    vi.mocked(statSync).mockReturnValue(mockStats)
+    vi.mocked(fstatSync).mockReturnValue(mockStats)
   })
 
   it('should REJECT non-Godot binaries (like ls)', () => {
@@ -60,12 +62,19 @@ describe('Binary Validation Security', () => {
 })
 
 describe('handleConfig Security', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+    const mockStats = { isFile: () => true, size: 50 * 1024 * 1024 } as unknown as import('node:fs').Stats
+    vi.mocked(statSync).mockReturnValue(mockStats)
+    vi.mocked(fstatSync).mockReturnValue(mockStats)
+  })
+
   it('should reject non-Godot binary when setting godot_path', async () => {
     const config = { godotPath: null, godotVersion: null, projectPath: null, activePids: [] }
-    vi.mocked(openSync).mockReturnValue(125)
-    vi.mocked(readSync).mockImplementation((_fd, buffer: Buffer) => {
-      buffer.write('not a godot binary')
-      return 'not a godot binary'.length
+    // config.ts uses tryGetVersion(value, true) which skips signature check and validates via --version.
+    // Simulate a non-Godot binary: execFileSync throws (binary does not support --version flag).
+    vi.mocked(execFileSync).mockImplementation(() => {
+      throw new Error('Command failed: /usr/bin/ls --version')
     })
 
     await expect(handleConfig('set', { key: 'godot_path', value: '/usr/bin/ls' }, config)).rejects.toThrow(

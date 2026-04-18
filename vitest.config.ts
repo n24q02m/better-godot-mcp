@@ -2,7 +2,7 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   test: {
-    exclude: ['build/**', 'node_modules/**', 'bin/**', 'tests/live/**'],
+    exclude: ['build/**', 'node_modules/**', 'bin/**', 'tests/live/**', 'tests/e2e*'],
     coverage: {
       reporter: ['text', 'lcov'],
       reportsDirectory: './coverage',

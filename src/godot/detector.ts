@@ -9,7 +9,17 @@
  */
 
 import { execFileSync } from 'node:child_process'
-import { accessSync, closeSync, constants, existsSync, fstatSync, openSync, readdirSync, readSync, statSync } from 'node:fs'
+import {
+  accessSync,
+  closeSync,
+  constants,
+  existsSync,
+  fstatSync,
+  openSync,
+  readdirSync,
+  readSync,
+  statSync,
+} from 'node:fs'
 import { join } from 'node:path'
 import type { DetectionResult, GodotVersion } from './types.js'
 
@@ -77,11 +87,16 @@ export function isLikelyGodotBinary(filePath: string): boolean {
     const fastSize = 64 * 1024
     const fastBuf = Buffer.alloc(fastSize)
     const headRead = readSync(fd, fastBuf, 0, Math.min(fastSize, fileSize), 0)
-    if (headRead > 0 && (fastBuf.subarray(0, headRead).includes(sig1) || fastBuf.subarray(0, headRead).includes(sig2))) return true
+    if (headRead > 0 && (fastBuf.subarray(0, headRead).includes(sig1) || fastBuf.subarray(0, headRead).includes(sig2)))
+      return true
     if (fileSize > fastSize) {
       const tailOffset = fileSize - fastSize
       const tailRead = readSync(fd, fastBuf, 0, fastSize, tailOffset)
-      if (tailRead > 0 && (fastBuf.subarray(0, tailRead).includes(sig1) || fastBuf.subarray(0, tailRead).includes(sig2))) return true
+      if (
+        tailRead > 0 &&
+        (fastBuf.subarray(0, tailRead).includes(sig1) || fastBuf.subarray(0, tailRead).includes(sig2))
+      )
+        return true
     }
 
     const chunkSize = 4 * 1024 * 1024

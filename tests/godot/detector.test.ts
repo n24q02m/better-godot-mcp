@@ -371,6 +371,95 @@ describe('detector', () => {
   // ==========================================
   // detectGodot
   // ==========================================
+  // ==========================================
+  // isLikelyGodotBinary
+  // ==========================================
+  describe('isLikelyGodotBinary', () => {
+    it('should return true if file contains "Godot Engine"', () => {
+      vi.mocked(openSync).mockReturnValue(123)
+      vi.mocked(readSync).mockImplementation((_fd, buffer) => {
+        const b = buffer as Buffer
+        b.write('Some prefix... Godot Engine ...suffix')
+        return 37 // length of the string above
+      })
+      expect(isLikelyGodotBinary('/path/to/godot')).toBe(true)
+    })
+
+    it('should return true if file contains "GDScript"', () => {
+      vi.mocked(openSync).mockReturnValue(123)
+      vi.mocked(readSync).mockImplementation((_fd, buffer) => {
+        const b = buffer as Buffer
+        b.write('Some binary data with GDScript keyword')
+        return 38 // length of the string above
+      })
+      expect(isLikelyGodotBinary('/path/to/godot')).toBe(true)
+    })
+
+    it('should return false if file contains neither signature', () => {
+      vi.mocked(openSync).mockReturnValue(123)
+      vi.mocked(readSync).mockImplementation((_fd, buffer) => {
+        const b = buffer as Buffer
+        b.write('Just some random text file content')
+        return 34 // length of the string above
+      })
+      expect(isLikelyGodotBinary('/path/to/not-godot')).toBe(false)
+    })
+
+    it('should return false if openSync fails', () => {
+      vi.mocked(openSync).mockImplementation(() => {
+        throw new Error('access denied')
+      })
+      expect(isLikelyGodotBinary('/path/to/locked')).toBe(false)
+    })
+  })
+
+  // ==========================================
+  // tryGetVersion
+  // ==========================================
+  describe('tryGetVersion', () => {
+    it('should return null if isLikelyGodotBinary returns false', () => {
+      vi.mocked(openSync).mockReturnValue(123)
+      vi.mocked(readSync).mockImplementation((_fd, buffer) => {
+        const b = buffer as Buffer
+        b.write('Not a godot binary')
+        return 18
+      })
+      expect(tryGetVersion('/path/to/fake')).toBeNull()
+    })
+
+    it('should return version if execFileSync succeeds', () => {
+      // Mock isLikelyGodotBinary to pass
+      vi.mocked(openSync).mockReturnValue(123)
+      vi.mocked(readSync).mockImplementation((_fd, buffer) => {
+        const b = buffer as Buffer
+        b.write('Godot Engine')
+        return 12
+      })
+
+      vi.mocked(execFileSync).mockReturnValue('4.2.1.stable')
+      const v = tryGetVersion('/path/to/godot')
+      expect(v).not.toBeNull()
+      expect(v?.major).toBe(4)
+      expect(v?.minor).toBe(2)
+      expect(v?.patch).toBe(1)
+    })
+
+    it('should return null if execFileSync throws', () => {
+      // Mock isLikelyGodotBinary to pass
+      vi.mocked(openSync).mockReturnValue(123)
+      vi.mocked(readSync).mockImplementation((_fd, buffer) => {
+        const b = buffer as Buffer
+        b.write('Godot Engine')
+        return 12
+      })
+
+      vi.mocked(execFileSync).mockImplementation(() => {
+        throw new Error('exec failed')
+      })
+      expect(tryGetVersion('/path/to/godot')).toBeNull()
+    })
+  })
+
   describe('detectGodot', () => {
     const originalEnv = process.env
     const originalPlatform = process.platform

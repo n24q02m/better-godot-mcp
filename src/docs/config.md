@@ -29,6 +29,36 @@ Check environment status: Godot binary, version, project path.
 {"action": "check"}
 ```
 
+### setup_status
+Check whether setup is required. Always returns `needs_setup: false` — godot-mcp has no credentials.
+```json
+{"action": "setup_status"}
+```
+
+### setup_start
+Begin setup flow. No-op: godot-mcp requires no credentials.
+```json
+{"action": "setup_start"}
+```
+
+### setup_reset
+Reset setup state. No-op: nothing to reset.
+```json
+{"action": "setup_reset"}
+```
+
+### setup_complete
+Mark setup as complete. No-op: already complete by default.
+```json
+{"action": "setup_complete"}
+```
+
+### setup_skip
+Skip setup. No-op: nothing to skip.
+```json
+{"action": "setup_skip"}
+```
+
 ## Parameters
 - `key` - Setting key: `project_path`, `godot_path`, `timeout` (for set)
 - `value` - New value (for set)

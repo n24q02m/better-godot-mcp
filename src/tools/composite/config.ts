@@ -139,7 +139,33 @@ export async function handleConfig(action: string, args: Record<string, unknown>
       return formatJSON(status)
     }
 
+    // Setup-flow parity stubs — godot-mcp has no credentials, so these are no-ops
+    case 'setup_status':
+      return formatJSON({ needs_setup: false, reason: 'godot-mcp has no credentials' })
+
+    case 'setup_start':
+      return formatSuccess('No setup required for godot-mcp.')
+
+    case 'setup_reset':
+      return formatSuccess('Nothing to reset.')
+
+    case 'setup_complete':
+      return formatSuccess('Already complete (no setup needed).')
+
+    case 'setup_skip':
+      return formatSuccess('Nothing to skip.')
+
     default:
-      throwUnknownAction(action, ['status', 'set', 'detect_godot', 'check'])
+      throwUnknownAction(action, [
+        'status',
+        'set',
+        'detect_godot',
+        'check',
+        'setup_status',
+        'setup_start',
+        'setup_reset',
+        'setup_complete',
+        'setup_skip',
+      ])
   }
 }

@@ -226,6 +226,51 @@ describe('config', () => {
   })
 
   // ==========================================
+  // setup_* parity actions (no-op stubs — godot has no credentials)
+  // ==========================================
+  describe('setup_status', () => {
+    it('should return needs_setup: false', async () => {
+      const result = await handleConfig('setup_status', {}, config)
+      const data = JSON.parse(result.content[0].text)
+
+      expect(data.needs_setup).toBe(false)
+      expect(typeof data.reason).toBe('string')
+    })
+  })
+
+  describe('setup_start', () => {
+    it('should return no-setup-needed stub', async () => {
+      const result = await handleConfig('setup_start', {}, config)
+
+      expect(result.content[0].text).toContain('No setup required')
+    })
+  })
+
+  describe('setup_reset', () => {
+    it('should return nothing-to-reset stub', async () => {
+      const result = await handleConfig('setup_reset', {}, config)
+
+      expect(result.content[0].text).toContain('Nothing to reset')
+    })
+  })
+
+  describe('setup_complete', () => {
+    it('should return already-complete stub', async () => {
+      const result = await handleConfig('setup_complete', {}, config)
+
+      expect(result.content[0].text).toContain('Already complete')
+    })
+  })
+
+  describe('setup_skip', () => {
+    it('should return nothing-to-skip stub', async () => {
+      const result = await handleConfig('setup_skip', {}, config)
+
+      expect(result.content[0].text).toContain('Nothing to skip')
+    })
+  })
+
+  // ==========================================
   // errors
   // ==========================================
   it('should throw for unknown action', async () => {

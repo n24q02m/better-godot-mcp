@@ -209,6 +209,15 @@ describe('config', () => {
       ).rejects.toThrow('Invalid characters')
     })
 
+    it('should reject paths starting with a hyphen', async () => {
+      await expect(handleConfig('set', { key: 'godot_path', value: '--some-flag' }, config)).rejects.toThrow(
+        'Invalid characters or format',
+      )
+      await expect(handleConfig('set', { key: 'project_path', value: '-evil' }, config)).rejects.toThrow(
+        'Invalid characters or format',
+      )
+    })
+
     it('should reject paths that are not strings', async () => {
       await expect(
         handleConfig('set', { key: 'godot_path', value: ['node', '-e', 'pwned'] as unknown as string }, config),

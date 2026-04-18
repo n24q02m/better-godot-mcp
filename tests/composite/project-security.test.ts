@@ -39,7 +39,7 @@ describe('project security', () => {
     vi.restoreAllMocks()
   })
 
-  describe('export argument injection prevention', () => {
+  describe('argument injection prevention', () => {
     it('should reject preset starting with a hyphen', async () => {
       await expect(
         handleProject(
@@ -72,6 +72,22 @@ describe('project security', () => {
       expect(execGodotAsync).not.toHaveBeenCalled()
     })
 
+    it('should reject project_path starting with a hyphen', async () => {
+      await expect(
+        handleProject(
+          'export',
+          {
+            project_path: '--some-arg',
+            preset: 'Windows Desktop',
+            output_path: 'build/game.exe',
+          },
+          config,
+        ),
+      ).rejects.toThrow('Invalid project path')
+
+      expect(execGodotAsync).not.toHaveBeenCalled()
+    })
+
     it('should allow valid preset and output_path', async () => {
       const result = await handleProject(
         'export',
@@ -85,6 +101,32 @@ describe('project security', () => {
 
       expect(result.content[0].text).toContain('Export complete: build/game.exe')
       expect(execGodotAsync).toHaveBeenCalled()
+    })
+
+    it('should reject preset or output_path that are not strings', async () => {
+      await expect(
+        handleProject(
+          'export',
+          {
+            project_path: projectPath,
+            preset: 123,
+            output_path: 'build/game.exe',
+          },
+          config,
+        ),
+      ).rejects.toThrow('Invalid arguments')
+
+      await expect(
+        handleProject(
+          'export',
+          {
+            project_path: projectPath,
+            preset: 'Windows Desktop',
+            output_path: true,
+          },
+          config,
+        ),
+      ).rejects.toThrow('Invalid arguments')
     })
   })
 })

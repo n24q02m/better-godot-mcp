@@ -39,17 +39,17 @@ export async function handleConfig(action: string, args: Record<string, unknown>
         throw new GodotMCPError(`Invalid config key: ${key}`, 'INVALID_ARGS', `Valid keys: ${validKeys.join(', ')}`)
       }
 
-      // Validate paths don't contain shell metacharacters
+      // Validate paths don't contain shell metacharacters and don't start with hyphen
       // Note: backslash (\) is allowed since it's the Windows path separator
       // and we use spawnSync/spawn (not shell exec), so it's not a security risk
       if (
         (key === 'project_path' || key === 'godot_path') &&
-        (typeof value !== 'string' || /[;&|`$(){}<>'"\0\n\r]/.test(value))
+        (typeof value !== 'string' || /[;&|`$(){}<>'"\0\n\r]/.test(value) || value.startsWith('-'))
       ) {
         throw new GodotMCPError(
-          `Invalid characters in ${key}`,
+          `Invalid characters or format in ${key}`,
           'INVALID_ARGS',
-          'Path must not contain shell metacharacters: ; & | ` $ ( ) { } < > \' " \\0 \\n \\r',
+          'Path must not contain shell metacharacters and must not start with a hyphen.',
         )
       }
 

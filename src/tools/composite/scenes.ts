@@ -200,7 +200,8 @@ export async function handleScenes(action: string, args: Record<string, unknown>
       const prefixLen = resolvedPath.length + (resolvedPath.endsWith('/') || resolvedPath.endsWith('\\') ? 0 : 1)
       const relativePaths = new Array(scenes.length)
       for (let i = 0; i < scenes.length; i++) {
-        relativePaths[i] = scenes[i].substring(prefixLen).replace(/\\/g, '/')
+        // ⚡ Bolt: Using replaceAll('\\', '/') avoids RegExp allocation overhead
+        relativePaths[i] = scenes[i].substring(prefixLen).replaceAll('\\', '/')
       }
 
       return formatJSON({
@@ -264,7 +265,8 @@ export async function handleScenes(action: string, args: Record<string, unknown>
         throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
       }
 
-      const resPath = `res://${scenePath.replace(/\\/g, '/')}`
+      // ⚡ Bolt: Using replaceAll('\\', '/') avoids RegExp allocation overhead
+      const resPath = `res://${scenePath.replaceAll('\\', '/')}`
       const content = await readFile(configPath, 'utf-8')
       const updated = setSettingInContent(content, 'application/run/main_scene', `"${resPath}"`)
       await writeFile(configPath, updated, 'utf-8')

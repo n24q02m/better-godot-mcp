@@ -75,7 +75,8 @@ export async function handleTilemap(action: string, args: Record<string, unknown
 
       // Performance optimization: using async file reading instead of sync
       let content = await readFile(fullPath, 'utf-8')
-      const resPath = `res://${texturePath.replace(/\\/g, '/')}`
+      // ⚡ Bolt: Using replaceAll('\\', '/') avoids RegExp allocation overhead
+      const resPath = `res://${texturePath.replaceAll('\\', '/')}`
 
       // Count existing sources to get next ID
       const sourceCount = (content.match(/\[ext_resource/g) || []).length

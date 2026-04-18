@@ -185,7 +185,8 @@ export async function handleShader(action: string, args: Record<string, unknown>
       const prefixLen = resolvedPath.length + (resolvedPath.endsWith('/') || resolvedPath.endsWith('\\') ? 0 : 1)
       const relativePaths = new Array(shaders.length)
       for (let i = 0; i < shaders.length; i++) {
-        relativePaths[i] = shaders[i].substring(prefixLen).replace(/\\/g, '/')
+        // ⚡ Bolt: Using replaceAll('\\', '/') avoids RegExp allocation overhead
+        relativePaths[i] = shaders[i].substring(prefixLen).replaceAll('\\', '/')
       }
 
       return formatJSON({ project: resolvedPath, count: relativePaths.length, shaders: relativePaths })

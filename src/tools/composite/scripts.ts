@@ -11,6 +11,7 @@ import { pathExists, safeResolve } from '../helpers/paths.js'
 import { escapeRegExp } from '../helpers/scene-parser.js'
 
 const BACKSLASH_RE = /\\/g
+const NODE_SECTION_RE = /(\[node [^\]]+\])/
 
 const SCRIPT_TEMPLATES: Record<string, string> = {
   Node: `extends Node
@@ -211,7 +212,7 @@ async function handleAttachScript(projectPath: string | null | undefined, args: 
       )
     content = content.replace(nodePattern, `$1\nscript = ExtResource("${resPath}")`)
   } else {
-    content = content.replace(/(\[node [^\]]+\])/, `$1\nscript = ExtResource("${resPath}")`)
+    content = content.replace(NODE_SECTION_RE, `$1\nscript = ExtResource("${resPath}")`)
   }
 
   await writeFile(sceneFullPath, content, 'utf-8')

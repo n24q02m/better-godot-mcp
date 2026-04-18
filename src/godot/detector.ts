@@ -9,11 +9,11 @@
  */
 
 import { execFileSync } from 'node:child_process'
-import { accessSync, closeSync, constants, existsSync, openSync, readdirSync, readSync, statSync } from 'node:fs'
+import { accessSync, closeSync, constants, existsSync, fstatSync, openSync, readdirSync, readSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import type { DetectionResult, GodotVersion } from './types.js'
 
-const GODOT_BINARY_NAMES = ['godot', 'godot4', 'Godot_v4']
+const GODOT_BINARY_NAMES = ['godot', 'godot4', 'godot-preview', 'Godot_v4']
 const MIN_VERSION = { major: 4, minor: 1 }
 
 /**
@@ -43,10 +43,12 @@ export function isVersionSupported(version: GodotVersion): boolean {
 }
 
 /**
- * Try to get Godot version from a binary path
+ * Try to get Godot version from a binary path.
+ * When skipSignatureCheck is true (e.g. user explicitly provided the path),
+ * the binary signature heuristic is skipped and only --version validation is used.
  */
-export function tryGetVersion(binaryPath: string): GodotVersion | null {
-  if (!isLikelyGodotBinary(binaryPath)) return null
+export function tryGetVersion(binaryPath: string, skipSignatureCheck = false): GodotVersion | null {
+  if (!skipSignatureCheck && !isLikelyGodotBinary(binaryPath)) return null
   try {
     const output = execFileSync(binaryPath, ['--version'], {
       timeout: 5000,
@@ -67,15 +69,32 @@ export function isLikelyGodotBinary(filePath: string): boolean {
   let fd: number | null = null
   try {
     fd = openSync(filePath, 'r')
-    // Read first 4MB - Godot binaries are typically 40MB-100MB+
-    // Signatures like "Godot Engine" or "GDScript" are usually present early or scattered
-    const buffer = Buffer.alloc(4 * 1024 * 1024)
-    const bytesRead = readSync(fd, buffer, 0, buffer.length, 0)
-
+    const stats = fstatSync(fd)
+    const fileSize = stats.size
     const sig1 = Buffer.from('Godot Engine')
     const sig2 = Buffer.from('GDScript')
 
-    return buffer.subarray(0, bytesRead).includes(sig1) || buffer.subarray(0, bytesRead).includes(sig2)
+    const fastSize = 64 * 1024
+    const fastBuf = Buffer.alloc(fastSize)
+    const headRead = readSync(fd, fastBuf, 0, Math.min(fastSize, fileSize), 0)
+    if (headRead > 0 && (fastBuf.subarray(0, headRead).includes(sig1) || fastBuf.subarray(0, headRead).includes(sig2))) return true
+    if (fileSize > fastSize) {
+      const tailOffset = fileSize - fastSize
+      const tailRead = readSync(fd, fastBuf, 0, fastSize, tailOffset)
+      if (tailRead > 0 && (fastBuf.subarray(0, tailRead).includes(sig1) || fastBuf.subarray(0, tailRead).includes(sig2))) return true
+    }
+
+    const chunkSize = 4 * 1024 * 1024
+    const maxSigLen = Math.max(sig1.length, sig2.length)
+    const overlap = maxSigLen - 1
+    const step = chunkSize - overlap
+    const buffer = Buffer.alloc(chunkSize)
+    for (let offset = 0; offset < fileSize; offset += step) {
+      const readLen = Math.min(chunkSize, fileSize - offset)
+      const bytesRead = readSync(fd, buffer, 0, readLen, offset)
+      if (buffer.subarray(0, bytesRead).includes(sig1) || buffer.subarray(0, bytesRead).includes(sig2)) return true
+    }
+    return false
   } catch {
     return false
   } finally {
@@ -187,6 +206,7 @@ function getSystemPaths(): string[] {
     paths.push(
       '/Applications/Godot.app/Contents/MacOS/Godot',
       '/Applications/Godot_mono.app/Contents/MacOS/Godot',
+      '/Applications/Godot_preview.app/Contents/MacOS/Godot',
       // Homebrew
       '/opt/homebrew/bin/godot',
       '/usr/local/bin/godot',
@@ -197,6 +217,8 @@ function getSystemPaths(): string[] {
       '/usr/bin/godot',
       '/usr/local/bin/godot',
       '/usr/bin/godot4',
+      '/usr/bin/godot-preview',
+      '/opt/godot-preview/godot-preview',
       // Snap
       '/snap/bin/godot',
       '/snap/bin/godot-4',
@@ -221,10 +243,10 @@ function getSystemPaths(): string[] {
  * @returns Detection result or null if not found
  */
 export function detectGodot(): DetectionResult | null {
-  // 1. Check GODOT_PATH env var
+  // 1. Check GODOT_PATH env var — skip signature heuristic since user explicitly provided the path
   const envPath = process.env.GODOT_PATH
   if (envPath && isExecutable(envPath)) {
-    const version = tryGetVersion(envPath)
+    const version = tryGetVersion(envPath, true)
     if (version && isVersionSupported(version)) {
       return { path: envPath, version, source: 'env' }
     }

@@ -9,13 +9,17 @@ import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '..
 import { safeResolve } from '../helpers/paths.js'
 import { parseSceneContent } from '../helpers/scene-parser.js'
 
-function validateParameters(...params: string[]) {
+function validateParameters(...params: unknown[]) {
   for (const param of params) {
-    if (param.includes('\n') || param.includes('\r') || param.includes('"')) {
+    if (typeof param !== 'string' && typeof param !== 'number' && param !== undefined) {
+      throw new GodotMCPError('Invalid parameter type', 'INVALID_ARGS', 'Signal parameters must be strings or numbers.')
+    }
+    const s = String(param)
+    if (s.includes('\n') || s.includes('\r') || s.includes('"') || s.includes(']')) {
       throw new GodotMCPError(
         'Invalid characters in parameters',
         'INVALID_ARGS',
-        'Signal parameters (signal, from, to, method) must not contain newlines or double quotes.',
+        'Signal parameters must not contain newlines, double quotes, or closing brackets (]).',
       )
     }
   }
@@ -70,9 +74,12 @@ export async function handleSignals(action: string, args: Record<string, unknown
         )
       }
 
-      validateParameters(signal, from, to, method)
-
       const flags = args.flags as number | undefined
+      if (flags !== undefined && typeof flags !== 'number') {
+        throw new GodotMCPError('flags must be a number', 'INVALID_ARGS')
+      }
+
+      validateParameters(signal, from, to, method, flags)
 
       let content = await readScene()
 

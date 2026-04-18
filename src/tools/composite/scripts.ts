@@ -189,7 +189,7 @@ async function attachScript(args: Record<string, unknown>, resolvePath: (path: s
     throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Create the scene first.')
 
   let content = await readFile(sceneFullPath, 'utf-8')
-  const resPath = `res://${scriptPath.replaceAll('\\', '/')}`
+  const resPath = `res://${scriptPath.replace(/\\/g, '/')}`
 
   if (nodeName) {
     const nodePattern = new RegExp(`(\\[node name="${escapeRegExp(nodeName)}"[^\\]]*\\])`)
@@ -221,7 +221,7 @@ async function listScripts(baseDir: string, projectPath: string | undefined) {
   const prefixLen = resolvedPath.length + (resolvedPath.endsWith('/') || resolvedPath.endsWith('\\') ? 0 : 1)
   const relativePaths = new Array(scripts.length)
   for (let i = 0; i < scripts.length; i++) {
-    relativePaths[i] = scripts[i].substring(prefixLen).replaceAll('\\', '/')
+    relativePaths[i] = scripts[i].substring(prefixLen).replace(/\\/g, '/')
   }
 
   return formatJSON({ project: resolvedPath, count: relativePaths.length, scripts: relativePaths })

@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import type { Dirent, PathLike } from 'node:fs'
+import type { PathLike } from 'node:fs'
 import { accessSync, existsSync, fstatSync, openSync, readdirSync, readSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 /**
@@ -664,13 +664,14 @@ describe('detector', () => {
         return false
       })
 
-      vi.mocked(readdirSync).mockImplementation(((path: PathLike, _options?: unknown) => {
-        if (path === packagesDir) {
+      vi.mocked(readdirSync).mockImplementation(((path: PathLike, ...args: unknown[]) => {
+        const options = args[0] as { withFileTypes?: boolean } | undefined
+        if (path === packagesDir && options?.withFileTypes) {
           return [
             {
               isDirectory: () => true,
               name: 'GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe',
-            } as Dirent,
+            },
           ] as unknown as ReturnType<typeof readdirSync>
         }
         if (path === pkgDir) {

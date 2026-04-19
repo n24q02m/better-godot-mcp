@@ -43,3 +43,6 @@ htmlcov/
 
 # AI traces (public repo hygiene)
 .Jules/
+
+# E2E test result artifacts
+tests/e2e_mcp_*report.json

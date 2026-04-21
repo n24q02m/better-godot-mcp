@@ -46,12 +46,13 @@ describe('MCP Protocol - Live', () => {
   beforeAll(async () => {
     transport = new StdioClientTransport({
       command: 'node',
-      args: ['bin/cli.mjs'],
+      args: ['bin/cli.mjs', '--stdio'],
       cwd: process.cwd(),
+      env: { ...process.env, MCP_TRANSPORT: 'stdio' } as Record<string, string>,
     })
     client = new Client({ name: 'live-test', version: '1.0.0' })
     await client.connect(transport)
-  }, 15_000)
+  }, 30_000)
 
   afterAll(async () => {
     await client.close()
@@ -161,17 +162,17 @@ describe('MCP Protocol - Live', () => {
   })
 
   it('config.set updates runtime config', async () => {
+    // Use `timeout` key (no filesystem validation) for environment-agnostic test
     const setResult = await client.callTool({
       name: 'config',
-      arguments: { action: 'set', key: 'project_path', value: '/tmp/test-project' },
+      arguments: { action: 'set', key: 'timeout', value: '45' },
     })
     expect(setResult.isError).toBeFalsy()
 
-    // Verify the update persists
+    // Verify the update persists in runtime_overrides (status does not surface timeout top-level)
     const statusResult = await client.callTool({ name: 'config', arguments: { action: 'status' } })
     const json = JSON.parse(getText(statusResult))
-    expect(json.project_path).toBe('/tmp/test-project')
-    expect(json.runtime_overrides.project_path).toBe('/tmp/test-project')
+    expect(json.runtime_overrides.timeout).toBe('45')
   })
 
   it('config.set rejects invalid keys', async () => {

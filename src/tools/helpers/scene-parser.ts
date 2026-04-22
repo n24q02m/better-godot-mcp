@@ -14,22 +14,40 @@
 import { readFile } from 'node:fs/promises'
 import { parseCommaSeparatedList } from './strings.js'
 
-// Pre-compiled regular expressions for parsing scene sections
-const rxGdSceneFormat = /format=(\d+)/
-const rxGdSceneSteps = /load_steps=(\d+)/
-const rxUid = /uid="([^"]*)"/
-const rxType = /type="([^"]*)"/
-const rxPath = /path="([^"]*)"/
-const rxId = / id="([^"]*)"/
-const rxName = /name="([^"]*)"/
-const rxParent = /parent="([^"]*)"/
-const rxInstance = /instance=ExtResource\("([^"]*)"\)/
-const rxGroups = /groups=\[([^\]]*)\]/
-const rxSignal = /signal="([^"]*)"/
-const rxFrom = /from="([^"]*)"/
-const rxTo = /to="([^"]*)"/
-const rxMethod = /method="([^"]*)"/
-const rxFlags = /flags=(\d+)/
+/**
+ * Fast-path string extraction for attributes like name="value"
+ */
+function extractAttribute(line: string, prefix: string, suffix: string): string | undefined {
+  const startIdx = line.indexOf(prefix)
+  if (startIdx === -1) return undefined
+  const valueStart = startIdx + prefix.length
+  const endIdx = line.indexOf(suffix, valueStart)
+  if (endIdx === -1) return undefined
+  return line.slice(valueStart, endIdx)
+}
+
+/**
+ * Fast-path extraction for numeric attributes like format=3
+ */
+function extractNumberAttribute(line: string, prefix: string): number | undefined {
+  const startIdx = line.indexOf(prefix)
+  if (startIdx === -1) return undefined
+  const valueStart = startIdx + prefix.length
+  let endIdx = valueStart
+  while (endIdx < line.length) {
+    const charCode = line.charCodeAt(endIdx)
+    if (charCode >= 48 && charCode <= 57) {
+      // '0'-'9'
+      endIdx++
+    } else {
+      break
+    }
+  }
+  if (endIdx > valueStart) {
+    return Number.parseInt(line.slice(valueStart, endIdx), 10)
+  }
+  return undefined
+}
 
 export interface TscnHeader {
   format: number
@@ -178,30 +196,30 @@ export function parseSceneContent(content: string): ParsedScene {
  * Parse header section [gd_scene ...]
  */
 function parseHeader(line: string, header: TscnHeader): void {
-  const formatMatch = line.includes('format=') ? line.match(rxGdSceneFormat) : null
-  const stepsMatch = line.includes('load_steps=') ? line.match(rxGdSceneSteps) : null
-  const uidMatch = line.includes('uid=') ? line.match(rxUid) : null
+  const formatVal = extractNumberAttribute(line, 'format=')
+  const stepsVal = extractNumberAttribute(line, 'load_steps=')
+  const uidVal = extractAttribute(line, 'uid="', '"')
 
-  if (formatMatch) header.format = Number.parseInt(formatMatch[1], 10)
-  if (stepsMatch) header.loadSteps = Number.parseInt(stepsMatch[1], 10)
-  if (uidMatch) header.uid = uidMatch[1]
+  if (formatVal !== undefined) header.format = formatVal
+  if (stepsVal !== undefined) header.loadSteps = stepsVal
+  if (uidVal !== undefined) header.uid = uidVal
 }
 
 /**
  * Parse external resource section [ext_resource ...]
  */
 function parseExtResource(line: string): ExtResource | null {
-  const typeMatch = line.includes('type="') ? line.match(rxType) : null
-  const uidMatch = line.includes('uid=') ? line.match(rxUid) : null
-  const pathMatch = line.includes('path="') ? line.match(rxPath) : null
-  const idMatch = line.includes(' id="') ? line.match(rxId) : null
+  const typeVal = extractAttribute(line, 'type="', '"')
+  const uidVal = extractAttribute(line, 'uid="', '"')
+  const pathVal = extractAttribute(line, 'path="', '"')
+  const idVal = extractAttribute(line, ' id="', '"')
 
-  if (typeMatch && pathMatch && idMatch) {
+  if (typeVal !== undefined && pathVal !== undefined && idVal !== undefined) {
     return {
-      type: typeMatch[1],
-      uid: uidMatch?.[1],
-      path: pathMatch[1],
-      id: idMatch[1],
+      type: typeVal,
+      uid: uidVal,
+      path: pathVal,
+      id: idVal,
     }
   }
   return null
@@ -211,11 +229,11 @@ function parseExtResource(line: string): ExtResource | null {
  * Parse sub-resource section [sub_resource ...]
  */
 function parseSubResource(line: string): SubResource | null {
-  const typeMatch = line.includes('type="') ? line.match(rxType) : null
-  const idMatch = line.includes(' id="') ? line.match(rxId) : null
+  const typeVal = extractAttribute(line, 'type="', '"')
+  const idVal = extractAttribute(line, ' id="', '"')
 
-  if (typeMatch && idMatch) {
-    return { type: typeMatch[1], id: idMatch[1], properties: {} }
+  if (typeVal !== undefined && idVal !== undefined) {
+    return { type: typeVal, id: idVal, properties: {} }
   }
   return null
 }
@@ -224,20 +242,20 @@ function parseSubResource(line: string): SubResource | null {
  * Parse node section [node ...]
  */
 function parseNode(line: string): SceneNodeInfo | null {
-  const nameMatch = line.includes('name="') ? line.match(rxName) : null
-  const typeMatch = line.includes('type="') ? line.match(rxType) : null
-  const parentMatch = line.includes('parent="') ? line.match(rxParent) : null
-  const instanceMatch = line.includes('instance=') ? line.match(rxInstance) : null
-  const groupsMatch = line.includes('groups=') ? line.match(rxGroups) : null
+  const nameVal = extractAttribute(line, 'name="', '"')
+  const typeVal = extractAttribute(line, 'type="', '"')
+  const parentVal = extractAttribute(line, 'parent="', '"')
+  const instanceVal = extractAttribute(line, 'instance=ExtResource("', '")')
+  const groupsVal = extractAttribute(line, 'groups=[', ']')
 
-  if (nameMatch) {
+  if (nameVal !== undefined) {
     return {
-      name: nameMatch[1],
-      type: typeMatch?.[1],
-      parent: parentMatch?.[1],
-      instance: instanceMatch?.[1],
+      name: nameVal,
+      type: typeVal,
+      parent: parentVal,
+      instance: instanceVal,
       properties: {},
-      groups: groupsMatch ? parseCommaSeparatedList(groupsMatch[1]) : undefined,
+      groups: groupsVal !== undefined ? parseCommaSeparatedList(groupsVal) : undefined,
     }
   }
   return null
@@ -247,19 +265,19 @@ function parseNode(line: string): SceneNodeInfo | null {
  * Parse signal connection section [connection ...]
  */
 function parseConnection(line: string): SignalConnection | null {
-  const signalMatch = line.includes('signal="') ? line.match(rxSignal) : null
-  const fromMatch = line.includes('from="') ? line.match(rxFrom) : null
-  const toMatch = line.includes('to="') ? line.match(rxTo) : null
-  const methodMatch = line.includes('method="') ? line.match(rxMethod) : null
-  const flagsMatch = line.includes('flags=') ? line.match(rxFlags) : null
+  const signalVal = extractAttribute(line, 'signal="', '"')
+  const fromVal = extractAttribute(line, 'from="', '"')
+  const toVal = extractAttribute(line, 'to="', '"')
+  const methodVal = extractAttribute(line, 'method="', '"')
+  const flagsVal = extractNumberAttribute(line, 'flags=')
 
-  if (signalMatch && fromMatch && toMatch && methodMatch) {
+  if (signalVal !== undefined && fromVal !== undefined && toVal !== undefined && methodVal !== undefined) {
     return {
-      signal: signalMatch[1],
-      from: fromMatch[1],
-      to: toMatch[1],
-      method: methodMatch[1],
-      flags: flagsMatch ? Number.parseInt(flagsMatch[1], 10) : undefined,
+      signal: signalVal,
+      from: fromVal,
+      to: toVal,
+      method: methodVal,
+      flags: flagsVal,
     }
   }
   return null

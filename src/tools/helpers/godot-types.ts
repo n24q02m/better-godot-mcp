@@ -64,56 +64,61 @@ export function parseGodotValue(expr: string, _depth = 0): unknown {
   }
 
   // String (quoted)
+  const firstChar = trimmed.length > 0 ? trimmed.charCodeAt(0) : 0
   if (trimmed.length >= 2) {
-    const first = trimmed.charCodeAt(0)
     const last = trimmed.charCodeAt(trimmed.length - 1)
-    if ((first === 34 && last === 34) || (first === 39 && last === 39)) {
+    if ((firstChar === 34 && last === 34) || (firstChar === 39 && last === 39)) {
       return trimmed.slice(1, -1)
     }
   }
 
-  // Vector2
-  const v2Match = trimmed.match(V2_RE)
-  if (v2Match) {
-    return { x: Number.parseFloat(v2Match[1]), y: Number.parseFloat(v2Match[2]) } as Vector2
+  // ⚡ Bolt: Fast path for checking structural Godot types by checking first character
+  // Vector2, Vector2i, Vector3 ('V' = 86)
+  if (firstChar === 86) {
+    const v2Match = trimmed.match(V2_RE)
+    if (v2Match) {
+      return { x: Number.parseFloat(v2Match[1]), y: Number.parseFloat(v2Match[2]) } as Vector2
+    }
+
+    const v2iMatch = trimmed.match(V2I_RE)
+    if (v2iMatch) {
+      return { x: Number.parseInt(v2iMatch[1], 10), y: Number.parseInt(v2iMatch[2], 10) } as Vector2
+    }
+
+    const v3Match = trimmed.match(V3_RE)
+    if (v3Match) {
+      return {
+        x: Number.parseFloat(v3Match[1]),
+        y: Number.parseFloat(v3Match[2]),
+        z: Number.parseFloat(v3Match[3]),
+      } as Vector3
+    }
   }
 
-  // Vector2i
-  const v2iMatch = trimmed.match(V2I_RE)
-  if (v2iMatch) {
-    return { x: Number.parseInt(v2iMatch[1], 10), y: Number.parseInt(v2iMatch[2], 10) } as Vector2
+  // Color ('C' = 67)
+  if (firstChar === 67) {
+    const colorMatch = trimmed.match(COLOR_RE)
+    if (colorMatch) {
+      return {
+        r: Number.parseFloat(colorMatch[1]),
+        g: Number.parseFloat(colorMatch[2]),
+        b: Number.parseFloat(colorMatch[3]),
+        a: colorMatch[4] ? Number.parseFloat(colorMatch[4]) : 1.0,
+      } as GodotColor
+    }
   }
 
-  // Vector3
-  const v3Match = trimmed.match(V3_RE)
-  if (v3Match) {
-    return {
-      x: Number.parseFloat(v3Match[1]),
-      y: Number.parseFloat(v3Match[2]),
-      z: Number.parseFloat(v3Match[3]),
-    } as Vector3
-  }
-
-  // Color
-  const colorMatch = trimmed.match(COLOR_RE)
-  if (colorMatch) {
-    return {
-      r: Number.parseFloat(colorMatch[1]),
-      g: Number.parseFloat(colorMatch[2]),
-      b: Number.parseFloat(colorMatch[3]),
-      a: colorMatch[4] ? Number.parseFloat(colorMatch[4]) : 1.0,
-    } as GodotColor
-  }
-
-  // Rect2
-  const rectMatch = trimmed.match(RECT2_RE)
-  if (rectMatch) {
-    return {
-      x: Number.parseFloat(rectMatch[1]),
-      y: Number.parseFloat(rectMatch[2]),
-      w: Number.parseFloat(rectMatch[3]),
-      h: Number.parseFloat(rectMatch[4]),
-    } as Rect2
+  // Rect2 ('R' = 82)
+  if (firstChar === 82) {
+    const rectMatch = trimmed.match(RECT2_RE)
+    if (rectMatch) {
+      return {
+        x: Number.parseFloat(rectMatch[1]),
+        y: Number.parseFloat(rectMatch[2]),
+        w: Number.parseFloat(rectMatch[3]),
+        h: Number.parseFloat(rectMatch[4]),
+      } as Rect2
+    }
   }
 
   // NodePath

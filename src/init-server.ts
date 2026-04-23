@@ -69,10 +69,13 @@ export async function initServer(): Promise<void> {
 
   try {
     if (isStdio) {
-      const server = createGodotServer()
-      const { startStdio } = await import('./transports/stdio.js')
-      await startStdio(server)
-      console.error(`[${SERVER_NAME}] Server started in stdio mode (v${getVersion()})`)
+      const { runSmartStdioProxy } = await import('@n24q02m/mcp-core/transport')
+      const daemonCmd = [process.execPath, process.argv[1]!]
+      const exitCode = await runSmartStdioProxy(SERVER_NAME, daemonCmd, {
+        env: { MCP_TRANSPORT: 'http' }
+      })
+      process.exit(exitCode)
+      return
     } else {
       const { runLocalServer } = await import('@n24q02m/mcp-core')
       const port = process.env.PORT ? Number.parseInt(process.env.PORT, 10) : 0

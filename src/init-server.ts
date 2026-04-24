@@ -72,7 +72,7 @@ export async function initServer(): Promise<void> {
       const { runSmartStdioProxy } = await import('@n24q02m/mcp-core/transport')
       const daemonCmd = [process.execPath, process.argv[1]!]
       const exitCode = await runSmartStdioProxy(SERVER_NAME, daemonCmd, {
-        env: { MCP_TRANSPORT: 'http' }
+        env: { MCP_TRANSPORT: 'http' },
       })
       process.exit(exitCode)
       return

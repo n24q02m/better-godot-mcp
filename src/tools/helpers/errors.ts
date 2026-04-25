@@ -99,15 +99,21 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
   let bestMatch: string | null = null
   let bestScore = 0
 
+  // ⚡ Bolt: Pre-calculate input bigrams once outside the loop, using integers for performance
+  const inputBigrams = new Set<number>()
+  for (let i = 0; i < lower.length - 1; i++) {
+    inputBigrams.add(lower.charCodeAt(i) | (lower.charCodeAt(i + 1) << 16))
+  }
+
   for (const option of validOptions) {
     const optionLower = option.toLowerCase()
     if (optionLower.startsWith(lower) || lower.startsWith(optionLower)) {
       return option
     }
-    const inputBigrams = new Set<string>()
-    for (let i = 0; i < lower.length - 1; i++) inputBigrams.add(lower.slice(i, i + 2))
-    const optionBigrams = new Set<string>()
-    for (let i = 0; i < optionLower.length - 1; i++) optionBigrams.add(optionLower.slice(i, i + 2))
+    const optionBigrams = new Set<number>()
+    for (let i = 0; i < optionLower.length - 1; i++) {
+      optionBigrams.add(optionLower.charCodeAt(i) | (optionLower.charCodeAt(i + 1) << 16))
+    }
 
     let overlap = 0
     for (const b of inputBigrams) {

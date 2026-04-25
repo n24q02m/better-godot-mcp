@@ -82,7 +82,7 @@ PSR v10 (workflow_dispatch) -> npm + Docker (amd64+arm64) + GHCR + MCP Registry.
 - Docker mode: mount project directory de truy cap filesystem.
 - Tiered descriptions: Tier 1 (compact, luon load) + Tier 2 (full docs qua `help` tool).
 - Pre-commit: biome check, tsc --noEmit. Pre-push: bun test.
-- Infisical project: `430ac905-a60f-4597-b5cd-1727daa95389`
+- Secrets: skret SSM namespace `/better-godot-mcp/prod` (region `ap-southeast-1`)
 
 ## Known bugs (potential -- E2E test chua chay den godot 2026-04-18)
 

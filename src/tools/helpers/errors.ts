@@ -99,21 +99,33 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
   let bestMatch: string | null = null
   let bestScore = 0
 
+  // ⚡ Bolt: Pre-compute input bigrams as integer pairs to avoid string allocation.
+  // Each bigram is 2 characters. We store them as a 32-bit integer: (char1 << 16) | char2
+  const inputBigrams = new Set<number>()
+  for (let i = 0; i < lower.length - 1; i++) {
+    inputBigrams.add((lower.charCodeAt(i) << 16) | lower.charCodeAt(i + 1))
+  }
+
   for (const option of validOptions) {
     const optionLower = option.toLowerCase()
     if (optionLower.startsWith(lower) || lower.startsWith(optionLower)) {
       return option
     }
-    const inputBigrams = new Set<string>()
-    for (let i = 0; i < lower.length - 1; i++) inputBigrams.add(lower.slice(i, i + 2))
-    const optionBigrams = new Set<string>()
-    for (let i = 0; i < optionLower.length - 1; i++) optionBigrams.add(optionLower.slice(i, i + 2))
 
+    let optionBigramCount = 0
     let overlap = 0
-    for (const b of inputBigrams) {
-      if (optionBigrams.has(b)) overlap++
+    const seenOptionBigrams = new Set<number>()
+    for (let i = 0; i < optionLower.length - 1; i++) {
+      const b = (optionLower.charCodeAt(i) << 16) | optionLower.charCodeAt(i + 1)
+      if (!seenOptionBigrams.has(b)) {
+        seenOptionBigrams.add(b)
+        optionBigramCount++
+        if (inputBigrams.has(b)) overlap++
+      }
     }
-    const score = (2 * overlap) / (inputBigrams.size + optionBigrams.size)
+
+    if (inputBigrams.size + optionBigramCount === 0) continue
+    const score = (2 * overlap) / (inputBigrams.size + optionBigramCount)
     if (score > bestScore && score > 0.4) {
       bestScore = score
       bestMatch = option

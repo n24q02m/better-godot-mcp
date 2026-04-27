@@ -174,6 +174,14 @@ export async function handleScenes(action: string, args: Record<string, unknown>
       const rootType = (args.root_type as string) || 'Node2D'
       const rootName = (args.root_name as string) || basename(scenePath, '.tscn')
 
+      if (rootName.includes('"') || rootName.includes('\n') || rootName.includes('\r')) {
+        throw new GodotMCPError('Invalid root name', 'INVALID_ARGS', 'Root name must not contain quotes or newlines.')
+      }
+
+      if (rootType.includes('"') || rootType.includes('\n') || rootType.includes('\r')) {
+        throw new GodotMCPError('Invalid root type', 'INVALID_ARGS', 'Root type must not contain quotes or newlines.')
+      }
+
       const fullPath = safeResolve(projectPath as string, scenePath)
       if (await pathExists(fullPath)) {
         throw new GodotMCPError(

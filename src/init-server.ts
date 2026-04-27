@@ -79,6 +79,7 @@ export async function initServer(): Promise<void> {
     } else {
       const { runLocalServer } = await import('@n24q02m/mcp-core')
       const port = process.env.PORT ? Number.parseInt(process.env.PORT, 10) : 0
+      const host = process.env.HOST
       const handle = await runLocalServer(
         // Godot uses the lower-level Server; runLocalServer only calls `.connect(transport)`
         // which both Server and McpServer expose with the same signature.
@@ -86,6 +87,7 @@ export async function initServer(): Promise<void> {
         {
           serverName: SERVER_NAME,
           port,
+          host,
           // No relaySchema -> no auth, no credential form (godot has no credentials).
         },
       )

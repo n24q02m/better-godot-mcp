@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const mockServerConstructor = vi.fn()
 const mockConnect = vi.fn().mockResolvedValue(undefined)
 const mockSetRequestHandler = vi.fn()
+const mockStdioTransportConstructor = vi.fn()
 
 // Mock all dependencies before importing
 vi.mock('@modelcontextprotocol/sdk/server/index.js', () => {
@@ -20,6 +21,17 @@ vi.mock('@modelcontextprotocol/sdk/server/index.js', () => {
   }
   return {
     Server: MockServer,
+  }
+})
+
+vi.mock('@modelcontextprotocol/sdk/server/stdio.js', () => {
+  class MockStdioServerTransport {
+    constructor(...args: unknown[]) {
+      mockStdioTransportConstructor(...args)
+    }
+  }
+  return {
+    StdioServerTransport: MockStdioServerTransport,
   }
 })
 
@@ -38,7 +50,7 @@ vi.mock('../package.json', () => ({
   },
 }))
 
-// Mock mcp-core runLocalServer and runSmartStdioProxy
+// Mock mcp-core runLocalServer (stdio path uses StdioServerTransport directly)
 const mockStartHttp = vi.fn().mockResolvedValue({
   host: '127.0.0.1',
   port: 12345,
@@ -47,13 +59,6 @@ const mockStartHttp = vi.fn().mockResolvedValue({
 vi.mock('@n24q02m/mcp-core', () => ({
   runLocalServer: (...args: unknown[]) => mockStartHttp(...args),
 }))
-
-const mockRunSmartStdioProxy = vi.fn().mockResolvedValue(0)
-vi.mock('@n24q02m/mcp-core/transport', () => ({
-  runSmartStdioProxy: (...args: unknown[]) => mockRunSmartStdioProxy(...args),
-}))
-
-let exitSpy: ReturnType<typeof vi.spyOn>
 
 describe('initServer', () => {
   const originalEnv = process.env
@@ -67,8 +72,7 @@ describe('initServer', () => {
       port: 12345,
       close: vi.fn().mockResolvedValue(undefined),
     })
-    mockRunSmartStdioProxy.mockResolvedValue(0)
-    exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {}) as any)
+    vi.spyOn(process, 'exit').mockImplementation((() => {}) as any)
     // Suppress console.error output during tests
     vi.spyOn(console, 'error').mockImplementation(() => {})
     process.env = { ...originalEnv }
@@ -99,11 +103,11 @@ describe('initServer', () => {
       await runHttpInit(initServer)
 
       expect(mockStartHttp).toHaveBeenCalledOnce()
-      expect(mockRunSmartStdioProxy).not.toHaveBeenCalled()
+      expect(mockStdioTransportConstructor).not.toHaveBeenCalled()
       expect(console.error).toHaveBeenCalledWith(expect.stringContaining('HTTP mode'))
     })
 
-    it('should use stdio proxy mode when --stdio flag is passed', async () => {
+    it('should use stdio direct mode when --stdio flag is passed', async () => {
       const { detectGodot } = await import('../src/godot/detector.js')
       vi.mocked(detectGodot).mockReturnValue(null)
       process.argv = [...originalArgv, '--stdio']
@@ -111,12 +115,12 @@ describe('initServer', () => {
       const { initServer } = await import('../src/init-server.js')
       await initServer()
 
-      expect(mockRunSmartStdioProxy).toHaveBeenCalledOnce()
+      expect(mockStdioTransportConstructor).toHaveBeenCalledOnce()
+      expect(mockConnect).toHaveBeenCalledOnce()
       expect(mockStartHttp).not.toHaveBeenCalled()
-      expect(exitSpy).toHaveBeenCalledWith(0)
     })
 
-    it('should use stdio proxy mode when MCP_TRANSPORT=stdio', async () => {
+    it('should use stdio direct mode when MCP_TRANSPORT=stdio', async () => {
       const { detectGodot } = await import('../src/godot/detector.js')
       vi.mocked(detectGodot).mockReturnValue(null)
       process.env.MCP_TRANSPORT = 'stdio'
@@ -124,7 +128,8 @@ describe('initServer', () => {
       const { initServer } = await import('../src/init-server.js')
       await initServer()
 
-      expect(mockRunSmartStdioProxy).toHaveBeenCalledOnce()
+      expect(mockStdioTransportConstructor).toHaveBeenCalledOnce()
+      expect(mockConnect).toHaveBeenCalledOnce()
       expect(mockStartHttp).not.toHaveBeenCalled()
     })
 
@@ -194,17 +199,17 @@ describe('initServer', () => {
   })
 
   describe('error handling', () => {
-    it('should handle errors during server initialization (stdio proxy failure)', async () => {
+    it('should handle errors during server initialization (stdio connect failure)', async () => {
       const { detectGodot } = await import('../src/godot/detector.js')
       vi.mocked(detectGodot).mockReturnValue(null)
       process.env.MCP_TRANSPORT = 'stdio'
 
-      const testError = new Error('Proxy failed')
-      mockRunSmartStdioProxy.mockRejectedValue(testError)
+      const testError = new Error('Connect failed')
+      mockConnect.mockRejectedValueOnce(testError)
 
       const { initServer } = await import('../src/init-server.js')
 
-      await expect(initServer()).rejects.toThrow('Proxy failed')
+      await expect(initServer()).rejects.toThrow('Connect failed')
       expect(console.error).toHaveBeenCalledWith('Failed to initialize server:', testError)
     })
 

@@ -91,6 +91,15 @@ bun install
 bun run dev
 ```
 
+## Trust Model
+
+This plugin implements **TC-Local** (no auth required -- no credentials stored). See [mcp-core/docs/TRUST-MODEL.md](https://github.com/n24q02m/mcp-core/blob/main/docs/TRUST-MODEL.md) for full classification.
+
+| Mode | Storage | Encryption | Who can read your data? |
+|---|---|---|---|
+| stdio (default) | N/A (no credentials) | N/A | N/A |
+| HTTP self-host | N/A (no credentials) | N/A | N/A |
+
 ## License
 
 MIT -- See [LICENSE](LICENSE).

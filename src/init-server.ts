@@ -11,6 +11,7 @@
  */
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import pkg from '../package.json' with { type: 'json' }
 import { detectGodot } from './godot/detector.js'
 import type { GodotConfig } from './godot/types.js'
@@ -69,12 +70,12 @@ export async function initServer(): Promise<void> {
 
   try {
     if (isStdio) {
-      const { runSmartStdioProxy } = await import('@n24q02m/mcp-core/transport')
-      const daemonCmd = [process.execPath, process.argv[1]!]
-      const exitCode = await runSmartStdioProxy(SERVER_NAME, daemonCmd, {
-        env: { MCP_TRANSPORT: 'http' },
-      })
-      process.exit(exitCode)
+      // Direct MCP SDK stdio transport (no daemon proxy hop).
+      // See spec 2026-04-30-multi-mode-stdio-http-architecture.md Task 3.3.
+      const server = createGodotServer()
+      const transport = new StdioServerTransport()
+      await server.connect(transport)
+      console.error(`[${SERVER_NAME}] Server started in stdio mode (v${getVersion()})`)
       return
     } else {
       const { runLocalServer } = await import('@n24q02m/mcp-core')

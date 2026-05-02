@@ -20,8 +20,8 @@
   "scripts": {
     "build": "tsc --build && node scripts/build-cli.js",
     "dev": "tsx watch scripts/start-server.ts",
-    "dev:http": "tsx watch scripts/start-server.ts",
-    "dev:stdio": "MCP_TRANSPORT=stdio tsx watch scripts/start-server.ts",
+    "dev:http": "MCP_TRANSPORT=http tsx watch scripts/start-server.ts",
+    "dev:stdio": "tsx watch scripts/start-server.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "biome check .",
@@ -35,7 +35,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "@n24q02m/mcp-core": "^1.10.0",
+    "@n24q02m/mcp-core": "1.13.0-beta.4",
     "zod": "^4.3.6"
   },
   "devDependencies": {

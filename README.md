@@ -29,7 +29,30 @@ mcp-name: io.github.n24q02m/better-godot-mcp
 - **GDScript CRUD** -- create, read, write, and attach scripts in a single call
 - **Tiered token optimization** -- compressed descriptions + on-demand `help` tool
 
+## Status
+
+> **2026-05-02 -- Architecture stabilization update**
+>
+> Past months saw significant churn around credential handling and the daemon-bridge auto-spawn pattern. This caused multi-process races, browser tab spam, and inconsistent setup UX across plugins. **As of v\<auto\>, the architecture is stable**: 2 clean modes (stdio + HTTP), no daemon-bridge layer, no auto-spawn from stdio.
+>
+> Apologies for the instability period. If you encountered issues with prior versions, please update to v\<auto\>+ and follow the current `docs/setup-manual.md` -- most prior workarounds are no longer needed.
+>
+> **Related plugins from the same author**:
+> - [wet-mcp](https://github.com/n24q02m/wet-mcp) -- Web search + content extraction
+> - [mnemo-mcp](https://github.com/n24q02m/mnemo-mcp) -- Persistent AI memory
+> - [imagine-mcp](https://github.com/n24q02m/imagine-mcp) -- Image/video understanding + generation
+> - [better-notion-mcp](https://github.com/n24q02m/better-notion-mcp) -- Notion API
+> - [better-email-mcp](https://github.com/n24q02m/better-email-mcp) -- Email management
+> - [better-telegram-mcp](https://github.com/n24q02m/better-telegram-mcp) -- Telegram
+> - [better-godot-mcp](https://github.com/n24q02m/better-godot-mcp) -- Godot Engine
+> - [better-code-review-graph](https://github.com/n24q02m/better-code-review-graph) -- Code review knowledge graph
+>
+> All plugins share the same architecture -- install once, learn pattern transfers.
+
 ## Setup
+
+- **Stdio mode** (default) -- no auth required, just works. See [setup-manual.md](docs/setup-manual.md).
+- **HTTP mode** (optional) -- for claude.ai web compatibility or multi-session sharing. See [setup-manual.md](docs/setup-manual.md).
 
 **With AI Agent** -- copy and send this to your AI agent:
 

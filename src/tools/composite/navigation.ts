@@ -16,6 +16,20 @@ async function resolveScene(projectPath: string | null | undefined, scenePath: s
 }
 
 function appendNode(content: string, name: string, type: string, parent: string, extraProps?: string): string {
+  if (
+    name.includes('\n') ||
+    name.includes('\r') ||
+    name.includes('"') ||
+    type.includes('\n') ||
+    type.includes('\r') ||
+    type.includes('"') ||
+    parent.includes('\n') ||
+    parent.includes('\r') ||
+    parent.includes('"')
+  ) {
+    throw new GodotMCPError('Invalid arguments: newlines and quotes not allowed', 'INVALID_ARGS')
+  }
+
   const parentAttr = parent === '.' ? '' : ` parent="${parent}"`
   let nodeDecl = `\n[node name="${name}" type="${type}"${parentAttr}]\n`
   if (extraProps) nodeDecl += `${extraProps}\n`

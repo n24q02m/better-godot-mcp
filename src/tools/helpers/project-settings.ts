@@ -88,10 +88,10 @@ export function parseProjectSettingsContent(content: string): ProjectSettings {
  */
 export function getSetting(settings: ProjectSettings, path: string): string | undefined {
   // Try direct section/key lookup
-  const parts = path.split('/')
-  if (parts.length >= 2) {
-    const section = parts[0]
-    const key = parts.slice(1).join('/')
+  const slashIdx = path.indexOf('/')
+  if (slashIdx !== -1) {
+    const section = path.slice(0, slashIdx)
+    const key = path.slice(slashIdx + 1)
     return settings.sections.get(section)?.get(key)
   }
   return undefined
@@ -101,11 +101,11 @@ export function getSetting(settings: ProjectSettings, path: string): string | un
  * Set a setting value in project.godot content
  */
 export function setSettingInContent(content: string, path: string, value: string): string {
-  const parts = path.split('/')
-  if (parts.length < 2) return content
+  const slashIdx = path.indexOf('/')
+  if (slashIdx === -1) return content
 
-  const section = parts[0]
-  const key = parts.slice(1).join('/')
+  const section = path.slice(0, slashIdx)
+  const key = path.slice(slashIdx + 1)
   const sectionHeader = `[${section}]`
   const result: string[] = []
   let inSection = false

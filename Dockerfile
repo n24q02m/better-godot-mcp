@@ -38,7 +38,7 @@ FROM base AS stdio
 ENV MCP_TRANSPORT=stdio
 ENTRYPOINT ["node", "/usr/local/lib/node_modules/@n24q02m/better-godot-mcp/bin/cli.mjs"]
 
-# http target: HTTP daemon (runLocalServer). Self-hosted deployment.
+# http target: HTTP daemon (runHttpServer). Self-hosted deployment.
 FROM base AS http
 ENV MCP_TRANSPORT=http
 ENV PORT=8000

@@ -7,7 +7,7 @@
  * - CLI headless operations
  * - EditorPlugin TCP support (Phase 2)
  *
- * Defaults to HTTP mode. Use --stdio flag or MCP_TRANSPORT=stdio for stdio mode.
+ * Defaults to stdio mode. Use --http flag, MCP_TRANSPORT=http, or TRANSPORT_MODE=http for HTTP mode.
  */
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
@@ -66,23 +66,24 @@ export function createGodotServer(): Server {
 }
 
 export async function initServer(): Promise<void> {
-  const isStdio = process.argv.includes('--stdio') || process.env.MCP_TRANSPORT === 'stdio'
+  const isHttp =
+    process.argv.includes('--http') || process.env.MCP_TRANSPORT === 'http' || process.env.TRANSPORT_MODE === 'http'
 
   try {
-    if (isStdio) {
+    if (!isHttp) {
       // Direct MCP SDK stdio transport (no daemon proxy hop).
-      // See spec 2026-04-30-multi-mode-stdio-http-architecture.md Task 3.3.
+      // See spec 2026-05-01-stdio-pure-http-multiuser.md §5.2.2.
       const server = createGodotServer()
       const transport = new StdioServerTransport()
       await server.connect(transport)
       console.error(`[${SERVER_NAME}] Server started in stdio mode (v${getVersion()})`)
       return
     } else {
-      const { runLocalServer } = await import('@n24q02m/mcp-core')
+      const { runHttpServer } = await import('@n24q02m/mcp-core')
       const port = process.env.PORT ? Number.parseInt(process.env.PORT, 10) : 0
       const host = process.env.HOST
-      const handle = await runLocalServer(
-        // Godot uses the lower-level Server; runLocalServer only calls `.connect(transport)`
+      const handle = await runHttpServer(
+        // Godot uses the lower-level Server; runHttpServer only calls `.connect(transport)`
         // which both Server and McpServer expose with the same signature.
         () => createGodotServer() as unknown as import('@modelcontextprotocol/sdk/server/mcp.js').McpServer,
         {

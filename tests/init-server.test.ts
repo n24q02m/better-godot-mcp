@@ -50,14 +50,14 @@ vi.mock('../package.json', () => ({
   },
 }))
 
-// Mock mcp-core runLocalServer (stdio path uses StdioServerTransport directly)
+// Mock mcp-core runHttpServer (stdio path uses StdioServerTransport directly)
 const mockStartHttp = vi.fn().mockResolvedValue({
   host: '127.0.0.1',
   port: 12345,
   close: vi.fn().mockResolvedValue(undefined),
 })
 vi.mock('@n24q02m/mcp-core', () => ({
-  runLocalServer: (...args: unknown[]) => mockStartHttp(...args),
+  runHttpServer: (...args: unknown[]) => mockStartHttp(...args),
 }))
 
 describe('initServer', () => {
@@ -94,10 +94,24 @@ describe('initServer', () => {
   }
 
   describe('transport mode selection', () => {
-    it('should default to HTTP mode when no flags are set', async () => {
+    it('should default to stdio mode when no flags are set', async () => {
       const { detectGodot } = await import('../src/godot/detector.js')
       vi.mocked(detectGodot).mockReturnValue(null)
       delete process.env.MCP_TRANSPORT
+      delete process.env.TRANSPORT_MODE
+
+      const { initServer } = await import('../src/init-server.js')
+      await initServer()
+
+      expect(mockStdioTransportConstructor).toHaveBeenCalledOnce()
+      expect(mockConnect).toHaveBeenCalledOnce()
+      expect(mockStartHttp).not.toHaveBeenCalled()
+    })
+
+    it('should use HTTP mode when --http flag is passed', async () => {
+      const { detectGodot } = await import('../src/godot/detector.js')
+      vi.mocked(detectGodot).mockReturnValue(null)
+      process.argv = [...originalArgv, '--http']
 
       const { initServer } = await import('../src/init-server.js')
       await runHttpInit(initServer)
@@ -107,36 +121,34 @@ describe('initServer', () => {
       expect(console.error).toHaveBeenCalledWith(expect.stringContaining('HTTP mode'))
     })
 
-    it('should use stdio direct mode when --stdio flag is passed', async () => {
+    it('should use HTTP mode when MCP_TRANSPORT=http', async () => {
       const { detectGodot } = await import('../src/godot/detector.js')
       vi.mocked(detectGodot).mockReturnValue(null)
-      process.argv = [...originalArgv, '--stdio']
+      process.env.MCP_TRANSPORT = 'http'
 
       const { initServer } = await import('../src/init-server.js')
-      await initServer()
+      await runHttpInit(initServer)
 
-      expect(mockStdioTransportConstructor).toHaveBeenCalledOnce()
-      expect(mockConnect).toHaveBeenCalledOnce()
-      expect(mockStartHttp).not.toHaveBeenCalled()
+      expect(mockStartHttp).toHaveBeenCalledOnce()
+      expect(mockStdioTransportConstructor).not.toHaveBeenCalled()
     })
 
-    it('should use stdio direct mode when MCP_TRANSPORT=stdio', async () => {
+    it('should use HTTP mode when TRANSPORT_MODE=http', async () => {
       const { detectGodot } = await import('../src/godot/detector.js')
       vi.mocked(detectGodot).mockReturnValue(null)
-      process.env.MCP_TRANSPORT = 'stdio'
+      process.env.TRANSPORT_MODE = 'http'
 
       const { initServer } = await import('../src/init-server.js')
-      await initServer()
+      await runHttpInit(initServer)
 
-      expect(mockStdioTransportConstructor).toHaveBeenCalledOnce()
-      expect(mockConnect).toHaveBeenCalledOnce()
-      expect(mockStartHttp).not.toHaveBeenCalled()
+      expect(mockStartHttp).toHaveBeenCalledOnce()
+      expect(mockStdioTransportConstructor).not.toHaveBeenCalled()
     })
 
-    it('should pass server factory and options to runLocalServer in HTTP mode', async () => {
+    it('should pass server factory and options to runHttpServer in HTTP mode', async () => {
       const { detectGodot } = await import('../src/godot/detector.js')
       vi.mocked(detectGodot).mockReturnValue(null)
-      delete process.env.MCP_TRANSPORT
+      process.env.MCP_TRANSPORT = 'http'
 
       const { initServer } = await import('../src/init-server.js')
       await runHttpInit(initServer)
@@ -216,7 +228,7 @@ describe('initServer', () => {
     it('should handle errors during HTTP startup', async () => {
       const { detectGodot } = await import('../src/godot/detector.js')
       vi.mocked(detectGodot).mockReturnValue(null)
-      delete process.env.MCP_TRANSPORT
+      process.env.MCP_TRANSPORT = 'http'
 
       const testError = new Error('Port in use')
       mockStartHttp.mockRejectedValue(testError)

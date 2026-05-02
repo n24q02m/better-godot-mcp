@@ -51,13 +51,8 @@ export async function handleSignals(action: string, args: Record<string, unknown
       return formatJSON({
         scene: scenePath,
         count: scene.connections.length,
-        connections: scene.connections.map((c) => ({
-          signal: c.signal,
-          from: c.from,
-          to: c.to,
-          method: c.method,
-          flags: c.flags,
-        })),
+        // ⚡ Bolt: Removed .map() to avoid redundant object copies since c already matches the expected structure.
+        connections: scene.connections,
       })
     }
 

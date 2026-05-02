@@ -249,10 +249,12 @@ export async function handleInputMap(action: string, args: Record<string, unknow
       const content = await readFile(configPath, 'utf-8')
       const actions = parseInputActions(content)
 
-      const actionList = Array.from(actions.entries()).map(([name, events]) => ({
-        name,
-        eventCount: events.length,
-      }))
+      // ⚡ Bolt: Removed Array.from(...).map(...) to prevent allocating intermediate arrays.
+      const actionList = new Array(actions.size)
+      let i = 0
+      for (const [name, events] of actions) {
+        actionList[i++] = { name, eventCount: events.length }
+      }
 
       return formatJSON({ count: actionList.length, actions: actionList })
     }

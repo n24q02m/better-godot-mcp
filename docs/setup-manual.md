@@ -21,13 +21,21 @@ For comparison, the other 6 plugins in this stack (`better-notion-mcp`, `better-
 
 ## Method 1: Claude Code Plugin (Recommended)
 
-1. Open Claude Code in your terminal
+### Step 0: Credential prompt
+
+`better-godot-mcp` declares **no `userConfig` fields** in `plugin.json` -- Claude Code does not prompt for any credentials when you install the plugin. The server operates on local Godot project files only and needs no API keys, tokens, or shared secrets.
+
+`project_path` (the location of your Godot project) is passed per tool call, or via the optional `GODOT_PROJECT_PATH` env var which you can set in `mcpServers.better-godot-mcp.env` manually -- it is intentionally **not** a sensitive `userConfig` field because the value is not a credential.
+
+### Steps
+
+1. Open Claude Code in your terminal.
 2. Run:
    ```bash
    /plugin marketplace add n24q02m/claude-plugins
    /plugin install better-godot-mcp@n24q02m-plugins
    ```
-3. The plugin auto-configures the MCP server in stdio mode. No environment variables required -- it just works.
+3. The plugin auto-configures the MCP server in stdio mode -- no prompts, no env vars required, it just works.
 
 Optionally set `GODOT_PROJECT_PATH` to point at your Godot project directory; otherwise pass `project_path` per tool call.
 

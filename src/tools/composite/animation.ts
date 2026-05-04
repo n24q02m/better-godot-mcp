@@ -25,6 +25,21 @@ export async function handleAnimation(action: string, args: Record<string, unkno
       const playerName = (args.name as string) || 'AnimationPlayer'
       const parent = (args.parent as string) || '.'
 
+      if (
+        playerName.includes('\n') ||
+        playerName.includes('\r') ||
+        playerName.includes('"') ||
+        parent.includes('\n') ||
+        parent.includes('\r') ||
+        parent.includes('"')
+      ) {
+        throw new GodotMCPError(
+          'Invalid characters in parameters',
+          'INVALID_ARGS',
+          'Parameters must not contain quotes or newlines.',
+        )
+      }
+
       const fullPath = await resolveScene(projectPath, scenePath)
       let content = await readFile(fullPath, 'utf-8')
 
@@ -43,6 +58,14 @@ export async function handleAnimation(action: string, args: Record<string, unkno
       if (!animName) throw new GodotMCPError('No anim_name specified', 'INVALID_ARGS', 'Provide animation name.')
       const duration = (args.duration as number) || 1.0
       const loop = args.loop !== false
+
+      if (animName.includes('\n') || animName.includes('\r') || animName.includes('"')) {
+        throw new GodotMCPError(
+          'Invalid characters in anim_name',
+          'INVALID_ARGS',
+          'Parameters must not contain quotes or newlines.',
+        )
+      }
 
       const fullPath = await resolveScene(projectPath, scenePath)
       let content = await readFile(fullPath, 'utf-8')
@@ -76,6 +99,27 @@ export async function handleAnimation(action: string, args: Record<string, unkno
           'anim_name, node_path, and property required',
           'INVALID_ARGS',
           'All three are required.',
+        )
+      }
+
+      if (
+        animName.includes('\n') ||
+        animName.includes('\r') ||
+        animName.includes('"') ||
+        trackType.includes('\n') ||
+        trackType.includes('\r') ||
+        trackType.includes('"') ||
+        nodePath.includes('\n') ||
+        nodePath.includes('\r') ||
+        nodePath.includes('"') ||
+        property.includes('\n') ||
+        property.includes('\r') ||
+        property.includes('"')
+      ) {
+        throw new GodotMCPError(
+          'Invalid characters in parameters',
+          'INVALID_ARGS',
+          'Parameters must not contain quotes or newlines.',
         )
       }
 

@@ -4,6 +4,15 @@
 > The previous default of HTTP transport has been changed to stdio.
 > If you relied on HTTP mode, set `MCP_TRANSPORT=http` or pass `--http` flag.
 
+## Method overview
+
+This plugin supports **1 install method only**: stdio via plugin install (`uvx`/`npx`). Reason: the plugin needs direct host access to your project files (Godot project / repo path) and doesn't ship Docker or HTTP variants.
+
+For comparison, the other 6 plugins in this stack (`better-notion-mcp`, `better-email-mcp`, `better-telegram-mcp`, `wet-mcp`, `mnemo-mcp`, `imagine-mcp`) support 3 methods:
+1. **Default** -- Plugin install (`uvx`/`npx`) stdio
+2. **Fallback** -- Docker stdio (Windows/macOS PATH issues)
+3. **Recommended** -- Docker HTTP (multi-device, OAuth/relay form, claude.ai web)
+
 ## Prerequisites
 
 - **Node.js** >= 24.14.1

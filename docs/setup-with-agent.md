@@ -17,9 +17,14 @@ For comparison, the other 6 plugins in this stack (`better-notion-mcp`, `better-
 
 ## Option 1: Claude Code Plugin (Recommended)
 
-### Step 0: Credential prompt
+### Credential prompts at install
 
-`better-godot-mcp` declares **no `userConfig` fields** in `plugin.json` -- Claude Code does not prompt for any credentials at install time. The server operates on local Godot project files only.
+When you run `/plugin install`, Claude Code prompts you for the following credentials (declared in `userConfig` per CC docs). Sensitive values are stored in your system keychain and persist across `/plugin update`:
+
+| Field | Required | Where to obtain |
+|---|---|---|
+| `GODOT_PATH` | Optional | Absolute path to Godot 4.x binary; auto-detect from PATH if empty |
+| `GODOT_PROJECT_PATH` | Optional | Default project root (can override per tool call) |
 
 ### Steps
 

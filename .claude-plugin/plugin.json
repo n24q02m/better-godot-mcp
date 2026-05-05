@@ -2,6 +2,20 @@
   "name": "better-godot-mcp",
   "description": "Comprehensive Godot Engine integration — 17 tools for game development",
   "version": "1.16.0",
+  "userConfig": {
+    "GODOT_PATH": {
+      "type": "file",
+      "title": "Godot binary path (optional)",
+      "description": "Absolute path to Godot 4.x binary. If empty, plugin auto-detects from system PATH.",
+      "required": false
+    },
+    "GODOT_PROJECT_PATH": {
+      "type": "directory",
+      "title": "Default Godot project path (optional)",
+      "description": "Default project root for godot tool calls. Can also pass project_path per call.",
+      "required": false
+    }
+  },
   "author": {
     "name": "n24q02m",
     "url": "https://github.com/n24q02m"
@@ -11,7 +25,11 @@
     "better-godot-mcp": {
       "command": "npx",
       "args": ["-y", "@n24q02m/better-godot-mcp"],
-      "env": { "MCP_TRANSPORT": "stdio" }
+      "env": {
+        "MCP_TRANSPORT": "stdio",
+        "GODOT_PATH": "${user_config.GODOT_PATH}",
+        "GODOT_PROJECT_PATH": "${user_config.GODOT_PROJECT_PATH}"
+      }
     }
   }
 }

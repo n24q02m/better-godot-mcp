@@ -4,6 +4,17 @@
 > The previous default of HTTP transport has been changed to stdio.
 > If you relied on HTTP mode, set `MCP_TRANSPORT=http` or pass `--http` flag.
 
+## Method overview
+
+This plugin supports **1 install method only**: stdio via plugin install (`uvx`/`npx`). Reason: the plugin needs direct host access to your project files (Godot project / repo path) and doesn't ship Docker or HTTP variants.
+
+For comparison, the other 6 plugins in this stack (`better-notion-mcp`, `better-email-mcp`, `better-telegram-mcp`, `wet-mcp`, `mnemo-mcp`, `imagine-mcp`) support 3 methods:
+1. **Default** -- Plugin install (`uvx`/`npx`) stdio
+2. **Fallback** -- Docker stdio (Windows/macOS PATH issues)
+3. **Recommended** -- Docker HTTP (multi-device, OAuth/relay form, claude.ai web)
+
+> **⚠️ Mutually exclusive — pick ONE per plugin (applies to those 6 plugins, not godot)**: For the 6 plugins above that offer Method 2 (Docker stdio) or Method 3 (HTTP), do NOT stack `/plugin install` AND a user `mcpServers` override — both would load simultaneously and create duplicate entries (plugin's `npx`/`uvx` stdio + your override). Plugin matching is by **endpoint** (URL or command string) per CC docs, not by name — and `npx`/`uvx` ≠ `docker` ≠ HTTP URL, so all three are distinct endpoints. Choosing Method 2 or Method 3 means losing the plugin's skills/agents/hooks/commands. `better-godot-mcp` only offers Method 1, so this note is informational only — there is no Docker stdio or HTTP variant to conflict with the plugin install here.
+
 ## Prerequisites
 
 - **Node.js** >= 24.14.1
@@ -12,161 +23,26 @@
 
 ## Method 1: Claude Code Plugin (Recommended)
 
-1. Open Claude Code in your terminal
+### Credential prompts at install
+
+When you run `/plugin install`, Claude Code prompts you for the following credentials (declared in `userConfig` per CC docs). Sensitive values are stored in your system keychain and persist across `/plugin update`:
+
+| Field | Required | Where to obtain |
+|---|---|---|
+| `GODOT_PATH` | Optional | Absolute path to Godot 4.x binary; auto-detect from PATH if empty |
+| `GODOT_PROJECT_PATH` | Optional | Default project root (can override per tool call) |
+
+### Steps
+
+1. Open Claude Code in your terminal.
 2. Run:
    ```bash
    /plugin marketplace add n24q02m/claude-plugins
    /plugin install better-godot-mcp@n24q02m-plugins
    ```
-3. The plugin auto-configures the MCP server in stdio mode. No environment variables required -- it just works.
+3. The plugin auto-configures the MCP server in stdio mode -- no prompts, no env vars required, it just works.
 
 Optionally set `GODOT_PROJECT_PATH` to point at your Godot project directory; otherwise pass `project_path` per tool call.
-
-## Method 2: npx (Any MCP Client)
-
-Stdio mode runs as a child process of your MCP client. No auth, no relay, no daemon.
-
-1. Add the following to your MCP client configuration file:
-
-   **Claude Code** -- `.claude/settings.json` or `~/.claude/settings.json`:
-   ```json
-   {
-     "mcpServers": {
-       "better-godot-mcp": {
-         "command": "npx",
-         "args": ["-y", "@n24q02m/better-godot-mcp"]
-       }
-     }
-   }
-   ```
-
-   **Codex CLI** -- `~/.codex/config.toml`:
-   ```toml
-   [mcp_servers.better-godot-mcp]
-   command = "npx"
-   args = ["-y", "@n24q02m/better-godot-mcp"]
-   ```
-
-   **OpenCode** -- `opencode.json`:
-   ```json
-   {
-     "mcpServers": {
-       "better-godot-mcp": {
-         "command": "npx",
-         "args": ["-y", "@n24q02m/better-godot-mcp"]
-       }
-     }
-   }
-   ```
-
-2. Restart your MCP client to pick up the new server.
-
-Other package runners (`bun x`, `pnpm dlx`, `yarn dlx`) also work in place of `npx -y`.
-
-## Method 3: Docker (stdio)
-
-1. Pull the image:
-   ```bash
-   docker pull n24q02m/better-godot-mcp:latest
-   ```
-
-2. Add to your MCP client config:
-   ```json
-   {
-     "mcpServers": {
-       "better-godot-mcp": {
-         "command": "docker",
-         "args": [
-           "run", "-i", "--rm",
-           "-v", "/path/to/your/godot/project:/project",
-           "-e", "GODOT_PROJECT_PATH=/project",
-           "n24q02m/better-godot-mcp:latest"
-         ]
-       }
-     }
-   }
-   ```
-
-3. Replace `/path/to/your/godot/project` with the absolute path to your Godot project directory.
-
-**Note:** Docker mode has limited filesystem access. You must mount your project directory.
-
-## Method 4: Build from Source
-
-1. Clone and build:
-   ```bash
-   git clone https://github.com/n24q02m/better-godot-mcp.git
-   cd better-godot-mcp
-   bun install
-   bun run build
-   ```
-
-2. Run the dev server:
-   ```bash
-   bun run dev:stdio
-   ```
-
-3. Or point your MCP client to the built binary:
-   ```json
-   {
-     "mcpServers": {
-       "better-godot-mcp": {
-         "command": "node",
-         "args": ["/path/to/better-godot-mcp/bin/cli.mjs"]
-       }
-     }
-   }
-   ```
-
-## Why upgrade to HTTP mode?
-
-Stdio mode (Methods 1-4 above) is the simplest path: zero config, no auth, runs as a child process per MCP client session. For most users, that is enough.
-
-Switch to HTTP mode (Method 5 below) when you need any of the following:
-
-- **claude.ai web compatibility** -- the web UI cannot spawn a local stdio process; it requires a remote HTTP endpoint.
-- **1 server shared across N Claude Code sessions** -- one HTTP daemon serves multiple concurrent CC sessions instead of spawning a process per session.
-- **Multi-device sync** -- expose a self-hosted endpoint reachable from your laptop, desktop, and phone.
-- **Multi-user / team sharing** -- a single HTTP deployment with per-user JWT subjects can serve a small team.
-- **Always-on persistent process** -- needed for webhooks, scheduled agents, or long-lived background tasks that outlive a CC session.
-
-If none of those apply, stay on stdio.
-
-## Method 5: Self-Host HTTP Mode (Optional)
-
-Better Godot MCP exposes a raw MCP-over-HTTP endpoint. There is no auth layer (godot has no credentials to protect), so anyone who can reach the URL can use the tools -- bind it only to trusted networks (loopback, Tailscale, VPN, or behind a reverse proxy with your own auth).
-
-1. Run the binary in HTTP mode:
-   ```bash
-   # Either via flag:
-   npx -y @n24q02m/better-godot-mcp --http
-
-   # Or via env var:
-   MCP_TRANSPORT=http npx -y @n24q02m/better-godot-mcp
-   ```
-
-2. Or via Docker:
-   ```bash
-   docker run --rm -p 3000:3000 \
-     -e MCP_TRANSPORT=http \
-     -e PORT=3000 \
-     -v /path/to/your/godot/project:/project \
-     -e GODOT_PROJECT_PATH=/project \
-     n24q02m/better-godot-mcp:latest
-   ```
-
-3. Point your MCP client at the URL:
-   ```json
-   {
-     "mcpServers": {
-       "better-godot-mcp": {
-         "url": "http://127.0.0.1:3000/mcp"
-       }
-     }
-   }
-   ```
-
-For exposure beyond loopback, front the port with Cloudflare Tunnel + Caddy + a custom auth layer (or Tailscale for private mesh access). Do not expose the raw port to the public internet.
 
 ## Environment Variable Reference
 
@@ -174,7 +50,7 @@ For exposure beyond loopback, front the port with Cloudflare Tunnel + Caddy + a 
 |:---------|:---------|:--------|:------------|
 | `GODOT_PROJECT_PATH` | No | -- | Default Godot project directory. Each tool call can also pass `project_path` as a parameter. |
 | `GODOT_PATH` | No | Auto-detected | Explicit path to the Godot binary. If not set, the server searches PATH and common install locations (Windows, macOS, Linux). |
-| `MCP_TRANSPORT` | No | `stdio` | Set to `http` to run in HTTP mode (Method 5). The `--http` CLI flag is equivalent. |
+| `MCP_TRANSPORT` | No | `stdio` | Set to `http` to run in HTTP mode (advanced; not in scope of this guide). The `--http` CLI flag is equivalent. |
 | `PORT` | No | `0` (auto) | HTTP port when `MCP_TRANSPORT=http`. Set explicitly when you need a stable port. |
 
 ## Troubleshooting

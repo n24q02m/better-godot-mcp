@@ -1,7 +1,7 @@
 {
   "name": "@n24q02m/better-godot-mcp",
   "mcpName": "io.github.n24q02m/better-godot-mcp",
-  "version": "1.16.0-beta.3",
+  "version": "1.16.0",
   "description": "Enhanced MCP server for Godot Engine with composite mega-tools and comprehensive game development tooling.",
   "type": "module",
   "main": "build/src/init-server.js",
@@ -35,7 +35,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "@n24q02m/mcp-core": "1.13.0-beta.4",
+    "@n24q02m/mcp-core": "1.13.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {

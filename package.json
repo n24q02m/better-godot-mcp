@@ -35,7 +35,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "@n24q02m/mcp-core": "1.13.0",
+    "@n24q02m/mcp-core": "1.14.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {

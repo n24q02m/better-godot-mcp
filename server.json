@@ -6,12 +6,12 @@
     "url": "https://github.com/n24q02m/better-godot-mcp.git",
     "source": "github"
   },
-  "version": "1.17.0-beta.1",
+  "version": "1.17.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@n24q02m/better-godot-mcp",
-      "version": "1.17.0-beta.1",
+      "version": "1.17.0",
       "runtimeHint": "npx",
       "transport": {
         "type": "stdio"

@@ -139,6 +139,32 @@ describe('project', () => {
       const result = await handleProject('stop', {}, config)
       expect(result.content[0].text).toContain('No running Godot processes found (tracked by this server)')
     })
+
+    it('should continue if process is already dead on win32', async () => {
+      const originalPlatform = process.platform
+      Object.defineProperty(process, 'platform', { value: 'win32', configurable: true })
+
+      config.activePids = [1234, 5678]
+
+      const processKillSpy = vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
+        if (pid === 1234 && (signal === 0 || signal === '0')) {
+          throw new Error('Process already dead')
+        }
+        return true
+      })
+
+      const result = await handleProject('stop', {}, config)
+      expect(result.content[0].text).toContain('Stopped 1 tracked processes')
+
+      // Should NOT call taskkill for 1234, but SHOULD for 5678
+      expect(execFileSync).not.toHaveBeenCalledWith('taskkill', expect.arrayContaining(['1234']), expect.anything())
+      expect(execFileSync).toHaveBeenCalledWith('taskkill', expect.arrayContaining(['5678']), expect.anything())
+
+      expect(config.activePids).toHaveLength(0)
+
+      processKillSpy.mockRestore()
+      Object.defineProperty(process, 'platform', { value: originalPlatform })
+    })
   })
 
   // ==========================================

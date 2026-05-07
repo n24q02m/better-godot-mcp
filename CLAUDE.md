@@ -84,15 +84,6 @@ PSR v10 (workflow_dispatch) -> npm + Docker (amd64+arm64) + GHCR + MCP Registry.
 - Pre-commit: biome check, tsc --noEmit. Pre-push: bun test.
 - Secrets: skret SSM namespace `/better-godot-mcp/prod` (region `ap-southeast-1`)
 
-## Known bugs (potential -- E2E test chua chay den godot 2026-04-18)
-
-Godot MCP dung `@n24q02m/mcp-core` (core-ts) -- co the bi affect boi upstream core-ts bug:
-
-1. **Browser UI stuck "Waiting for server..." sau khi submit credentials** (neu co relay flow). See `C:\Users\n24q02m-wlap\projects\mcp-core\CLAUDE.md` Known bugs #2.
-2. **Config storage path**: `$APPDATA\mcp\Config\config.enc` (khac Python servers `$LOCALAPPDATA\mcp\config.enc`).
-
-Khi E2E test godot, can clean state tai `$APPDATA\mcp\Config\` + check browser behavior.
-
 ## E2E
 
 Driven by `mcp-core/scripts/e2e/` (matrix-locked, 15 configs). Run a single config from this repo via `make e2e` (proxy) or directly:

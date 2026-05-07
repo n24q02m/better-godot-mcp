@@ -72,7 +72,7 @@ describe('initServer', () => {
       port: 12345,
       close: vi.fn().mockResolvedValue(undefined),
     })
-    vi.spyOn(process, 'exit').mockImplementation((() => {}) as any)
+    vi.spyOn(process, 'exit').mockImplementation((() => {}) as unknown as never)
     // Suppress console.error output during tests
     vi.spyOn(console, 'error').mockImplementation(() => {})
     process.env = { ...originalEnv }

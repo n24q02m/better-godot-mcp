@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/n24q02m-better-godot-mcp-badge.png)](https://mseep.ai/app/n24q02m-better-godot-mcp)
+
 # Better Godot MCP
 
 mcp-name: io.github.n24q02m/better-godot-mcp

@@ -258,10 +258,10 @@ function getSystemPaths(): string[] {
  * @returns Detection result or null if not found
  */
 export function detectGodot(): DetectionResult | null {
-  // 1. Check GODOT_PATH env var — skip signature heuristic since user explicitly provided the path
+  // 1. Check GODOT_PATH env var — enforce signature heuristic for security
   const envPath = process.env.GODOT_PATH
   if (envPath && isExecutable(envPath)) {
-    const version = tryGetVersion(envPath, true)
+    const version = tryGetVersion(envPath)
     if (version && isVersionSupported(version)) {
       return { path: envPath, version, source: 'env' }
     }

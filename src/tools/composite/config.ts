@@ -71,7 +71,7 @@ export async function handleConfig(action: string, args: Record<string, unknown>
             `The path '${value}' is not an executable file.`,
           )
         }
-        const version = tryGetVersion(value, true)
+        const version = tryGetVersion(value)
         if (!version) {
           throw new GodotMCPError(
             'Invalid Godot binary',

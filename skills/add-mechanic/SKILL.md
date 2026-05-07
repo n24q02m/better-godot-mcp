@@ -201,15 +201,15 @@ Use `user://` path (NOT `res://`) for save files -- `res://` is read-only in exp
 1. **Identify mechanic** from user description
 2. **Create script** using the appropriate template above:
    ```
-   scripts(action="create", path="res://scripts/<name>.gd", content="...")
+   scripts(action="create", script_path="res://scripts/<name>.gd", content="...")
    ```
 3. **Attach to scene node** if needed:
    ```
-   nodes(action="set_property", scene="<scene>.tscn", node_path="<node>", property="script", value="res://scripts/<name>.gd")
+   nodes(action="set_property", scene_path="<scene>.tscn", name="<node>", property="script", value="res://scripts/<name>.gd")
    ```
 4. **Add companion nodes** (e.g., HealthComponent as child node)
 5. **Connect signals** in the scene or via script
-6. **Test**: `editor(action="run_scene", scene="<scene>.tscn")`
+6. **Test**: `project(action="run", scene_path="<scene>.tscn")`
 
 ## When to Use
 

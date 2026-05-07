@@ -80,8 +80,17 @@ export async function execGodotAsync(
 /**
  * Run Godot project (non-blocking)
  */
-export function runGodotProject(godotPath: string, projectPath: string): { pid: number | undefined } {
-  const child = spawn(godotPath, ['--path', projectPath], {
+export function runGodotProject(
+  godotPath: string,
+  projectPath: string,
+  scenePath?: string,
+): { pid: number | undefined } {
+  const args = ['--path', projectPath]
+  if (scenePath) {
+    args.push(scenePath)
+  }
+
+  const child = spawn(godotPath, args, {
     detached: true,
     stdio: 'ignore',
   })

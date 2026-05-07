@@ -49,7 +49,7 @@ async function parseProjectGodot(projectPath: string): Promise<ProjectInfo> {
       if (sectionMatch) {
         currentSection = sectionMatch[1]
       } else {
-        const kvMatch = trimmed.match(/^(\S+)\s*=\s*(.+)$/)
+        const kvMatch = trimmed.match(/^([^\s=]+)\s*=\s*(.+)$/)
         if (kvMatch) {
           const [, key, rawValue] = kvMatch
           const value = rawValue.replace(/^"(.*)"$/, '$1')
@@ -112,11 +112,21 @@ export async function handleProject(action: string, args: Record<string, unknown
       if (typeof args.project_path === 'string' && args.project_path.startsWith('-')) {
         throw new GodotMCPError('Invalid project path', 'INVALID_ARGS', 'Project path must not start with a hyphen.')
       }
-      const { pid } = runGodotProject(config.godotPath, safeResolve(config.projectPath || process.cwd(), projectPath))
+
+      const scenePath = args.scene_path as string
+      if (scenePath && (scenePath.includes('\n') || scenePath.includes('\r'))) {
+        throw new GodotMCPError('Invalid scene path', 'INVALID_ARGS', 'Scene path must not contain newlines.')
+      }
+
+      const { pid } = runGodotProject(
+        config.godotPath,
+        safeResolve(config.projectPath || process.cwd(), projectPath),
+        scenePath,
+      )
       if (pid) {
         config.activePids.push(pid)
       }
-      return formatSuccess(`Godot project started (PID: ${pid})`)
+      return formatSuccess(`Godot project started (PID: ${pid})${scenePath ? ` for scene ${scenePath}` : ''}`)
     }
 
     case 'stop': {

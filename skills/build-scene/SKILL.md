@@ -77,29 +77,29 @@ Note: `TileMap` node is deprecated in Godot 4.3+. Use `TileMapLayer` instead.
 
 2. **Create scene**:
    ```
-   scenes(action="create", name="<name>", root_type="<RootType>")
+   scenes(action="create", scene_path="scenes/<name>.tscn", root_type="<RootType>")
    ```
 
 3. **Add nodes top-down** (parent before children):
    ```
-   nodes(action="add", scene="<name>.tscn", parent=".", type="CollisionShape2D", name="CollisionShape2D")
-   nodes(action="add", scene="<name>.tscn", parent=".", type="Sprite2D", name="Sprite2D")
+   nodes(action="add", scene_path="scenes/<name>.tscn", parent=".", type="CollisionShape2D", name="CollisionShape2D")
+   nodes(action="add", scene_path="scenes/<name>.tscn", parent=".", type="Sprite2D", name="Sprite2D")
    ```
 
 4. **Configure properties**:
    ```
-   nodes(action="set_property", scene="<name>.tscn", node_path="Camera2D",
+   nodes(action="set_property", scene_path="scenes/<name>.tscn", name="Camera2D",
          property="position_smoothing_enabled", value="true")
    ```
 
 5. **Attach script** (create from template in add-mechanic skill if needed):
    ```
-   scripts(action="create", path="res://scripts/<name>.gd", content="...")
+   scripts(action="create", script_path="res://scripts/<name>.gd", content="...")
    ```
 
 6. **Verify scene tree**:
    ```
-   scenes(action="get", scene="<name>.tscn")
+   scenes(action="info", scene_path="scenes/<name>.tscn")
    ```
 
 ## Common Mistakes to Prevent

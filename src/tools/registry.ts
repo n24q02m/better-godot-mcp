@@ -58,7 +58,7 @@ const P0_TOOLS = [
   {
     name: 'project',
     description:
-      'Godot project operations.\n\nActions (required params -> optional):\n- info (-> project_path): project metadata\n- version: Godot engine version\n- run (-> project_path): launch game\n- stop: stop running game\n- settings_get (key -> project_path): read project setting\n- settings_set (key, value -> project_path): write project setting\n- export (preset, output_path -> project_path): export game build',
+      'Godot project operations.\n\nActions (required params -> optional):\n- info (-> project_path): project metadata\n- version: Godot engine version\n- run (-> scene_path, project_path): launch game\n- stop: stop running game\n- settings_get (key -> project_path): read project setting\n- settings_set (key, value -> project_path): write project setting\n- export (preset, output_path -> project_path): export game build',
     annotations: createAnnotations('Project'),
     inputSchema: {
       type: 'object' as const,
@@ -69,6 +69,7 @@ const P0_TOOLS = [
           description: 'Action to perform',
         },
         project_path: { type: 'string', description: 'Path to Godot project directory' },
+        scene_path: { type: 'string', description: 'Path to a specific scene to run (optional)' },
         key: { type: 'string', description: 'Settings key (for settings_get/set)' },
         value: { type: 'string', description: 'Settings value (for settings_set)' },
         preset: { type: 'string', description: 'Export preset name (for export)' },

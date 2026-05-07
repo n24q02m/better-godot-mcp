@@ -25,17 +25,17 @@ Map user's symptom to the right tree:
 Check in this order -- each step is the most common cause at that point:
 
 1. **Collision layer/mask mismatch** (most common):
-   ```
-   nodes(action="get_property", scene="<scene>.tscn", node_path="<body>", property="collision_layer")
-   nodes(action="get_property", scene="<scene>.tscn", node_path="<body>", property="collision_mask")
-   ```
-   Rule: Object A detects Object B only if A's `collision_mask` has a bit that matches B's `collision_layer`. Both must be set correctly.
+   - Check defined layer names: `physics(action="layers")`
+   - Check node properties:
+     ```
+     nodes(action="get_property", scene_path="<scene>.tscn", name="<body>", property="collision_layer")
+     nodes(action="get_property", scene_path="<scene>.tscn", name="<body>", property="collision_mask")
+     ```
+   - Rule: Object A detects Object B only if A's `collision_mask` has a bit that matches B's `collision_layer`. Both must be set correctly.
 
 2. **Missing CollisionShape2D/3D**:
-   ```
-   scenes(action="get", scene="<scene>.tscn")
-   ```
-   Verify every physics body and Area has a CollisionShape child. A body without a shape = invisible to physics.
+   - Inspect the scene tree: `scenes(action="info", scene_path="<scene>.tscn")`
+   - Verify every physics body and Area has a CollisionShape child. A body without a shape = invisible to physics.
 
 3. **Wrong body type**:
    - `StaticBody2D`: immovable (walls, floors)
@@ -44,6 +44,7 @@ Check in this order -- each step is the most common cause at that point:
    - Common mistake: using `RigidBody2D` for a player character, then fighting the physics engine
 
 4. **Script velocity issues**:
+   - Read the script: `scripts(action="read", script_path="res://scripts/<name>.gd")`
    - Check if `velocity` is being set before `move_and_slide()`
    - Check if gravity is applied in `_physics_process` (not `_process`)
    - Check if `delta` is used for frame-independent movement
@@ -51,8 +52,7 @@ Check in this order -- each step is the most common cause at that point:
 ## Signals Decision Tree
 
 1. **Connection exists?**
-   - Check scene file for `[connection]` entries
-   - Or check script for `connect()` calls
+   - List all connections: `signals(action="list", scene_path="<scene>.tscn")`
    - Missing connection = signal silently does nothing
 
 2. **Signature match?**
@@ -109,7 +109,7 @@ Check in this order -- each step is the most common cause at that point:
 ## Input Decision Tree
 
 1. **Input Map**:
-   - Action defined in Project Settings > Input Map?
+   - List actions: `input_map(action="list")`
    - Check `project.godot` for `[input]` section
 
 2. **Action name match**:
@@ -128,10 +128,10 @@ Check in this order -- each step is the most common cause at that point:
 
 For any category:
 
-1. **Inspect the scene tree**: `scenes(action="get", scene="<scene>.tscn")`
-2. **Read relevant scripts**: `scripts(action="get", path="res://scripts/<name>.gd")`
-3. **Check properties**: `nodes(action="get_property", ...)`
-4. **Run the scene**: `editor(action="run_scene", scene="<scene>.tscn")` and check output for errors
+1. **Inspect the scene tree**: `scenes(action="info", scene_path="<scene>.tscn")`
+2. **Read relevant scripts**: `scripts(action="read", script_path="res://scripts/<name>.gd")`
+3. **Check properties**: `nodes(action="get_property", scene_path="<scene>.tscn", name="<node_path>", property="<name>")`
+4. **Run the scene**: `project(action="run", scene_path="<scene>.tscn")` and check output for errors
 5. **Report findings**: present root cause and specific fix (property change, missing node, script edit)
 
 ## When to Use

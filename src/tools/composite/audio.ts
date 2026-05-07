@@ -9,14 +9,24 @@ import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
 
+/**
+ * Helper to resolve the default bus layout path.
+ * Throws GodotMCPError if project path is missing.
+ */
+function resolveBusLayoutPath(projectPath: string | null | undefined, baseDir: string): string {
+  if (!projectPath) {
+    throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
+  }
+  return join(safeResolve(baseDir, projectPath), 'default_bus_layout.tres')
+}
+
 export async function handleAudio(action: string, args: Record<string, unknown>, config: GodotConfig) {
   const projectPath = (args.project_path as string) || config.projectPath
   const baseDir = config.projectPath || process.cwd()
 
   switch (action) {
     case 'list_buses': {
-      if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
-      const busLayoutPath = join(safeResolve(baseDir, projectPath), 'default_bus_layout.tres')
+      const busLayoutPath = resolveBusLayoutPath(projectPath, baseDir)
 
       if (!(await pathExists(busLayoutPath))) {
         return formatJSON({ buses: [{ name: 'Master', volume: 0, effects: [] }], note: 'Using default bus layout.' })
@@ -36,7 +46,7 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
     }
 
     case 'add_bus': {
-      if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
+      const busLayoutPath = resolveBusLayoutPath(projectPath, baseDir)
       const busName = args.bus_name as string
       if (!busName) throw new GodotMCPError('No bus_name specified', 'INVALID_ARGS', 'Provide bus name.')
       const sendTo = (args.send_to as string) || 'Master'
@@ -56,7 +66,6 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
         )
       }
 
-      const busLayoutPath = join(safeResolve(baseDir, projectPath), 'default_bus_layout.tres')
       let content: string
 
       if (await pathExists(busLayoutPath)) {
@@ -94,7 +103,7 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
     }
 
     case 'add_effect': {
-      if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
+      const busLayoutPath = resolveBusLayoutPath(projectPath, baseDir)
       const busName = args.bus_name as string
       const effectType = args.effect_type as string
       if (!busName || !effectType) {
@@ -123,7 +132,6 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       // Normalize effect type name (allow shorthand like "Reverb" -> "AudioEffectReverb")
       const fullEffectType = effectType.startsWith('AudioEffect') ? effectType : `AudioEffect${effectType}`
 
-      const busLayoutPath = join(safeResolve(baseDir, projectPath), 'default_bus_layout.tres')
       let content: string
 
       if (await pathExists(busLayoutPath)) {

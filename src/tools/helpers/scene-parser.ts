@@ -3,8 +3,8 @@
  *
  * .tscn format structure:
  * [gd_scene load_steps=N format=3 uid="uid://..."]
- * [ext_resource type="..." uid="uid://..." path="res://..." id="N_xxxxx"]
- * [sub_resource type="..." id="N_xxxxx"]
+ * [ext_resource type="..." uid="uid://..." path="res://..." id="1_abc"]
+ * [sub_resource type="..." id="1_abc"]
  * key = value
  * [node name="..." type="..." parent="."]
  * key = value

@@ -10,7 +10,6 @@ import {
   formatSuccess,
   GodotMCPError,
   throwUnknownAction,
-  withErrorHandling,
 } from '../../src/tools/helpers/errors.js'
 
 describe('errors', () => {
@@ -117,28 +116,6 @@ describe('errors', () => {
     it('should format with indentation', () => {
       const result = formatJSON({ a: 1 })
       expect(result.content[0].text).toContain('  ')
-    })
-  })
-
-  // ==========================================
-  // withErrorHandling
-  // ==========================================
-  describe('withErrorHandling', () => {
-    it('should pass through successful result', async () => {
-      const handler = async () => formatSuccess('ok')
-      const wrapped = withErrorHandling(handler)
-      const result = await wrapped()
-      expect((result as { content: Array<{ text: string }> }).content[0].text).toBe('ok')
-    })
-
-    it('should catch thrown error and format it', async () => {
-      const handler = async () => {
-        throw new GodotMCPError('fail', 'EXECUTION_ERROR')
-      }
-      const wrapped = withErrorHandling(handler)
-      const result = (await wrapped()) as { isError: boolean; content: Array<{ text: string }> }
-      expect(result.isError).toBe(true)
-      expect(result.content[0].text).toContain('EXECUTION_ERROR')
     })
   })
 

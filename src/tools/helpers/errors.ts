@@ -60,19 +60,6 @@ export function formatError(error: unknown): { content: Array<{ type: 'text'; te
 }
 
 /**
- * Wrap a tool handler with error handling
- */
-export function withErrorHandling<T extends (...args: unknown[]) => Promise<unknown>>(handler: T): T {
-  return (async (...args: unknown[]) => {
-    try {
-      return await handler(...args)
-    } catch (error) {
-      return formatError(error)
-    }
-  }) as T
-}
-
-/**
  * Format successful MCP response
  */
 export function formatSuccess(text: string): { content: Array<{ type: 'text'; text: string }> } {
@@ -93,39 +80,38 @@ export function formatJSON(data: unknown): { content: Array<{ type: 'text'; text
 export function findClosestMatch(input: string, validOptions: string[]): string | null {
   if (!input || validOptions.length === 0) return null
 
-  // Truncate to prevent CPU exhaustion from excessively long inputs during bigram generation
+  // Truncate to prevent CPU exhaustion from excessively long inputs
   const safeInput = input.length > 100 ? input.slice(0, 100) : input
   const lower = safeInput.toLowerCase()
   let bestMatch: string | null = null
   let bestScore = 0
 
-  // ⚡ Bolt: Pre-compute input bigrams as integer pairs to avoid string allocation.
-  // Each bigram is 2 characters. We store them as a 32-bit integer: (char1 << 16) | char2
-  const inputBigrams = new Set<number>()
+  const inputBigrams = new Set<string>()
   for (let i = 0; i < lower.length - 1; i++) {
-    inputBigrams.add((lower.charCodeAt(i) << 16) | lower.charCodeAt(i + 1))
+    inputBigrams.add(lower.slice(i, i + 2))
   }
 
   for (const option of validOptions) {
     const optionLower = option.toLowerCase()
+    // Quick prefix/containment match
     if (optionLower.startsWith(lower) || lower.startsWith(optionLower)) {
       return option
     }
 
-    let optionBigramCount = 0
-    let overlap = 0
-    const seenOptionBigrams = new Set<number>()
+    const optionBigrams = new Set<string>()
     for (let i = 0; i < optionLower.length - 1; i++) {
-      const b = (optionLower.charCodeAt(i) << 16) | optionLower.charCodeAt(i + 1)
-      if (!seenOptionBigrams.has(b)) {
-        seenOptionBigrams.add(b)
-        optionBigramCount++
-        if (inputBigrams.has(b)) overlap++
-      }
+      optionBigrams.add(optionLower.slice(i, i + 2))
     }
 
-    if (inputBigrams.size + optionBigramCount === 0) continue
-    const score = (2 * overlap) / (inputBigrams.size + optionBigramCount)
+    let overlap = 0
+    for (const bigram of optionBigrams) {
+      if (inputBigrams.has(bigram)) overlap++
+    }
+
+    const total = inputBigrams.size + optionBigrams.size
+    if (total === 0) continue
+
+    const score = (2 * overlap) / total
     if (score > bestScore && score > 0.4) {
       bestScore = score
       bestMatch = option

@@ -75,7 +75,6 @@ import { registerTools } from './tools/registry.js'
 - Custom `GodotMCPError` class with `code`, `suggestion`, `details` fields
 - `formatError()` converts errors to MCP `{ content, isError }` response format
 - `formatSuccess()` and `formatJSON()` for consistent success responses
-- `withErrorHandling()` HOF wrapper for all tool handlers
 - Bare `catch {}` blocks only for expected failures (e.g., binary not found)
 
 ### Biome Lint Rules

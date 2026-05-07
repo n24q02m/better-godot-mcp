@@ -1,7 +1,3 @@
-/**
- * Integration tests for Config tool
- */
-
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as detector from '../../src/godot/detector.js'
 import type { GodotConfig } from '../../src/godot/types.js'
@@ -36,8 +32,8 @@ describe('config', () => {
     config = makeConfig({ godotPath: '/usr/bin/godot', projectPath: '/tmp/proj' })
 
     // Default mocks to pass initial validations if needed
-    vi.mocked(detector.isExecutable).mockReturnValue(true)
-    vi.mocked(detector.tryGetVersion).mockReturnValue({
+    vi.mocked(detector.isExecutable).mockResolvedValue(true)
+    vi.mocked(detector.tryGetVersion).mockResolvedValue({
       major: 4,
       minor: 2,
       patch: 0,
@@ -115,8 +111,8 @@ describe('config', () => {
     })
 
     it('should update godot_path in config and return success when valid', async () => {
-      vi.mocked(detector.isExecutable).mockReturnValue(true)
-      vi.mocked(detector.tryGetVersion).mockReturnValue({
+      vi.mocked(detector.isExecutable).mockResolvedValue(true)
+      vi.mocked(detector.tryGetVersion).mockResolvedValue({
         major: 4,
         minor: 2,
         patch: 0,
@@ -133,23 +129,23 @@ describe('config', () => {
     })
 
     it('should throw when godot_path is not executable', async () => {
-      vi.mocked(detector.isExecutable).mockReturnValue(false)
+      vi.mocked(detector.isExecutable).mockResolvedValue(false)
       await expect(handleConfig('set', { key: 'godot_path', value: '/tmp/not-exe' }, config)).rejects.toThrow(
         'Invalid Godot path',
       )
     })
 
     it('should throw when godot_path is not a valid Godot binary', async () => {
-      vi.mocked(detector.isExecutable).mockReturnValue(true)
-      vi.mocked(detector.tryGetVersion).mockReturnValue(null)
+      vi.mocked(detector.isExecutable).mockResolvedValue(true)
+      vi.mocked(detector.tryGetVersion).mockResolvedValue(null)
       await expect(handleConfig('set', { key: 'godot_path', value: '/tmp/fake-godot' }, config)).rejects.toThrow(
         'Invalid Godot binary',
       )
     })
 
     it('should throw when Godot version is unsupported', async () => {
-      vi.mocked(detector.isExecutable).mockReturnValue(true)
-      vi.mocked(detector.tryGetVersion).mockReturnValue({
+      vi.mocked(detector.isExecutable).mockResolvedValue(true)
+      vi.mocked(detector.tryGetVersion).mockResolvedValue({
         major: 3,
         minor: 5,
         patch: 0,
@@ -194,7 +190,7 @@ describe('config', () => {
     })
 
     it('should allow Windows-style paths with backslashes (if valid)', async () => {
-      vi.mocked(detector.isExecutable).mockReturnValue(true)
+      vi.mocked(detector.isExecutable).mockResolvedValue(true)
       const result = await handleConfig(
         'set',
         { key: 'godot_path', value: 'C:\\Program Files\\Godot\\godot.exe' },

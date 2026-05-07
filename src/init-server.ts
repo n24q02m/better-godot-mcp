@@ -14,7 +14,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import pkg from '../package.json' with { type: 'json' }
 import { detectGodot } from './godot/detector.js'
-import type { GodotConfig } from './godot/types.js'
+import type { DetectionResult, GodotConfig } from './godot/types.js'
 import { registerTools } from './tools/registry.js'
 
 const SERVER_NAME = 'better-godot-mcp'
@@ -23,10 +23,11 @@ function getVersion(): string {
   return pkg.version ?? '0.0.0'
 }
 
-export function createGodotServer(): Server {
-  // Detect Godot binary
-  const detection = detectGodot()
-
+/**
+ * Creates a Godot MCP server instance.
+ * Synchronous to support factory-based initialization in various transports.
+ */
+export function createGodotServer(detection: DetectionResult | null): Server {
   if (detection) {
     console.error(
       `[${SERVER_NAME}] Godot detected: ${detection.version.raw} at ${detection.path} (${detection.source})`,
@@ -69,11 +70,14 @@ export async function initServer(): Promise<void> {
   const isHttp =
     process.argv.includes('--http') || process.env.MCP_TRANSPORT === 'http' || process.env.TRANSPORT_MODE === 'http'
 
+  // Performance optimization: run Godot detection once asynchronously at startup
+  const detection = await detectGodot()
+
   try {
     if (!isHttp) {
       // Direct MCP SDK stdio transport (no daemon proxy hop).
       // See spec 2026-05-01-stdio-pure-http-multiuser.md §5.2.2.
-      const server = createGodotServer()
+      const server = createGodotServer(detection)
       const transport = new StdioServerTransport()
       await server.connect(transport)
       console.error(`[${SERVER_NAME}] Server started in stdio mode (v${getVersion()})`)
@@ -85,7 +89,8 @@ export async function initServer(): Promise<void> {
       const handle = await runHttpServer(
         // Godot uses the lower-level Server; runHttpServer only calls `.connect(transport)`
         // which both Server and McpServer expose with the same signature.
-        () => createGodotServer() as unknown as import('@modelcontextprotocol/sdk/server/mcp.js').McpServer,
+        // Factory must be synchronous, so we pass the pre-detected result.
+        () => createGodotServer(detection) as unknown as import('@modelcontextprotocol/sdk/server/mcp.js').McpServer,
         {
           serverName: SERVER_NAME,
           port,

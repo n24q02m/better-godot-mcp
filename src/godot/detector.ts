@@ -8,20 +8,14 @@
  * 4. Validate version >= 4.1
  */
 
-import { execFileSync } from 'node:child_process'
-import {
-  accessSync,
-  closeSync,
-  constants,
-  existsSync,
-  fstatSync,
-  openSync,
-  readdirSync,
-  readSync,
-  statSync,
-} from 'node:fs'
+import { execFile } from 'node:child_process'
+import { constants, existsSync } from 'node:fs'
+import { access, open, readdir, stat } from 'node:fs/promises'
 import { join } from 'node:path'
+import { promisify } from 'node:util'
 import type { DetectionResult, GodotVersion } from './types.js'
+
+const execFileAsync = promisify(execFile)
 
 const GODOT_BINARY_NAMES = ['godot', 'godot4', 'godot-preview', 'Godot_v4']
 const MIN_VERSION = { major: 4, minor: 1 }
@@ -57,15 +51,14 @@ export function isVersionSupported(version: GodotVersion): boolean {
  * When skipSignatureCheck is true (e.g. user explicitly provided the path),
  * the binary signature heuristic is skipped and only --version validation is used.
  */
-export function tryGetVersion(binaryPath: string, skipSignatureCheck = false): GodotVersion | null {
-  if (!skipSignatureCheck && !isLikelyGodotBinary(binaryPath)) return null
+export async function tryGetVersion(binaryPath: string, skipSignatureCheck = false): Promise<GodotVersion | null> {
+  if (!skipSignatureCheck && !(await isLikelyGodotBinary(binaryPath))) return null
   try {
-    const output = execFileSync(binaryPath, ['--version'], {
+    const { stdout } = await execFileAsync(binaryPath, ['--version'], {
       timeout: 5000,
-      stdio: ['pipe', 'pipe', 'pipe'],
       encoding: 'utf-8',
     })
-    return parseGodotVersion(output)
+    return parseGodotVersion(stdout)
   } catch {
     return null
   }
@@ -75,23 +68,23 @@ export function tryGetVersion(binaryPath: string, skipSignatureCheck = false): G
  * Check if a file is likely a Godot binary by looking for specific signatures.
  * This is a security measure to prevent execution of arbitrary binaries via config.
  */
-export function isLikelyGodotBinary(filePath: string): boolean {
-  let fd: number | null = null
+export async function isLikelyGodotBinary(filePath: string): Promise<boolean> {
+  let handle: import('node:fs/promises').FileHandle | null = null
   try {
-    fd = openSync(filePath, 'r')
-    const stats = fstatSync(fd)
+    handle = await open(filePath, 'r')
+    const stats = await handle.stat()
     const fileSize = stats.size
     const sig1 = Buffer.from('Godot Engine')
     const sig2 = Buffer.from('GDScript')
 
     const fastSize = 64 * 1024
     const fastBuf = Buffer.alloc(fastSize)
-    const headRead = readSync(fd, fastBuf, 0, Math.min(fastSize, fileSize), 0)
+    const { bytesRead: headRead } = await handle.read(fastBuf, 0, Math.min(fastSize, fileSize), 0)
     if (headRead > 0 && (fastBuf.subarray(0, headRead).includes(sig1) || fastBuf.subarray(0, headRead).includes(sig2)))
       return true
     if (fileSize > fastSize) {
       const tailOffset = fileSize - fastSize
-      const tailRead = readSync(fd, fastBuf, 0, fastSize, tailOffset)
+      const { bytesRead: tailRead } = await handle.read(fastBuf, 0, fastSize, tailOffset)
       if (
         tailRead > 0 &&
         (fastBuf.subarray(0, tailRead).includes(sig1) || fastBuf.subarray(0, tailRead).includes(sig2))
@@ -106,16 +99,16 @@ export function isLikelyGodotBinary(filePath: string): boolean {
     const buffer = Buffer.alloc(chunkSize)
     for (let offset = 0; offset < fileSize; offset += step) {
       const readLen = Math.min(chunkSize, fileSize - offset)
-      const bytesRead = readSync(fd, buffer, 0, readLen, offset)
+      const { bytesRead } = await handle.read(buffer, 0, readLen, offset)
       if (buffer.subarray(0, bytesRead).includes(sig1) || buffer.subarray(0, bytesRead).includes(sig2)) return true
     }
     return false
   } catch {
     return false
   } finally {
-    if (fd !== null) {
+    if (handle !== null) {
       try {
-        closeSync(fd)
+        await handle.close()
       } catch {
         /* ignore */
       }
@@ -127,11 +120,11 @@ export function isLikelyGodotBinary(filePath: string): boolean {
  * Check if a binary path exists, is a regular file, and is executable.
  * Rejects directories and other non-file entries to prevent arbitrary binary execution.
  */
-export function isExecutable(filePath: string): boolean {
+export async function isExecutable(filePath: string): Promise<boolean> {
   try {
-    const stats = statSync(filePath)
+    const stats = await stat(filePath)
     if (!stats.isFile()) return false
-    accessSync(filePath, constants.X_OK)
+    await access(filePath, constants.X_OK)
     return true
   } catch {
     return false
@@ -141,17 +134,16 @@ export function isExecutable(filePath: string): boolean {
 /**
  * Try to find binary in system PATH using which/where
  */
-function findInPath(): string | null {
+async function findInPath(): Promise<string | null> {
   const cmd = process.platform === 'win32' ? 'where' : 'which'
   for (const name of GODOT_BINARY_NAMES) {
     try {
-      const result = execFileSync(cmd, [name], {
+      const { stdout } = await execFileAsync(cmd, [name], {
         timeout: 3000,
-        stdio: ['pipe', 'pipe', 'pipe'],
         encoding: 'utf-8',
       })
-      const path = result.trim().split('\n')[0].trim()
-      if (path && isExecutable(path)) return path
+      const path = stdout.trim().split('\n')[0].trim()
+      if (path && (await isExecutable(path))) return path
     } catch {
       // Not found, continue
     }
@@ -164,18 +156,18 @@ function findInPath(): string | null {
  * WinGet installs to Packages/GodotEngine.GodotEngine_xxx/Godot_vN-stable_win64_console.exe
  * but often fails to create symlinks in Links/ without admin privileges.
  */
-function findWinGetGodotBinaries(localAppData: string): string[] {
+async function findWinGetGodotBinaries(localAppData: string): Promise<string[]> {
   const results: string[] = []
   const packagesDir = join(localAppData, 'Microsoft', 'WinGet', 'Packages')
   if (!existsSync(packagesDir)) return results
 
   try {
-    const dirs = readdirSync(packagesDir, { withFileTypes: true })
+    const dirs = await readdir(packagesDir, { withFileTypes: true })
     for (const dir of dirs) {
       if (!dir.isDirectory() || !dir.name.startsWith('GodotEngine.GodotEngine')) continue
       const pkgDir = join(packagesDir, dir.name)
       try {
-        const files = readdirSync(pkgDir)
+        const files = await readdir(pkgDir)
         // Prefer GUI version (has actual editor window), then console as fallback
         const regularExe = files.find((f) => /^Godot_v[\d.]+-\w+_win64\.exe$/i.test(f) && !f.includes('console'))
         if (regularExe) results.push(join(pkgDir, regularExe))
@@ -195,7 +187,7 @@ function findWinGetGodotBinaries(localAppData: string): string[] {
 /**
  * Platform-specific common Godot install locations
  */
-function getSystemPaths(): string[] {
+async function getSystemPaths(): Promise<string[]> {
   const paths: string[] = []
 
   if (process.platform === 'win32') {
@@ -208,7 +200,7 @@ function getSystemPaths(): string[] {
       // WinGet install location (symlink — requires admin)
       join(localAppData, 'Microsoft', 'WinGet', 'Links', 'godot.exe'),
       // WinGet packages (actual binary — works without admin)
-      ...findWinGetGodotBinaries(localAppData),
+      ...(await findWinGetGodotBinaries(localAppData)),
       // Standard install locations
       join(programFiles, 'Godot', 'godot.exe'),
       join(programFilesX86, 'Godot', 'godot.exe'),
@@ -257,29 +249,29 @@ function getSystemPaths(): string[] {
  *
  * @returns Detection result or null if not found
  */
-export function detectGodot(): DetectionResult | null {
+export async function detectGodot(): Promise<DetectionResult | null> {
   // 1. Check GODOT_PATH env var — skip signature heuristic since user explicitly provided the path
   const envPath = process.env.GODOT_PATH
-  if (envPath && isExecutable(envPath)) {
-    const version = tryGetVersion(envPath, true)
+  if (envPath && (await isExecutable(envPath))) {
+    const version = await tryGetVersion(envPath, true)
     if (version && isVersionSupported(version)) {
       return { path: envPath, version, source: 'env' }
     }
   }
 
   // 2. Check system PATH
-  const pathResult = findInPath()
+  const pathResult = await findInPath()
   if (pathResult) {
-    const version = tryGetVersion(pathResult)
+    const version = await tryGetVersion(pathResult)
     if (version && isVersionSupported(version)) {
       return { path: pathResult, version, source: 'path' }
     }
   }
 
   // 3. Check platform-specific locations
-  for (const systemPath of getSystemPaths()) {
-    if (isExecutable(systemPath)) {
-      const version = tryGetVersion(systemPath)
+  for (const systemPath of await getSystemPaths()) {
+    if (await isExecutable(systemPath)) {
+      const version = await tryGetVersion(systemPath)
       if (version && isVersionSupported(version)) {
         return { path: systemPath, version, source: 'system' }
       }

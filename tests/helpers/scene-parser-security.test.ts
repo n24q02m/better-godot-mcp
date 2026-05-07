@@ -34,4 +34,13 @@ describe('scene-parser security', () => {
     expect(result).toContain('name="NodeRenamed"')
     expect(result).not.toContain('name="Node(1)"')
   })
+
+  it('should not be vulnerable to replacement string injection', () => {
+    const content = '[node name="Target" type="Node"]'
+    const result = renameNodeInContent(content, 'Target', '$&Hacked')
+
+    // If vulnerable, result will be '[node name="name="Target"Hacked" type="Node"]'
+    // Expected: '[node name="$&Hacked" type="Node"]'
+    expect(result).toBe('[node name="$&Hacked" type="Node"]')
+  })
 })

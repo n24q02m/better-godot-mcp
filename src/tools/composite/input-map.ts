@@ -13,7 +13,7 @@ import { escapeRegExp } from '../helpers/scene-parser.js'
 
 /**
  * Godot 4.x Key enum numeric values (@GlobalScope.Key)
- * Letters are ASCII codes, special keys use 4194xxx range
+ * Letters are ASCII codes, special keys use the 4194304+ range (2^22 bit set)
  */
 const GODOT_KEY_CODES: Record<string, number> = {
   // Letters (ASCII)

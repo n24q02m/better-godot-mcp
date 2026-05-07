@@ -306,6 +306,118 @@ function parseProperty(content: string, start: number, end: number, target: Reco
     target[key] = value
   }
 }
+/**
+ * Internal utility to transform scene content line by line with node tracking
+ */
+function transformSceneContent(
+  content: string,
+  nodeName: string,
+  callbacks: {
+    processLine: (line: string, inTargetNode: boolean, isSectionHeader: boolean) => string | string[] | null
+    onTargetNodeEnd?: () => string | string[] | null
+  },
+): string {
+  const result: string[] = []
+  let pos = 0
+  const len = content.length
+  let inTargetNode = false
+
+  while (pos < len) {
+    let nextNewline = content.indexOf('\n', pos)
+    if (nextNewline === -1) nextNewline = len
+
+    let start = pos
+    // Skip leading whitespace to find the first character of the line
+    while (start < nextNewline && content.charCodeAt(start) <= 32) start++
+
+    const firstChar = content.charCodeAt(start)
+    const line = content.slice(pos, nextNewline)
+    const isSectionHeader = firstChar === 91 // "["
+
+    if (isSectionHeader) {
+      // If we were in the target node and it's ending, call onTargetNodeEnd
+      if (inTargetNode && callbacks.onTargetNodeEnd) {
+        const extra = callbacks.onTargetNodeEnd()
+        if (extra) {
+          if (Array.isArray(extra)) result.push(...extra)
+          else result.push(extra)
+        }
+      }
+
+      // Check if this new section is our target node
+      const isNodeHeader = content.charCodeAt(start + 1) === 110 // "n"
+      inTargetNode = isNodeHeader && line.includes(`name="${nodeName}"`)
+    }
+
+    const processed = callbacks.processLine(line, inTargetNode, isSectionHeader)
+    if (processed !== null) {
+      if (Array.isArray(processed)) result.push(...processed)
+      else result.push(processed)
+    }
+
+    pos = nextNewline + 1
+  }
+
+  // Handle case where target node is the last section in the file
+  if (inTargetNode && callbacks.onTargetNodeEnd) {
+    const extra = callbacks.onTargetNodeEnd()
+    if (extra) {
+      if (Array.isArray(extra)) result.push(...extra)
+      else result.push(extra)
+    }
+  }
+
+  return result.join('\n')
+}
+/**
+ * Update multiple properties on a node in scene content
+ */
+export function updateNodeInScene(
+  content: string,
+  nodeName: string,
+  updates: Record<string, string>,
+): {
+  content: string
+  updated: boolean
+} {
+  // Fast-path: Skip if node name is not in the content
+  if (!content.includes(`name="${nodeName}"`)) {
+    return { content, updated: false }
+  }
+
+  const updatedProperties = new Set<string>()
+  const keys = Object.keys(updates)
+
+  const newContent = transformSceneContent(content, nodeName, {
+    processLine: (line, inTargetNode, isSectionHeader) => {
+      if (inTargetNode && !isSectionHeader) {
+        // Find if this line is one of our target properties
+        const trimmed = line.trimStart()
+        for (const key of keys) {
+          if (trimmed.startsWith(`${key} `) || trimmed.startsWith(`${key}=`)) {
+            updatedProperties.add(key)
+            return `${key} = ${updates[key]}`
+          }
+        }
+      }
+      return line
+    },
+    onTargetNodeEnd: () => {
+      const added: string[] = []
+      for (const key of keys) {
+        if (!updatedProperties.has(key)) {
+          added.push(`${key} = ${updates[key]}`)
+        }
+      }
+      return added
+    },
+  })
+
+  return {
+    content: newContent,
+    updated: true,
+  }
+}
 
 export function findNode(scene: ParsedScene, name: string): SceneNodeInfo | undefined {
   return scene.nodes.find((n) => n.name === name)
@@ -324,50 +436,33 @@ export function removeNodeFromContent(content: string, nodeName: string): string
     return content
   }
 
-  const result: string[] = []
-  let pos = 0
-  const len = content.length
   let skipping = false
 
-  while (pos < len) {
-    let nextNewline = content.indexOf('\n', pos)
-    if (nextNewline === -1) nextNewline = len
-
-    let start = pos
-    while (start < nextNewline && content.charCodeAt(start) <= 32) start++
-
-    const firstChar = content.charCodeAt(start)
-    const secondChar = content.charCodeAt(start + 1)
-
-    if (skipping && firstChar === 91) {
-      // '['
-      skipping = false
-    }
-
-    const line = content.slice(pos, nextNewline)
-
-    if (!skipping && firstChar === 91 && secondChar === 110) {
-      // '[n'
-      if (line.includes(`name="${nodeName}"`)) {
-        skipping = true
-      }
-    }
-
-    if (!skipping) {
-      if (firstChar === 91 && secondChar === 99) {
-        // '[c'
-        if (!line.includes(`from="${nodeName}"`) && !line.includes(`to="${nodeName}"`)) {
-          result.push(line)
+  return transformSceneContent(content, nodeName, {
+    processLine: (line, _inTargetNode, isSectionHeader) => {
+      if (isSectionHeader) {
+        const start = line.indexOf('[')
+        const secondChar = line.charCodeAt(start + 1)
+        if (secondChar === 110 && line.includes(`name="${nodeName}"`)) {
+          skipping = true
+          return null
         }
-      } else {
-        result.push(line)
+        skipping = false
       }
-    }
 
-    pos = nextNewline + 1
-  }
+      if (skipping) return null
 
-  return result.join('\n')
+      // Check for connection removals
+      const start = line.indexOf('[')
+      if (start !== -1 && line.charCodeAt(start + 1) === 99) {
+        if (line.includes(`from="${nodeName}"`) || line.includes(`to="${nodeName}"`)) {
+          return null
+        }
+      }
+
+      return line
+    },
+  })
 }
 
 /**
@@ -408,58 +503,8 @@ export function renameNodeInContent(content: string, oldName: string, newName: s
  * Set a property on a node in scene content
  */
 export function setNodePropertyInContent(content: string, nodeName: string, property: string, value: string): string {
-  // Fast-path: Skip allocations and processing if the node name is not in the content
-  if (!content.includes(`name="${nodeName}"`)) {
-    return content
-  }
-
-  const result: string[] = []
-  let pos = 0
-  const len = content.length
-  let inTargetNode = false
-  let propertySet = false
-
-  while (pos < len) {
-    let nextNewline = content.indexOf('\n', pos)
-    if (nextNewline === -1) nextNewline = len
-
-    let start = pos
-    while (start < nextNewline && content.charCodeAt(start) <= 32) start++
-
-    const firstChar = content.charCodeAt(start)
-    const line = content.slice(pos, nextNewline)
-
-    if (firstChar === 91) {
-      // '['
-      if (inTargetNode && !propertySet) {
-        result.push(`${property} = ${value}`)
-        propertySet = true
-      }
-      inTargetNode = false
-
-      if (content.charCodeAt(start + 1) === 110 && line.includes(`name="${nodeName}"`)) {
-        // '[n'
-        inTargetNode = true
-      }
-      result.push(line)
-    } else if (
-      inTargetNode &&
-      (content.startsWith(`${property} `, start) || content.startsWith(`${property}=`, start))
-    ) {
-      result.push(`${property} = ${value}`)
-      propertySet = true
-    } else {
-      result.push(line)
-    }
-
-    pos = nextNewline + 1
-  }
-
-  if (inTargetNode && !propertySet) {
-    result.push(`${property} = ${value}`)
-  }
-
-  return result.join('\n')
+  const { content: newContent } = updateNodeInScene(content, nodeName, { [property]: value })
+  return newContent
 }
 
 /**

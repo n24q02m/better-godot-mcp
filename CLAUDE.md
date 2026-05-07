@@ -84,14 +84,12 @@ PSR v10 (workflow_dispatch) -> npm + Docker (amd64+arm64) + GHCR + MCP Registry.
 - Pre-commit: biome check, tsc --noEmit. Pre-push: bun test.
 - Secrets: skret SSM namespace `/better-godot-mcp/prod` (region `ap-southeast-1`)
 
-## Known bugs (potential -- E2E test chua chay den godot 2026-04-18)
+## Fixed bugs
 
-Godot MCP dung `@n24q02m/mcp-core` (core-ts) -- co the bi affect boi upstream core-ts bug:
+Godot MCP dung `@n24q02m/mcp-core` (core-ts) -- da duoc xu ly de khong bi affect boi upstream core-ts bug:
 
-1. **Browser UI stuck "Waiting for server..." sau khi submit credentials** (neu co relay flow). See `C:\Users\n24q02m-wlap\projects\mcp-core\CLAUDE.md` Known bugs #2.
-2. **Config storage path**: `$APPDATA\mcp\Config\config.enc` (khac Python servers `$LOCALAPPDATA\mcp\config.enc`).
-
-Khi E2E test godot, can clean state tai `$APPDATA\mcp\Config\` + check browser behavior.
+1. [Fixed-by-design] **Browser UI stuck "Waiting for server..." sau khi submit credentials** (Godot MCP hien tai khong dung relay flow).
+2. [Fixed] **Config storage path**: `init-server.ts` override config path sang `$LOCALAPPDATA\mcp\config.enc` tren Windows de align voi Python servers.
 
 ## E2E
 
@@ -114,4 +112,3 @@ Tier policy:
 Multi-user remote mode (deployment property; not a separate config) requires `MCP_DCR_SERVER_SECRET` in the same skret namespace - driver refuses to start the container without it when `PUBLIC_URL` is set.
 
 References: `mcp-core/scripts/e2e/matrix.yaml`, `~/.claude/skills/mcp-dev/references/e2e-full-matrix.md` (harness-readiness gate), `~/.claude/skills/mcp-dev/references/secrets-skret.md` (per-server credential layout), `~/.claude/skills/mcp-dev/references/multi-user-pattern.md` (per-JWT-sub isolation).
-

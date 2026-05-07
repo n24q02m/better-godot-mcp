@@ -10,6 +10,7 @@
  * Defaults to stdio mode. Use --http flag, MCP_TRANSPORT=http, or TRANSPORT_MODE=http for HTTP mode.
  */
 
+import { join } from 'node:path'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import pkg from '../package.json' with { type: 'json' }
@@ -21,6 +22,29 @@ const SERVER_NAME = 'better-godot-mcp'
 
 function getVersion(): string {
   return pkg.version ?? '0.0.0'
+}
+
+/**
+ * Configure mcp-core storage paths to align with Python MCP servers on Windows.
+ * This must be called before any mcp-core storage operations.
+ */
+async function configureStorage(): Promise<void> {
+  if (process.platform === 'win32' && process.env.LOCALAPPDATA) {
+    try {
+      // Use import.meta.resolve to find the physical path of mcp-core,
+      // bypassing the strict "exports" map which blocks deep imports.
+      // This is necessary because mcp-core v1.13.0 does not export setConfigPath from its main entry.
+      const pkgPath = import.meta.resolve('@n24q02m/mcp-core')
+      const configFilePath = pkgPath.replace('index.js', 'storage/config-file.js')
+      const { setConfigPath } = await import(configFilePath)
+
+      const configPath = join(process.env.LOCALAPPDATA, 'mcp', 'config.enc')
+      setConfigPath(configPath)
+      console.error(`[${SERVER_NAME}] Windows config path overridden to ${configPath}`)
+    } catch (error) {
+      console.error(`[${SERVER_NAME}] Failed to override config path:`, error)
+    }
+  }
 }
 
 export function createGodotServer(): Server {
@@ -68,6 +92,8 @@ export function createGodotServer(): Server {
 export async function initServer(): Promise<void> {
   const isHttp =
     process.argv.includes('--http') || process.env.MCP_TRANSPORT === 'http' || process.env.TRANSPORT_MODE === 'http'
+
+  await configureStorage()
 
   try {
     if (!isHttp) {

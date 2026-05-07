@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { wrapToolResult } from '../../src/tools/helpers/security.js'
+import { validateNoNewlines, wrapToolResult } from '../../src/tools/helpers/security.js'
 
 describe('security', () => {
   // ==========================================
@@ -69,6 +69,39 @@ describe('security', () => {
       expect(wrapped.content[0].text).toContain('script1')
       expect(wrapped.content[1].text).toContain('<untrusted_godot_content>')
       expect(wrapped.content[1].text).toContain('script2')
+    })
+  })
+
+  // ==========================================
+  // validateNoNewlines
+  // ==========================================
+  describe('validateNoNewlines', () => {
+    it('should pass for safe strings', () => {
+      expect(() => validateNoNewlines(undefined, 'safe', 'another safe')).not.toThrow()
+    })
+
+    it('should pass for numbers and booleans', () => {
+      expect(() => validateNoNewlines(undefined, 123, true, false)).not.toThrow()
+    })
+
+    it('should pass for undefined and null', () => {
+      expect(() => validateNoNewlines(undefined, undefined, null)).not.toThrow()
+    })
+
+    it('should throw for string with newline', () => {
+      expect(() => validateNoNewlines(undefined, 'safe', 'has\nnewline')).toThrow('Invalid arguments: newlines not allowed')
+    })
+
+    it('should throw for string with carriage return', () => {
+      expect(() => validateNoNewlines(undefined, 'has\rcarriage', 'safe')).toThrow('Invalid arguments: newlines not allowed')
+    })
+
+    it('should throw for mixed inputs with a newline', () => {
+      expect(() => validateNoNewlines(undefined, 123, 'has\nnewline', true)).toThrow('Invalid arguments: newlines not allowed')
+    })
+
+    it('should use custom message when provided', () => {
+      expect(() => validateNoNewlines('Custom error message', 'has\nnewline')).toThrow('Custom error message')
     })
   })
 })

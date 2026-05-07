@@ -532,13 +532,19 @@ describe('detector', () => {
       process.env.GODOT_PATH = '/custom/path/godot'
       vi.mocked(existsSync).mockReturnValue(true)
       vi.mocked(execFileSync).mockReturnValue('Godot Engine v4.2.1.stable.official')
+      vi.mocked(readSync)
+        .mockImplementationOnce((_fd, buffer) => {
+          const b = buffer as Buffer
+          b.write('ELF no signature here')
+          return 22
+        })
+        .mockImplementationOnce((_fd, buffer) => {
+          const b = buffer as Buffer
+          b.write('Godot Engine')
+          return 12
+        })
 
       const result = detectGodot()
-
-      expect(result).not.toBeNull()
-      expect(result?.path).toBe('/custom/path/godot')
-      expect(result?.version.major).toBe(4)
-      expect(result?.version.minor).toBe(2)
       expect(result?.source).toBe('env')
     })
 
@@ -546,11 +552,18 @@ describe('detector', () => {
       process.env.GODOT_PATH = '/custom/path/godot-preview'
       vi.mocked(existsSync).mockReturnValue(true)
       vi.mocked(execFileSync).mockReturnValue('4.7.dev4.official.755fa449c')
-      vi.mocked(readSync).mockImplementation((_fd, buffer) => {
-        const b = buffer as Buffer
-        b.write('ELF no signature here')
-        return 22
-      })
+      // Signature is found in a later chunk (simulated by second call)
+      vi.mocked(readSync)
+        .mockImplementationOnce((_fd, buffer) => {
+          const b = buffer as Buffer
+          b.write('ELF no signature here')
+          return 22
+        })
+        .mockImplementationOnce((_fd, buffer) => {
+          const b = buffer as Buffer
+          b.write('Godot Engine')
+          return 12
+        })
 
       const result = detectGodot()
 

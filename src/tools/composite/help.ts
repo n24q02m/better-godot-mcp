@@ -43,11 +43,17 @@ async function getDocsDir(): Promise<string> {
     join(process.cwd(), 'build', 'src', 'docs'),
   ]
 
-  for (const candidate of candidates) {
-    // Validate candidate contains actual tool docs (not a random 'docs' directory)
-    const markerFile = join(candidate, 'help.md')
-    if (await pathExists(markerFile)) return candidate
-  }
+  const results = await Promise.all(
+    candidates.map(async (candidate) => {
+      // Validate candidate contains actual tool docs (not a random 'docs' directory)
+      const markerFile = join(candidate, 'help.md')
+      const exists = await pathExists(markerFile)
+      return exists ? candidate : null
+    }),
+  )
+
+  const found = results.find((res) => res !== null)
+  if (found) return found
 
   return join(process.cwd(), 'src', 'docs')
 }

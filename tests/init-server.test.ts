@@ -96,7 +96,7 @@ describe('initServer', () => {
   describe('transport mode selection', () => {
     it('should default to stdio mode when no flags are set', async () => {
       const { detectGodot } = await import('../src/godot/detector.js')
-      vi.mocked(detectGodot).mockReturnValue(null)
+      vi.mocked(detectGodot).mockResolvedValue(null)
       delete process.env.MCP_TRANSPORT
       delete process.env.TRANSPORT_MODE
 
@@ -110,7 +110,7 @@ describe('initServer', () => {
 
     it('should use HTTP mode when --http flag is passed', async () => {
       const { detectGodot } = await import('../src/godot/detector.js')
-      vi.mocked(detectGodot).mockReturnValue(null)
+      vi.mocked(detectGodot).mockResolvedValue(null)
       process.argv = [...originalArgv, '--http']
 
       const { initServer } = await import('../src/init-server.js')
@@ -123,7 +123,7 @@ describe('initServer', () => {
 
     it('should use HTTP mode when MCP_TRANSPORT=http', async () => {
       const { detectGodot } = await import('../src/godot/detector.js')
-      vi.mocked(detectGodot).mockReturnValue(null)
+      vi.mocked(detectGodot).mockResolvedValue(null)
       process.env.MCP_TRANSPORT = 'http'
 
       const { initServer } = await import('../src/init-server.js')
@@ -135,7 +135,7 @@ describe('initServer', () => {
 
     it('should use HTTP mode when TRANSPORT_MODE=http', async () => {
       const { detectGodot } = await import('../src/godot/detector.js')
-      vi.mocked(detectGodot).mockReturnValue(null)
+      vi.mocked(detectGodot).mockResolvedValue(null)
       process.env.TRANSPORT_MODE = 'http'
 
       const { initServer } = await import('../src/init-server.js')
@@ -147,7 +147,7 @@ describe('initServer', () => {
 
     it('should pass server factory and options to runHttpServer in HTTP mode', async () => {
       const { detectGodot } = await import('../src/godot/detector.js')
-      vi.mocked(detectGodot).mockReturnValue(null)
+      vi.mocked(detectGodot).mockResolvedValue(null)
       process.env.MCP_TRANSPORT = 'http'
 
       const { initServer } = await import('../src/init-server.js')
@@ -163,14 +163,14 @@ describe('initServer', () => {
   describe('createGodotServer', () => {
     it('should initialize server when Godot is detected', async () => {
       const { detectGodot } = await import('../src/godot/detector.js')
-      vi.mocked(detectGodot).mockReturnValue({
+      vi.mocked(detectGodot).mockResolvedValue({
         path: '/usr/bin/godot',
         version: { major: 4, minor: 3, patch: 0, label: 'stable', raw: '4.3.stable' },
         source: 'path',
       })
 
       const { createGodotServer } = await import('../src/init-server.js')
-      createGodotServer()
+      await createGodotServer()
 
       const { registerTools } = await import('../src/tools/registry.js')
       expect(registerTools).toHaveBeenCalledOnce()
@@ -179,10 +179,10 @@ describe('initServer', () => {
 
     it('should initialize server when Godot is not found', async () => {
       const { detectGodot } = await import('../src/godot/detector.js')
-      vi.mocked(detectGodot).mockReturnValue(null)
+      vi.mocked(detectGodot).mockResolvedValue(null)
 
       const { createGodotServer } = await import('../src/init-server.js')
-      createGodotServer()
+      await createGodotServer()
 
       const { registerTools } = await import('../src/tools/registry.js')
       expect(registerTools).toHaveBeenCalledOnce()
@@ -191,10 +191,10 @@ describe('initServer', () => {
 
     it('should instantiate Server with correct name, version, and capabilities', async () => {
       const { detectGodot } = await import('../src/godot/detector.js')
-      vi.mocked(detectGodot).mockReturnValue(null)
+      vi.mocked(detectGodot).mockResolvedValue(null)
 
       const { createGodotServer } = await import('../src/init-server.js')
-      createGodotServer()
+      await createGodotServer()
 
       expect(mockServerConstructor).toHaveBeenCalledWith(
         {
@@ -213,7 +213,7 @@ describe('initServer', () => {
   describe('error handling', () => {
     it('should handle errors during server initialization (stdio connect failure)', async () => {
       const { detectGodot } = await import('../src/godot/detector.js')
-      vi.mocked(detectGodot).mockReturnValue(null)
+      vi.mocked(detectGodot).mockResolvedValue(null)
       process.env.MCP_TRANSPORT = 'stdio'
 
       const testError = new Error('Connect failed')
@@ -227,7 +227,7 @@ describe('initServer', () => {
 
     it('should handle errors during HTTP startup', async () => {
       const { detectGodot } = await import('../src/godot/detector.js')
-      vi.mocked(detectGodot).mockReturnValue(null)
+      vi.mocked(detectGodot).mockResolvedValue(null)
       process.env.MCP_TRANSPORT = 'http'
 
       const testError = new Error('Port in use')
@@ -243,10 +243,10 @@ describe('initServer', () => {
   describe('getVersion', () => {
     it('should return version from package.json', async () => {
       const { detectGodot } = await import('../src/godot/detector.js')
-      vi.mocked(detectGodot).mockReturnValue(null)
+      vi.mocked(detectGodot).mockResolvedValue(null)
 
       const { createGodotServer } = await import('../src/init-server.js')
-      createGodotServer()
+      await createGodotServer()
 
       expect(mockServerConstructor).toHaveBeenCalledWith(
         expect.objectContaining({

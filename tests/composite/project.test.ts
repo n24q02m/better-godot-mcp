@@ -79,7 +79,7 @@ describe('project', () => {
   // ==========================================
   describe('version', () => {
     it('should return godot version', async () => {
-      vi.mocked(execGodotAsync).mockResolvedValue({ stdout: '4.4.stable', stderr: '', exitCode: 0 })
+      vi.mocked(execGodotAsync).mockResolvedValue({ stdout: '4.4.stable', stderr: '', exitCode: 0, success: true })
 
       const result = await handleProject('version', {}, config)
       expect(result.content[0].text).toContain('Godot version: 4.4.stable')
@@ -101,7 +101,16 @@ describe('project', () => {
 
       const result = await handleProject('run', { project_path: projectPath }, config)
       expect(result.content[0].text).toContain('PID: 12345')
-      expect(runGodotProject).toHaveBeenCalledWith('/path/to/godot', expect.stringContaining(projectPath))
+      expect(runGodotProject).toHaveBeenCalledWith('/path/to/godot', projectPath, undefined)
+    })
+
+    it('should start godot project with scene', async () => {
+      vi.mocked(runGodotProject).mockReturnValue({ pid: 12345 })
+
+      const result = await handleProject('run', { project_path: projectPath, scene_path: 'scenes/test.tscn' }, config)
+      expect(result.content[0].text).toContain('PID: 12345')
+      expect(result.content[0].text).toContain('for scene scenes/test.tscn')
+      expect(runGodotProject).toHaveBeenCalledWith('/path/to/godot', projectPath, 'scenes/test.tscn')
     })
 
     it('should throw if godot not found', async () => {
@@ -237,7 +246,12 @@ describe('project', () => {
   // ==========================================
   describe('export', () => {
     it('should export project', async () => {
-      vi.mocked(execGodotAsync).mockResolvedValue({ stdout: 'Export successful', stderr: '', exitCode: 0 })
+      vi.mocked(execGodotAsync).mockResolvedValue({
+        stdout: 'Export successful',
+        stderr: '',
+        exitCode: 0,
+        success: true,
+      })
 
       const result = await handleProject(
         'export',

@@ -180,6 +180,36 @@ describe('godot-types', () => {
     it('should return unrecognized values as-is', () => {
       expect(parseGodotValue('SomeUnknownType()')).toBe('SomeUnknownType()')
     })
+    it('should return expression when manual depth exceeds MAX_PARSE_DEPTH', () => {
+      // @ts-expect-error - accessing internal _depth for testing
+      expect(parseGodotValue('true', 33)).toBe('true')
+    })
+
+    it('should stop parsing and return string when nesting exceeds MAX_PARSE_DEPTH', () => {
+      // To get the limit:
+      let nested = '1'
+      for (let i = 0; i < 33; i++) {
+        nested = `[${nested}]`
+      }
+      // nested is now 33 levels deep: [[...[1]...]]
+      // Depth 0 calls parse(..., 0)
+      // ...
+      // Depth 31 calls parse("[[1]]", 31)
+      // Depth 32 calls parse("[1]", 32)
+      // Inside parse("[1]", 32): calls parse("1", 33) -> returns "1" (string)
+      // So parse("[1]", 32) returns ["1"]
+
+      const result = parseGodotValue(nested) as unknown[]
+
+      let current: unknown = result
+      for (let i = 0; i < 32; i++) {
+        expect(Array.isArray(current)).toBe(true)
+        current = (current as unknown[])[0]
+      }
+
+      // At depth 32, we have the result of parse("[1]", 32), which is ["1"]
+      expect(current).toEqual(['1'])
+    })
   })
 
   // ==========================================

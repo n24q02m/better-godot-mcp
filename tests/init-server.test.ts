@@ -162,15 +162,12 @@ describe('initServer', () => {
 
   describe('createGodotServer', () => {
     it('should initialize server when Godot is detected', async () => {
-      const { detectGodot } = await import('../src/godot/detector.js')
-      vi.mocked(detectGodot).mockResolvedValue({
+      const { createGodotServer } = await import('../src/init-server.js')
+      createGodotServer({
         path: '/usr/bin/godot',
         version: { major: 4, minor: 3, patch: 0, label: 'stable', raw: '4.3.stable' },
         source: 'path',
       })
-
-      const { createGodotServer } = await import('../src/init-server.js')
-      await createGodotServer()
 
       const { registerTools } = await import('../src/tools/registry.js')
       expect(registerTools).toHaveBeenCalledOnce()
@@ -178,11 +175,8 @@ describe('initServer', () => {
     })
 
     it('should initialize server when Godot is not found', async () => {
-      const { detectGodot } = await import('../src/godot/detector.js')
-      vi.mocked(detectGodot).mockResolvedValue(null)
-
       const { createGodotServer } = await import('../src/init-server.js')
-      await createGodotServer()
+      createGodotServer(null)
 
       const { registerTools } = await import('../src/tools/registry.js')
       expect(registerTools).toHaveBeenCalledOnce()
@@ -190,11 +184,8 @@ describe('initServer', () => {
     })
 
     it('should instantiate Server with correct name, version, and capabilities', async () => {
-      const { detectGodot } = await import('../src/godot/detector.js')
-      vi.mocked(detectGodot).mockResolvedValue(null)
-
       const { createGodotServer } = await import('../src/init-server.js')
-      await createGodotServer()
+      createGodotServer(null)
 
       expect(mockServerConstructor).toHaveBeenCalledWith(
         {
@@ -242,11 +233,8 @@ describe('initServer', () => {
 
   describe('getVersion', () => {
     it('should return version from package.json', async () => {
-      const { detectGodot } = await import('../src/godot/detector.js')
-      vi.mocked(detectGodot).mockResolvedValue(null)
-
       const { createGodotServer } = await import('../src/init-server.js')
-      await createGodotServer()
+      createGodotServer(null)
 
       expect(mockServerConstructor).toHaveBeenCalledWith(
         expect.objectContaining({

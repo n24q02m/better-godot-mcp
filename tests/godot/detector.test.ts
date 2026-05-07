@@ -681,7 +681,7 @@ describe('detector', () => {
         }
         return [] as unknown as ReturnType<typeof readdirSync>
         // biome-ignore lint/suspicious/noExplicitAny: mock overload
-      }) as any)
+      }) as unknown as any)
 
       vi.mocked(execFileSync).mockImplementation((cmd) => {
         if (typeof cmd === 'string' && cmd.includes('Godot_v4.3-stable_win64.exe'))
@@ -707,7 +707,7 @@ describe('detector', () => {
       })
       vi.mocked(readdirSync).mockImplementation(
         // biome-ignore lint/suspicious/noExplicitAny: mock overload
-        ((_path: PathLike, _options?: unknown) => [] as unknown as ReturnType<typeof readdirSync>) as any,
+        ((_path: PathLike, _options?: unknown) => [] as unknown as ReturnType<typeof readdirSync>) as unknown as any,
       )
 
       expect(detectGodot()).toBeNull()
@@ -727,7 +727,7 @@ describe('detector', () => {
         .mockImplementationOnce(() => 'Godot Engine v4.2.0.stable.official')
 
       vi.mocked(existsSync).mockReturnValue(true)
-      vi.mocked(statSync).mockReturnValue({ isFile: () => true } as any)
+      vi.mocked(statSync).mockReturnValue({ isFile: () => true } as unknown as import('node:fs').Stats)
 
       const result = detectGodot()
 
@@ -751,9 +751,9 @@ describe('detector', () => {
       // Mock isExecutable for /usr/bin/godot to return false (it's a directory)
       vi.mocked(statSync).mockImplementation((path) => {
         if (path === '/usr/bin/godot') {
-          return { isFile: () => false } as any
+          return { isFile: () => false } as unknown as import('node:fs').Stats
         }
-        return { isFile: () => true } as any
+        return { isFile: () => true } as unknown as import('node:fs').Stats
       })
       vi.mocked(existsSync).mockReturnValue(true)
 
@@ -773,7 +773,7 @@ describe('detector', () => {
         .mockReturnValueOnce('Godot Engine v4.1.0.stable.official')
 
       vi.mocked(existsSync).mockReturnValue(true)
-      vi.mocked(statSync).mockReturnValue({ isFile: () => true } as any)
+      vi.mocked(statSync).mockReturnValue({ isFile: () => true } as unknown as import('node:fs').Stats)
 
       const result = detectGodot()
 
@@ -781,8 +781,6 @@ describe('detector', () => {
       expect(result?.path).toBe('C:\\first\\godot.exe')
       expect(result?.source).toBe('path')
     })
-
-
 
     it('should ignore unsupported versions', () => {
       process.env.GODOT_PATH = '/old/godot'
@@ -806,7 +804,7 @@ describe('detector', () => {
         .mockImplementationOnce(() => 'Godot Engine v4.2.0.stable.official')
 
       vi.mocked(existsSync).mockReturnValue(true)
-      vi.mocked(statSync).mockReturnValue({ isFile: () => true } as any)
+      vi.mocked(statSync).mockReturnValue({ isFile: () => true } as unknown as import('node:fs').Stats)
 
       const result = detectGodot()
 
@@ -830,9 +828,9 @@ describe('detector', () => {
       // Mock isExecutable for /usr/bin/godot to return false (it's a directory)
       vi.mocked(statSync).mockImplementation((path) => {
         if (path === '/usr/bin/godot') {
-          return { isFile: () => false } as any
+          return { isFile: () => false } as unknown as import('node:fs').Stats
         }
-        return { isFile: () => true } as any
+        return { isFile: () => true } as unknown as import('node:fs').Stats
       })
       vi.mocked(existsSync).mockReturnValue(true)
 
@@ -852,7 +850,7 @@ describe('detector', () => {
         .mockReturnValueOnce('Godot Engine v4.1.0.stable.official')
 
       vi.mocked(existsSync).mockReturnValue(true)
-      vi.mocked(statSync).mockReturnValue({ isFile: () => true } as any)
+      vi.mocked(statSync).mockReturnValue({ isFile: () => true } as unknown as import('node:fs').Stats)
 
       const result = detectGodot()
 
@@ -860,8 +858,6 @@ describe('detector', () => {
       expect(result?.path).toBe('C:\\first\\godot.exe')
       expect(result?.source).toBe('path')
     })
-
-
 
     it('should continue to system paths if findInPath finds a binary with unsupported version', () => {
       delete process.env.GODOT_PATH
@@ -886,7 +882,7 @@ describe('detector', () => {
         return false
       })
 
-      vi.mocked(statSync).mockReturnValue({ isFile: () => true } as any)
+      vi.mocked(statSync).mockReturnValue({ isFile: () => true } as unknown as import('node:fs').Stats)
 
       const result = detectGodot()
 

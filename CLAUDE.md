@@ -67,7 +67,6 @@ tests/
 - Biome: 2 spaces, 120 line width, single quotes, semicolons as needed
 - Import: `node:` prefix cho builtins, `.js` extension bat buoc (ESM/NodeNext)
 - `import type` bat buoc cho type-only imports (`verbatimModuleSyntax`)
-- Error handling: `GodotMCPError` + `withErrorHandling()` HOF wrapper
 - Tool/param names: snake_case. Files: kebab-case.
 
 ## CD Pipeline

@@ -11,6 +11,7 @@ import { toGodotValue } from '../helpers/godot-types.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
 import { parseProjectSettingsAsync, setSettingInContent } from '../helpers/project-settings.js'
 import { escapeRegExp } from '../helpers/scene-parser.js'
+import { validateNoNewlines } from '../helpers/security.js'
 
 export async function handlePhysics(action: string, args: Record<string, unknown>, config: GodotConfig) {
   const projectPath = (args.project_path as string) || config.projectPath || ''
@@ -43,9 +44,7 @@ export async function handlePhysics(action: string, args: Record<string, unknown
       const nodeName = args.name as string
       if (!nodeName) throw new GodotMCPError('No node name specified', 'INVALID_ARGS', 'Provide node name.')
 
-      if (scenePath.includes('\n') || scenePath.includes('\r') || nodeName.includes('\n') || nodeName.includes('\r')) {
-        throw new GodotMCPError('Invalid arguments: newlines not allowed', 'INVALID_ARGS')
-      }
+      validateNoNewlines(undefined, scenePath, nodeName)
 
       const collisionLayer = args.collision_layer
       const collisionMask = args.collision_mask
@@ -65,16 +64,12 @@ export async function handlePhysics(action: string, args: Record<string, unknown
       let props = ''
       if (collisionLayer !== undefined) {
         const val = toGodotValue(collisionLayer)
-        if (val.includes('\n') || val.includes('\r')) {
-          throw new GodotMCPError('Invalid collision_layer: newlines not allowed', 'INVALID_ARGS')
-        }
+        validateNoNewlines('Invalid collision_layer: newlines not allowed', val)
         props += `\ncollision_layer = ${val}`
       }
       if (collisionMask !== undefined) {
         const val = toGodotValue(collisionMask)
-        if (val.includes('\n') || val.includes('\r')) {
-          throw new GodotMCPError('Invalid collision_mask: newlines not allowed', 'INVALID_ARGS')
-        }
+        validateNoNewlines('Invalid collision_mask: newlines not allowed', val)
         props += `\ncollision_mask = ${val}`
       }
 
@@ -92,9 +87,7 @@ export async function handlePhysics(action: string, args: Record<string, unknown
       const nodeName = args.name as string
       if (!nodeName) throw new GodotMCPError('No node name specified', 'INVALID_ARGS', 'Provide node name.')
 
-      if (scenePath.includes('\n') || scenePath.includes('\r') || nodeName.includes('\n') || nodeName.includes('\r')) {
-        throw new GodotMCPError('Invalid arguments: newlines not allowed', 'INVALID_ARGS')
-      }
+      validateNoNewlines(undefined, scenePath, nodeName)
 
       const fullPath = safeResolve(safeResolve(config.projectPath || process.cwd(), projectPath), scenePath)
       if (!(await pathExists(fullPath)))
@@ -110,9 +103,7 @@ export async function handlePhysics(action: string, args: Record<string, unknown
       for (const prop of physicsProps) {
         if (args[prop] !== undefined) {
           const val = toGodotValue(args[prop])
-          if (val.includes('\n') || val.includes('\r')) {
-            throw new GodotMCPError(`Invalid ${prop}: newlines not allowed`, 'INVALID_ARGS')
-          }
+          validateNoNewlines(`Invalid ${prop}: newlines not allowed`, val)
           props += `\n${prop} = ${val}`
         }
       }
@@ -133,16 +124,7 @@ export async function handlePhysics(action: string, args: Record<string, unknown
       const name = args.name as string
       if (!name) throw new GodotMCPError('No name specified', 'INVALID_ARGS', 'Provide layer name.')
 
-      if (
-        name.includes('\n') ||
-        name.includes('\r') ||
-        dimension.includes('\n') ||
-        dimension.includes('\r') ||
-        layerNumRaw.includes('\n') ||
-        layerNumRaw.includes('\r')
-      ) {
-        throw new GodotMCPError('Invalid arguments: newlines not allowed', 'INVALID_ARGS')
-      }
+      validateNoNewlines(undefined, name, dimension, layerNumRaw)
 
       const layerNum = Number.parseInt(layerNumRaw, 10)
       if (Number.isNaN(layerNum)) {

@@ -548,8 +548,8 @@ describe('detector', () => {
       vi.mocked(execFileSync).mockReturnValue('4.7.dev4.official.755fa449c')
       vi.mocked(readSync).mockImplementation((_fd, buffer) => {
         const b = buffer as Buffer
-        b.write('ELF no signature here')
-        return 22
+        b.write('ELF ... Godot Engine ... signature here')
+        return b.length
       })
 
       const result = detectGodot()

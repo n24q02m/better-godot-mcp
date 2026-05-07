@@ -11,6 +11,7 @@ import {
   removeNodeFromContent,
   renameNodeInContent,
   setNodePropertyInContent,
+  updateNodeInScene,
 } from '../../src/tools/helpers/scene-parser.js'
 import { COMPLEX_TSCN, MINIMAL_TSCN, SCENE_WITH_GROUPS } from '../fixtures.js'
 
@@ -213,6 +214,35 @@ describe('scene-parser', () => {
   // ==========================================
   // setNodePropertyInContent
   // ==========================================
+  // ==========================================
+  // updateNodeInScene
+  // ==========================================
+  describe('updateNodeInScene', () => {
+    it('should update multiple properties at once', () => {
+      const updates = { position: 'Vector2(500, 500)', speed: '1000' }
+      const { content, updated } = updateNodeInScene(COMPLEX_TSCN, 'Player', updates)
+      expect(updated).toBe(true)
+      expect(content).toContain('position = Vector2(500, 500)')
+      expect(content).toContain('speed = 1000')
+      // Check no duplicates
+      expect(content.match(/position = /g)).toHaveLength(1)
+      expect(content.match(/speed = /g)).toHaveLength(1)
+    })
+
+    it('should add new properties while updating existing ones', () => {
+      const updates = { speed: '999', new_prop: 'true' }
+      const { content, updated } = updateNodeInScene(COMPLEX_TSCN, 'Player', updates)
+      expect(updated).toBe(true)
+      expect(content).toContain('speed = 999')
+      expect(content).toContain('new_prop = true')
+    })
+
+    it('should return updated: false if node is not found', () => {
+      const { updated } = updateNodeInScene(MINIMAL_TSCN, 'Ghost', { visible: 'false' })
+      expect(updated).toBe(false)
+    })
+  })
+
   describe('setNodePropertyInContent', () => {
     it('should add a new property to a node', () => {
       const result = setNodePropertyInContent(MINIMAL_TSCN, 'Root', 'visible', 'false')

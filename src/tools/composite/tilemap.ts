@@ -84,7 +84,7 @@ export async function handleTilemap(action: string, args: Record<string, unknown
 
       // Add ext_resource reference
       const extRes = `[ext_resource type="Texture2D" path="${resPath}" id="${sourceId}"]`
-      content = content.replace('[resource]', `${extRes}\n\n[resource]`)
+      content = content.replace('[resource]', () => `${extRes}\n\n[resource]`)
 
       // Performance optimization: using async file writing instead of sync
       await writeFile(fullPath, content, 'utf-8')

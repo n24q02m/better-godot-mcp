@@ -203,9 +203,9 @@ async function attachScript(args: Record<string, unknown>, resolvePath: (path: s
         'NODE_ERROR',
         'Check node name with nodes.list action.',
       )
-    content = content.replace(nodePattern, `$1\nscript = ExtResource("${resPath}")`)
+    content = content.replace(nodePattern, (_match, p1) => `${p1}\nscript = ExtResource("${resPath}")`)
   } else {
-    content = content.replace(NODE_SECTION_RE, `$1\nscript = ExtResource("${resPath}")`)
+    content = content.replace(NODE_SECTION_RE, (_match, p1) => `${p1}\nscript = ExtResource("${resPath}")`)
   }
 
   await writeFile(sceneFullPath, content, 'utf-8')

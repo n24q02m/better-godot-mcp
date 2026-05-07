@@ -289,7 +289,7 @@ export async function handleInputMap(action: string, args: Record<string, unknow
 
       // Add action after [input] section header
       const actionLine = `${actionName}={\n"deadzone": ${deadzone},\n"events": []\n}`
-      content = content.replace('[input]', `[input]\n${actionLine}`)
+      content = content.replace('[input]', () => `[input]\n${actionLine}`)
 
       await writeFile(configPath, content, 'utf-8')
       return formatSuccess(`Added input action: ${actionName} (deadzone: ${deadzone})`)
@@ -422,7 +422,7 @@ export async function handleInputMap(action: string, args: Record<string, unknow
 
       const existingEvents = match[2].trim()
       const newEvents = existingEvents ? `${existingEvents}, ${eventObj}` : eventObj
-      const updated = content.replace(actionRegex, `$1${newEvents}]`)
+      const updated = content.replace(actionRegex, (_match, p1) => `${p1}${newEvents}]`)
 
       await writeFile(configPath, updated, 'utf-8')
       return formatSuccess(`Added ${eventType} event to action: ${actionName}`)

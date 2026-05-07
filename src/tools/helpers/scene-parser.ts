@@ -1,58 +1,18 @@
-/**
- * Scene Parser - Parse Godot .tscn (text scene) format
- *
- * .tscn format structure:
- * [gd_scene load_steps=N format=3 uid="uid://..."]
- * [ext_resource type="..." uid="uid://..." path="res://..." id="N_xxxxx"]
- * [sub_resource type="..." id="N_xxxxx"]
- * key = value
- * [node name="..." type="..." parent="."]
- * key = value
- * [connection signal="..." from="..." to="..." method="..."]
- */
-
 import { readFile } from 'node:fs/promises'
-import { parseCommaSeparatedList } from './strings.js'
-
 /**
- * Fast-path string extraction for attributes like name="value"
+ * Utility functions for parsing and manipulating Godot .tscn (text scene) files.
+ *
+ * Provides functions to parse scene structure, find nodes, and perform
+ * safely-scoped content replacements (rename, remove, set property).
  */
-function extractAttribute(line: string, prefix: string, suffix: string): string | undefined {
-  const startIdx = line.indexOf(prefix)
-  if (startIdx === -1) return undefined
-  const valueStart = startIdx + prefix.length
-  const endIdx = line.indexOf(suffix, valueStart)
-  if (endIdx === -1) return undefined
-  return line.slice(valueStart, endIdx)
-}
 
-/**
- * Fast-path extraction for numeric attributes like format=3
- */
-function extractNumberAttribute(line: string, prefix: string): number | undefined {
-  const startIdx = line.indexOf(prefix)
-  if (startIdx === -1) return undefined
-  const valueStart = startIdx + prefix.length
-  let endIdx = valueStart
-  while (endIdx < line.length) {
-    const charCode = line.charCodeAt(endIdx)
-    if (charCode >= 48 && charCode <= 57) {
-      // '0'-'9'
-      endIdx++
-    } else {
-      break
-    }
-  }
-  if (endIdx > valueStart) {
-    return Number.parseInt(line.slice(valueStart, endIdx), 10)
-  }
-  return undefined
-}
-
-export interface TscnHeader {
-  format: number
-  loadSteps: number
-  uid?: string
+export interface SceneNodeInfo {
+  name: string
+  type?: string
+  parent?: string
+  instance?: string
+  groups?: string[]
+  properties: Record<string, string>
 }
 
 export interface ExtResource {
@@ -68,21 +28,18 @@ export interface SubResource {
   properties: Record<string, string>
 }
 
-export interface SceneNodeInfo {
-  name: string
-  type?: string
-  parent?: string
-  instance?: string
-  properties: Record<string, string>
-  groups?: string[]
-}
-
 export interface SignalConnection {
   signal: string
   from: string
   to: string
   method: string
   flags?: number
+}
+
+export interface TscnHeader {
+  format: number
+  loadSteps: number
+  uid?: string
 }
 
 export interface ParsedScene {
@@ -95,15 +52,52 @@ export interface ParsedScene {
 }
 
 /**
- * Parse a .tscn file into structured data
+ * Extract a single attribute value from a line (e.g., name="NodeName")
  */
-export async function parseScene(filePath: string): Promise<ParsedScene> {
-  const raw = await readFile(filePath, 'utf-8')
-  return parseSceneContent(raw)
+function extractAttribute(line: string, prefix: string, suffix: string): string | undefined {
+  const start = line.indexOf(prefix)
+  if (start === -1) return undefined
+  const valStart = start + prefix.length
+  const end = line.indexOf(suffix, valStart)
+  if (end === -1) return undefined
+  return line.slice(valStart, end)
 }
 
 /**
- * Parse .tscn content string into structured data
+ * Extract a numeric attribute value (e.g., format=3)
+ */
+function extractNumberAttribute(line: string, prefix: string): number | undefined {
+  const start = line.indexOf(prefix)
+  if (start === -1) return undefined
+  const valStart = start + prefix.length
+  let end = valStart
+  while (end < line.length && line[end] >= '0' && line[end] <= '9') {
+    end++
+  }
+  const val = line.slice(valStart, end)
+  return val ? parseInt(val, 10) : undefined
+}
+
+/**
+ * Parse a comma-separated list into an array (e.g., groups=["a", "b"])
+ */
+function parseCommaSeparatedList(content: string): string[] {
+  return content
+    .split(',')
+    .map((s) => s.trim().replace(/^"(.*)"$/, '$1'))
+    .filter((s) => s.length > 0)
+}
+
+/**
+ * Helper to read and parse a scene file
+ */
+export async function parseScene(path: string): Promise<ParsedScene> {
+  const content = await readFile(path, 'utf-8')
+  return parseSceneContent(content)
+}
+
+/**
+ * Parse a full .tscn content into a structured object
  */
 export function parseSceneContent(content: string): ParsedScene {
   const header: TscnHeader = { format: 3, loadSteps: 1 }
@@ -123,24 +117,19 @@ export function parseSceneContent(content: string): ParsedScene {
     let endIndex = content.indexOf('\n', startIndex)
     if (endIndex === -1) endIndex = len
 
+    // Find first non-whitespace character
     let start = startIndex
-    // Skip leading whitespace manually
     while (start < endIndex && content.charCodeAt(start) <= 32) {
       start++
     }
 
-    let end = endIndex
-    // Skip trailing whitespace manually
-    while (end > start && content.charCodeAt(end - 1) <= 32) {
-      end--
-    }
-
-    if (start < end) {
+    if (start < endIndex) {
       const firstChar = content.charCodeAt(start)
-      // Skip comments starting with ';'
+
       if (firstChar !== 59) {
+        // ';' (comment)
         if (firstChar === 91) {
-          // '[' character indicates a new section
+          // '[' indicates a new section
           // Save previous node/sub_resource
           if (currentNode) nodes.push(currentNode)
           if (currentSubResource) subResources.push(currentSubResource)
@@ -148,7 +137,7 @@ export function parseSceneContent(content: string): ParsedScene {
           currentSubResource = null
 
           const secondChar = content.charCodeAt(start + 1)
-          const line = content.slice(start, end)
+          const line = content.slice(start, endIndex)
 
           if (secondChar === 103) {
             // 'g' -> [gd_scene
@@ -176,7 +165,7 @@ export function parseSceneContent(content: string): ParsedScene {
         } else if (currentSection === 'node' || currentSection === 'sub_resource') {
           const target = currentSection === 'node' ? currentNode?.properties : currentSubResource?.properties
           if (target) {
-            parseProperty(content, start, end, target)
+            parseProperty(content, start, endIndex, target)
           }
         }
       }
@@ -301,7 +290,13 @@ function parseProperty(content: string, start: number, end: number, target: Reco
     while (vStart < end && content.charCodeAt(vStart) <= 32) {
       vStart++
     }
-    const value = content.slice(vStart, end)
+
+    // Trim trailing whitespace from value as well
+    let vEnd = end
+    while (vEnd > vStart && content.charCodeAt(vEnd - 1) <= 32) {
+      vEnd--
+    }
+    const value = content.slice(vStart, vEnd)
 
     target[key] = value
   }
@@ -386,22 +381,36 @@ export function renameNodeInContent(content: string, oldName: string, newName: s
     return content
   }
 
-  // ⚡ Bolt: Use exact string replacements via replaceAll instead of new RegExp(..., 'g')
-  // This avoids expensive regex compilation and matching overhead for simple exact matches.
-  let result = content.replaceAll(`name="${oldName}"`, `name="${newName}"`)
-  result = result.replaceAll(`parent="${oldName}"`, `parent="${newName}"`)
-  result = result.replaceAll(`from="${oldName}"`, `from="${newName}"`)
-  result = result.replaceAll(`to="${oldName}"`, `to="${newName}"`)
+  // Use a regex to find all relevant attributes in one pass.
+  // Using a replacement function avoids $ backreference injection vulnerabilities.
+  const attrRegex = /(name|parent|from|to)="([^"]*)"/g
 
-  // Fallback to RegExp only for complex hierarchical path replacements
-  // e.g., parent="Root/OldName/Child" or parent="Root/OldName"
-  if (result.includes(`/${oldName}/`) || result.includes(`/${oldName}"`)) {
-    const escapedOldName = escapeRegExp(oldName)
-    result = result.replace(new RegExp(`parent="([^"]*/)${escapedOldName}(/[^"]*)"`, 'g'), `parent="$1${newName}$2"`)
-    result = result.replace(new RegExp(`parent="([^"]*/)${escapedOldName}"`, 'g'), `parent="$1${newName}"`)
-  }
+  return content.replace(attrRegex, (match, attr, value) => {
+    if (attr === 'parent') {
+      // Handle hierarchical paths (e.g. parent="Root/Old/GrandChild")
+      if (value === oldName) {
+        return `parent="${newName}"`
+      }
+      if (value.includes(oldName)) {
+        const parts = value.split('/')
+        let changed = false
+        for (let i = 0; i < parts.length; i++) {
+          if (parts[i] === oldName) {
+            parts[i] = newName
+            changed = true
+          }
+        }
+        if (changed) {
+          return `parent="${parts.join('/')}"`
+        }
+      }
+    } else if (value === oldName) {
+      // For name, from, to: only replace if it's an exact match.
+      return `${attr}="${newName}"`
+    }
 
-  return result
+    return match
+  })
 }
 
 /**
@@ -446,8 +455,19 @@ export function setNodePropertyInContent(content: string, nodeName: string, prop
       inTargetNode &&
       (content.startsWith(`${property} `, start) || content.startsWith(`${property}=`, start))
     ) {
-      result.push(`${property} = ${value}`)
-      propertySet = true
+      // Use exact property key match to avoid partial matches
+      const eqIdx = line.indexOf('=')
+      if (eqIdx !== -1) {
+        const key = line.slice(0, eqIdx).trim()
+        if (key === property) {
+          result.push(`${property} = ${value}`)
+          propertySet = true
+        } else {
+          result.push(line)
+        }
+      } else {
+        result.push(line)
+      }
     } else {
       result.push(line)
     }

@@ -140,7 +140,7 @@ bun run check:fix   # Auto-fix issues
 
 - **Indent**: 2 spaces
 - **Quotes**: Single quotes
-- **Semicolons**: None
+- **Semicolons**: As needed
 - **Line width**: 120 characters
 - **TypeScript**: Strict mode enabled
 
@@ -175,10 +175,17 @@ better-godot-mcp/
 ├── biome.json
 ├── tsconfig.json
 ├── package.json
-└── README.md
+├── README.md
+├── CONTRIBUTING.md           # This guide
+├── LICENSE                   # MIT License
+├── Dockerfile                # Docker build configuration
+├── AGENTS.md                 # Agent-specific instructions
+└── CLAUDE.md                 # Development notes and known bugs
 ```
 
 ## Questions?
+
+Before opening a new issue, please check the **Known bugs** section in `CLAUDE.md`.
 
 Feel free to open an issue for:
 

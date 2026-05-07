@@ -26,14 +26,14 @@ Check in this order -- each step is the most common cause at that point:
 
 1. **Collision layer/mask mismatch** (most common):
    ```
-   nodes(action="get_property", scene="<scene>.tscn", node_path="<body>", property="collision_layer")
-   nodes(action="get_property", scene="<scene>.tscn", node_path="<body>", property="collision_mask")
+   nodes(action="get_property", scene_path="<scene>.tscn", name="<body>", property="collision_layer")
+   nodes(action="get_property", scene_path="<scene>.tscn", name="<body>", property="collision_mask")
    ```
    Rule: Object A detects Object B only if A's `collision_mask` has a bit that matches B's `collision_layer`. Both must be set correctly.
 
 2. **Missing CollisionShape2D/3D**:
    ```
-   scenes(action="get", scene="<scene>.tscn")
+   scenes(action="info", scene_path="<scene>.tscn")
    ```
    Verify every physics body and Area has a CollisionShape child. A body without a shape = invisible to physics.
 
@@ -53,18 +53,24 @@ Check in this order -- each step is the most common cause at that point:
 1. **Connection exists?**
    - Check scene file for `[connection]` entries
    - Or check script for `connect()` calls
+   - Debug: Print `is_connected("signal_name", callable)` in `_ready()`
    - Missing connection = signal silently does nothing
 
-2. **Signature match?**
+2. **Signal blocked?**
+   - Check `set_block_signals(true)` or `Object.block_signals` property
+   - If blocked, no signals will be emitted from that object
+
+3. **Signature match?**
    - Signal definition parameters must match handler function parameters
    - `signal health_changed(new_hp: int)` requires handler `func _on_health_changed(new_hp: int)`
    - Extra or missing parameters = Godot error at runtime
 
-3. **Signal emitted?**
-   - Add `print("signal emitted")` before `emit_signal()` / `signal.emit()`
+4. **Signal emitted?**
+   - Add `print("signal emitted")` before `signal_name.emit()`
    - If not printed, the emit call is never reached (logic bug)
+   - In Godot 4, prefer `signal_name.emit()` over `emit_signal("signal_name")`
 
-4. **Callable valid?**
+5. **Callable valid?**
    - If connected via code: target node must exist when `connect()` runs
    - If target is freed, signal emits to invalid callable = error
 
@@ -128,10 +134,10 @@ Check in this order -- each step is the most common cause at that point:
 
 For any category:
 
-1. **Inspect the scene tree**: `scenes(action="get", scene="<scene>.tscn")`
-2. **Read relevant scripts**: `scripts(action="get", path="res://scripts/<name>.gd")`
-3. **Check properties**: `nodes(action="get_property", ...)`
-4. **Run the scene**: `editor(action="run_scene", scene="<scene>.tscn")` and check output for errors
+1. **Inspect the scene tree**: `scenes(action="info", scene_path="<scene>.tscn")`
+2. **Read relevant scripts**: `scripts(action="read", script_path="scripts/<name>.gd")`
+3. **Check properties**: `nodes(action="get_property", scene_path="<scene>.tscn", name="<node>", property="<prop>")`
+4. **Run the game**: `project(action="run")` and check output for errors
 5. **Report findings**: present root cause and specific fix (property change, missing node, script edit)
 
 ## When to Use

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
+import { runGodotProject } from '../../src/godot/headless.js'
 import { handleProject } from '../../src/tools/composite/project.js'
 import { makeConfig } from '../fixtures.js'
-import { runGodotProject } from '../../src/godot/headless.js'
 
 vi.mock('../../src/godot/headless.js', () => ({
   execGodotAsync: vi.fn().mockResolvedValue({ success: true, stdout: '', stderr: '', exitCode: 0 }),
@@ -19,7 +19,7 @@ describe('project run security', () => {
           scene_path: '--script=malicious.gd',
         },
         config,
-      )
+      ),
     ).rejects.toThrow('Invalid scene path')
     expect(runGodotProject).not.toHaveBeenCalled()
   })

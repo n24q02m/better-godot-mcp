@@ -89,15 +89,21 @@ describe('security', () => {
     })
 
     it('should throw for string with newline', () => {
-      expect(() => validateNoNewlines(undefined, 'safe', 'has\nnewline')).toThrow('Invalid arguments: newlines not allowed')
+      expect(() => validateNoNewlines(undefined, 'safe', 'has\nnewline')).toThrow(
+        'Invalid arguments: newlines not allowed',
+      )
     })
 
     it('should throw for string with carriage return', () => {
-      expect(() => validateNoNewlines(undefined, 'has\rcarriage', 'safe')).toThrow('Invalid arguments: newlines not allowed')
+      expect(() => validateNoNewlines(undefined, 'has\rcarriage', 'safe')).toThrow(
+        'Invalid arguments: newlines not allowed',
+      )
     })
 
     it('should throw for mixed inputs with a newline', () => {
-      expect(() => validateNoNewlines(undefined, 123, 'has\nnewline', true)).toThrow('Invalid arguments: newlines not allowed')
+      expect(() => validateNoNewlines(undefined, 123, 'has\nnewline', true)).toThrow(
+        'Invalid arguments: newlines not allowed',
+      )
     })
 
     it('should use custom message when provided', () => {

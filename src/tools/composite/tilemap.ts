@@ -9,6 +9,7 @@ import { dirname } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
+import { validateNoNewlines } from '../helpers/security.js'
 
 /**
  * Async helper to check file existence without blocking the event loop
@@ -66,6 +67,8 @@ export async function handleTilemap(action: string, args: Record<string, unknown
       if (!tilesetPath || !texturePath) {
         throw new GodotMCPError('tileset_path and texture_path required', 'INVALID_ARGS', 'Both are required.')
       }
+
+      validateNoNewlines(undefined, tilesetPath, texturePath)
 
       const fullPath = safeResolve(projectPath || process.cwd(), tilesetPath)
 

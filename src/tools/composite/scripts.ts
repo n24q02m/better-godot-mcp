@@ -9,6 +9,7 @@ import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
 import { escapeRegExp } from '../helpers/scene-parser.js'
+import { validateNoNewlines } from '../helpers/security.js'
 
 const NODE_SECTION_RE = /(\[node [^\]]+\])/
 
@@ -185,6 +186,8 @@ async function attachScript(args: Record<string, unknown>, resolvePath: (path: s
       'Provide scene_path and script_path.',
     )
   }
+
+  validateNoNewlines(undefined, scenePath, scriptPath, nodeName)
 
   const sceneFullPath = resolvePath(scenePath)
   if (!(await pathExists(sceneFullPath)))

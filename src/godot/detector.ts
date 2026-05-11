@@ -150,7 +150,10 @@ function findInPath(): string | null {
         stdio: ['pipe', 'pipe', 'pipe'],
         encoding: 'utf-8',
       })
-      const path = result.trim().split('\n')[0].trim()
+      const trimmedResult = result.trim()
+      const newlineIdx = trimmedResult.indexOf('\n')
+      // ⚡ Bolt: Use indexOf and slice instead of split('\n')[0] to avoid array allocation
+      const path = (newlineIdx === -1 ? trimmedResult : trimmedResult.slice(0, newlineIdx)).trim()
       if (path && isExecutable(path)) return path
     } catch {
       // Not found, continue

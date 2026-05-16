@@ -1,6 +1,6 @@
-import { expect, it, vi, describe, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { GodotConfig } from '../../src/godot/types.js'
 import { handleProject } from '../../src/tools/composite/project.js'
-import { runGodotProject } from '../../src/godot/headless.js'
 
 vi.mock('../../src/godot/headless.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/godot/headless.js')>()
@@ -16,7 +16,7 @@ describe('Scene Path Argument Injection', () => {
   })
 
   it('should reject scene_path starting with hyphen', async () => {
-    const config = { godotPath: '/bin/godot', projectPath: '/tmp/proj', activePids: [] }
+    const config = { godotPath: '/bin/godot', projectPath: '/tmp/proj', activePids: [] } as unknown as GodotConfig
 
     // Simulate malicious input
     const args = {
@@ -24,6 +24,6 @@ describe('Scene Path Argument Injection', () => {
       scene_path: '--script=malicious.gd',
     }
 
-    await expect(handleProject('run', args, config as any)).rejects.toThrow('Invalid scene path')
+    await expect(handleProject('run', args, config)).rejects.toThrow('Invalid scene path')
   })
 })

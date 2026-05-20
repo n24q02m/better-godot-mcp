@@ -480,6 +480,8 @@ const P3_TOOLS = [
 ]
 
 const TOOLS = [...P0_TOOLS, ...P1_TOOLS, ...P2_TOOLS, ...P3_TOOLS]
+// ⚡ Bolt: Pre-calculate valid tool names once to avoid array allocation on every unknown tool request
+const VALID_TOOL_NAMES = TOOLS.map((t) => t.name)
 
 type ToolHandler = (
   action: string,
@@ -527,7 +529,7 @@ export function registerTools(server: Server, config: GodotConfig): void {
       } else {
         const handler = TOOL_HANDLERS[name]
         if (!handler) {
-          const validTools = TOOLS.map((t) => t.name)
+          const validTools = VALID_TOOL_NAMES
           const closest = findClosestMatch(name, validTools)
           const suggestion = closest ? ` Did you mean '${closest}'?` : ''
           throw new GodotMCPError(

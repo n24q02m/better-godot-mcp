@@ -9,6 +9,7 @@ import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
 import { escapeRegExp } from '../helpers/scene-parser.js'
+import { validateNoNewlines } from '../helpers/security.js'
 
 const NODE_SECTION_RE = /(\[node [^\]]+\])/
 
@@ -132,7 +133,9 @@ async function createScript(args: Record<string, unknown>, resolvePath: (path: s
   const scriptPath = args.script_path as string
   if (!scriptPath)
     throw new GodotMCPError('No script_path specified', 'INVALID_ARGS', 'Provide script_path (e.g., "player.gd").')
+  validateNoNewlines(undefined, scriptPath)
   const extendsType = (args.extends as string) || 'Node'
+  validateNoNewlines(undefined, extendsType)
   const content = (args.content as string) || getTemplate(extendsType)
 
   const fullPath = resolvePath(scriptPath)
@@ -152,6 +155,7 @@ async function createScript(args: Record<string, unknown>, resolvePath: (path: s
 async function readScript(args: Record<string, unknown>, resolvePath: (path: string) => string) {
   const scriptPath = args.script_path as string
   if (!scriptPath) throw new GodotMCPError('No script_path specified', 'INVALID_ARGS', 'Provide script_path.')
+  validateNoNewlines(undefined, scriptPath)
 
   const fullPath = resolvePath(scriptPath)
   if (!(await pathExists(fullPath)))
@@ -164,6 +168,7 @@ async function readScript(args: Record<string, unknown>, resolvePath: (path: str
 async function writeScript(args: Record<string, unknown>, resolvePath: (path: string) => string) {
   const scriptPath = args.script_path as string
   if (!scriptPath) throw new GodotMCPError('No script_path specified', 'INVALID_ARGS', 'Provide script_path.')
+  validateNoNewlines(undefined, scriptPath)
   const content = args.content as string
   if (content === undefined || content === null)
     throw new GodotMCPError('No content specified', 'INVALID_ARGS', 'Provide content to write.')
@@ -185,6 +190,7 @@ async function attachScript(args: Record<string, unknown>, resolvePath: (path: s
       'Provide scene_path and script_path.',
     )
   }
+  validateNoNewlines(undefined, scenePath, scriptPath, nodeName)
 
   const sceneFullPath = resolvePath(scenePath)
   if (!(await pathExists(sceneFullPath)))
@@ -234,6 +240,7 @@ async function listScripts(baseDir: string, projectPath: string | undefined) {
 async function deleteScript(args: Record<string, unknown>, resolvePath: (path: string) => string) {
   const scriptPath = args.script_path as string
   if (!scriptPath) throw new GodotMCPError('No script_path specified', 'INVALID_ARGS', 'Provide script_path to delete.')
+  validateNoNewlines(undefined, scriptPath)
 
   const fullPath = resolvePath(scriptPath)
   if (!(await pathExists(fullPath)))

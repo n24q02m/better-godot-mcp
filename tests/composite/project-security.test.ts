@@ -103,6 +103,21 @@ describe('project security', () => {
       expect(execGodotAsync).toHaveBeenCalled()
     })
 
+    it('should reject run command with scene_path starting with a hyphen', async () => {
+      await expect(
+        handleProject(
+          'run',
+          {
+            project_path: projectPath,
+            scene_path: '--script=malicious.gd',
+          },
+          config,
+        ),
+      ).rejects.toThrow('Invalid scene path')
+
+      expect(execGodotAsync).not.toHaveBeenCalled()
+    })
+
     it('should reject preset or output_path that are not strings', async () => {
       await expect(
         handleProject(

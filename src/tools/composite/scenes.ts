@@ -264,8 +264,8 @@ export async function handleScenes(action: string, args: Record<string, unknown>
 
     case 'set_main': {
       // projectPath and scenePath are guaranteed
-      if (scenePath.includes('"')) {
-        throw new GodotMCPError('Invalid scene path', 'INVALID_ARGS', 'Scene path must not contain quotes.')
+      if (scenePath.includes('"') || scenePath.includes('\n') || scenePath.includes('\r')) {
+        throw new GodotMCPError('Invalid scene path', 'INVALID_ARGS', 'Scene path must not contain quotes or newlines.')
       }
 
       const configPath = join(safeResolve(baseDir, projectPath as string), 'project.godot')

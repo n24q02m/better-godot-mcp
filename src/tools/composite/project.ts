@@ -114,8 +114,14 @@ export async function handleProject(action: string, args: Record<string, unknown
       }
 
       const scenePath = args.scene_path as string
+      if (scenePath !== undefined && typeof scenePath !== 'string') {
+        throw new GodotMCPError('Invalid scene path', 'INVALID_ARGS', 'Scene path must be a string.')
+      }
       if (scenePath && (scenePath.includes('\n') || scenePath.includes('\r'))) {
         throw new GodotMCPError('Invalid scene path', 'INVALID_ARGS', 'Scene path must not contain newlines.')
+      }
+      if (scenePath?.startsWith('-')) {
+        throw new GodotMCPError('Invalid scene path', 'INVALID_ARGS', 'Scene path must not start with a hyphen.')
       }
 
       const { pid } = runGodotProject(

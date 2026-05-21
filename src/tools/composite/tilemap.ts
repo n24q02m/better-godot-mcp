@@ -67,6 +67,14 @@ export async function handleTilemap(action: string, args: Record<string, unknown
         throw new GodotMCPError('tileset_path and texture_path required', 'INVALID_ARGS', 'Both are required.')
       }
 
+      if (texturePath.includes('\n') || texturePath.includes('\r') || texturePath.includes('"')) {
+        throw new GodotMCPError(
+          'Invalid texture path',
+          'INVALID_ARGS',
+          'Texture path must not contain newlines or double quotes.',
+        )
+      }
+
       const fullPath = safeResolve(projectPath || process.cwd(), tilesetPath)
 
       // Performance optimization: using async pathExists instead of existsSync

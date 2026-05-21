@@ -11,7 +11,7 @@ import { createTmpProject, makeConfig } from '../fixtures.js'
 vi.mock('../../src/godot/headless.js', () => ({
   execGodotAsync: vi.fn().mockResolvedValue({ success: true, stdout: '', stderr: '', exitCode: 0 }),
   execGodotSync: vi.fn(),
-  runGodotProject: vi.fn(),
+  runGodotProject: vi.fn().mockReturnValue({ pid: 12345 }),
 }))
 
 // Mock child_process for stop command
@@ -19,7 +19,7 @@ vi.mock('node:child_process', () => ({
   execFileSync: vi.fn(),
 }))
 
-import { execGodotAsync } from '../../src/godot/headless.js'
+import { execGodotAsync, runGodotProject } from '../../src/godot/headless.js'
 
 describe('project security', () => {
   let projectPath: string
@@ -101,6 +101,80 @@ describe('project security', () => {
 
       expect(result.content[0].text).toContain('Export complete: build/game.exe')
       expect(execGodotAsync).toHaveBeenCalled()
+    })
+
+    it('should reject scene_path starting with a hyphen on run action', async () => {
+      await expect(
+        handleProject(
+          'run',
+          {
+            project_path: projectPath,
+            scene_path: '--script=malicious.gd',
+          },
+          config,
+        ),
+      ).rejects.toThrow('Invalid scene path')
+
+      expect(runGodotProject).not.toHaveBeenCalled()
+    })
+
+    it('should reject scene_path with a leading hyphen even if it looks pathy', async () => {
+      await expect(
+        handleProject(
+          'run',
+          {
+            project_path: projectPath,
+            scene_path: '-x',
+          },
+          config,
+        ),
+      ).rejects.toThrow('Invalid scene path')
+
+      expect(runGodotProject).not.toHaveBeenCalled()
+    })
+
+    it('should reject scene_path containing a newline on run action', async () => {
+      await expect(
+        handleProject(
+          'run',
+          {
+            project_path: projectPath,
+            scene_path: 'main.tscn\n--script=bad.gd',
+          },
+          config,
+        ),
+      ).rejects.toThrow('Invalid scene path')
+
+      expect(runGodotProject).not.toHaveBeenCalled()
+    })
+
+    it('should reject non-string scene_path on run action', async () => {
+      await expect(
+        handleProject(
+          'run',
+          {
+            project_path: projectPath,
+            scene_path: 42,
+          },
+          config,
+        ),
+      ).rejects.toThrow('Invalid scene path')
+
+      expect(runGodotProject).not.toHaveBeenCalled()
+    })
+
+    it('should allow a safe scene_path on run action', async () => {
+      const result = await handleProject(
+        'run',
+        {
+          project_path: projectPath,
+          scene_path: 'scenes/main.tscn',
+        },
+        config,
+      )
+
+      expect(result.content[0].text).toContain('Godot project started')
+      expect(runGodotProject).toHaveBeenCalled()
     })
 
     it('should reject preset or output_path that are not strings', async () => {

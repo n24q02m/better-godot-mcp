@@ -186,6 +186,21 @@ async function attachScript(args: Record<string, unknown>, resolvePath: (path: s
     )
   }
 
+  if (scriptPath.includes('\n') || scriptPath.includes('\r') || scriptPath.includes('"')) {
+    throw new GodotMCPError(
+      'Invalid script path',
+      'INVALID_ARGS',
+      'Script path must not contain newlines or double quotes.',
+    )
+  }
+  if (nodeName && (nodeName.includes('\n') || nodeName.includes('\r') || nodeName.includes('"'))) {
+    throw new GodotMCPError(
+      'Invalid node name',
+      'INVALID_ARGS',
+      'Node name must not contain newlines or double quotes.',
+    )
+  }
+
   const sceneFullPath = resolvePath(scenePath)
   if (!(await pathExists(sceneFullPath)))
     throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Create the scene first.')

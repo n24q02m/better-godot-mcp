@@ -80,4 +80,30 @@ describe('Scenes Tool Security', () => {
       ),
     ).rejects.toThrow('Invalid root type')
   })
+
+  it('should prevent newline injection in scene_path (set_main)', async () => {
+    const maliciousScene = 'main.tscn\n[malicious]\nrun/main_scene="res://evil.tscn"'
+
+    await expect(
+      handleScenes(
+        'set_main',
+        {
+          scene_path: maliciousScene,
+        },
+        config,
+      ),
+    ).rejects.toThrow('Invalid scene path')
+  })
+
+  it('should still reject quote injection in scene_path (set_main)', async () => {
+    await expect(
+      handleScenes(
+        'set_main',
+        {
+          scene_path: 'main.tscn"\nrun/main_scene="res://evil.tscn',
+        },
+        config,
+      ),
+    ).rejects.toThrow('Invalid scene path')
+  })
 })

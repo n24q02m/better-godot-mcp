@@ -480,6 +480,7 @@ const P3_TOOLS = [
 ]
 
 const TOOLS = [...P0_TOOLS, ...P1_TOOLS, ...P2_TOOLS, ...P3_TOOLS]
+const VALID_TOOLS = TOOLS.map((t) => t.name)
 
 type ToolHandler = (
   action: string,
@@ -527,13 +528,12 @@ export function registerTools(server: Server, config: GodotConfig): void {
       } else {
         const handler = TOOL_HANDLERS[name]
         if (!handler) {
-          const validTools = TOOLS.map((t) => t.name)
-          const closest = findClosestMatch(name, validTools)
+          const closest = findClosestMatch(name, VALID_TOOLS)
           const suggestion = closest ? ` Did you mean '${closest}'?` : ''
           throw new GodotMCPError(
             `Unknown tool: ${name}.${suggestion}`,
             'INVALID_ACTION',
-            `Available tools: ${validTools.join(', ')}`,
+            `Available tools: ${VALID_TOOLS.join(', ')}`,
           )
         }
         result = await handler(args.action as string, args as Record<string, unknown>, config)

@@ -1,0 +1,3 @@
+## 2024-03-24 - Pre-compute validTools in registry.ts and optimize array allocations
+**Learning:** In `src/tools/registry.ts`, the `validTools` array was being computed using `TOOLS.map((t) => t.name)` dynamically on every tool invocation error path. In `src/tools/helpers/security.ts`, `wrapToolResult` was allocating a new array using `.map` on hot response paths. While the former is an error path, it could be called frequently for invalid tools or autocomplete features. The latter happens on every result returning content.
+**Action:** Extracted `validTools` computation to module scope instead of doing `TOOLS.map()` inside the request handler. Replaced `.map()` with pre-allocated arrays and loops in `wrapToolResult` to avoid garbage collection overhead.

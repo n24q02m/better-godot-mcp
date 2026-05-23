@@ -43,12 +43,19 @@ export function wrapToolResult<T extends { content: Array<{ type: string; text: 
     return result
   }
 
-  return {
-    ...result,
-    content: result.content.map((item) => ({
+  // ⚡ Bolt: Use pre-allocated array instead of .map() to avoid memory allocations
+  const wrappedContent = new Array(result.content.length)
+  for (let i = 0; i < result.content.length; i++) {
+    const item = result.content[i]
+    wrappedContent[i] = {
       ...item,
       text: `<untrusted_godot_content>\n${item.text}\n</untrusted_godot_content>\n\n${SAFETY_WARNING}`,
-    })),
+    }
+  }
+
+  return {
+    ...result,
+    content: wrappedContent,
   }
 }
 

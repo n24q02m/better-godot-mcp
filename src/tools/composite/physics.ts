@@ -28,10 +28,11 @@ export async function handlePhysics(action: string, args: Record<string, unknown
       const layers3d: Record<string, string> = {}
 
       for (const [key, value] of settings.sections.get('layer_names') || []) {
+        // ⚡ Bolt: Use .replaceAll('"', '') instead of .replace(/"/g, '') to avoid RegExp compilation overhead
         if (key.startsWith('2d_physics/layer_')) {
-          layers2d[key] = value.replace(/"/g, '')
+          layers2d[key] = value.replaceAll('"', '')
         } else if (key.startsWith('3d_physics/layer_')) {
-          layers3d[key] = value.replace(/"/g, '')
+          layers3d[key] = value.replaceAll('"', '')
         }
       }
 

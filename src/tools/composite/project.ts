@@ -44,15 +44,25 @@ async function parseProjectGodot(projectPath: string): Promise<ProjectInfo> {
 
     if (start < end) {
       const trimmed = content.slice(start, end)
+      const firstChar = trimmed.charCodeAt(0)
+      const lastChar = trimmed.charCodeAt(trimmed.length - 1)
 
-      const sectionMatch = trimmed.match(/^\[(.+)\]$/)
-      if (sectionMatch) {
-        currentSection = sectionMatch[1]
+      // Section header
+      if (firstChar === 91 && lastChar === 93) {
+        // '[' and ']'
+        currentSection = trimmed.slice(1, -1)
       } else {
-        const kvMatch = trimmed.match(/^([^\s=]+)\s*=\s*(.+)$/)
-        if (kvMatch) {
-          const [, key, rawValue] = kvMatch
-          const value = rawValue.replace(/^"(.*)"$/, '$1')
+        // Key-value pair
+        const eqIdx = trimmed.indexOf('=')
+        if (eqIdx !== -1) {
+          // ⚡ Bolt: Direct string slice and length checks replace expensive RegExp compilation and matching
+          const key = trimmed.slice(0, eqIdx).trimEnd()
+          const rawValue = trimmed.slice(eqIdx + 1).trimStart()
+
+          const value =
+            rawValue.length >= 2 && rawValue.charCodeAt(0) === 34 && rawValue.charCodeAt(rawValue.length - 1) === 34
+              ? rawValue.slice(1, -1)
+              : rawValue
 
           if (currentSection === '' || currentSection === 'application') {
             if (key === 'config/name') info.name = value

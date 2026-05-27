@@ -5,3 +5,7 @@
 ## 2025-03-02 - [Avoid RegExp compilation for exact string replacements]
 **Learning:** Using `.replace(/"/g, '')` incurs overhead due to instantiating and executing a regular expression.
 **Action:** Use `.replaceAll('"', '')` instead when performing simple, exact string replacements. This avoids RegExp allocation overhead entirely.
+
+## 2025-03-09 - [Avoid RegExp for parsing INI-like lines]
+**Learning:** Using regular expressions (`.match()`) inside hot loops for parsing `project.godot` configuration files causes unnecessary memory allocation overhead due to RegExp object execution and Match array generation.
+**Action:** Replace regular expressions with fast string manipulation primitives like `charCodeAt` and `indexOf` when traversing INI-like lines. This directly mitigates GC pressure and improves parsing performance for large files.

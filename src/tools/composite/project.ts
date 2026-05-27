@@ -45,22 +45,26 @@ async function parseProjectGodot(projectPath: string): Promise<ProjectInfo> {
     if (start < end) {
       const trimmed = content.slice(start, end)
 
-      const sectionMatch = trimmed.match(/^\[(.+)\]$/)
-      if (sectionMatch) {
-        currentSection = sectionMatch[1]
+      // ⚡ Bolt: Avoid RegExp for parsing INI-like lines to eliminate allocation overhead
+      if (trimmed.charCodeAt(0) === 91 && trimmed.charCodeAt(trimmed.length - 1) === 93) {
+        currentSection = trimmed.slice(1, -1)
       } else {
-        const kvMatch = trimmed.match(/^([^\s=]+)\s*=\s*(.+)$/)
-        if (kvMatch) {
-          const [, key, rawValue] = kvMatch
-          const value = rawValue.replace(/^"(.*)"$/, '$1')
+        const eqIdx = trimmed.indexOf('=')
+        if (eqIdx !== -1) {
+          const key = trimmed.slice(0, eqIdx).trim()
+          const rawValue = trimmed.slice(eqIdx + 1).trim()
+
+          let value = rawValue
+          if (value.charCodeAt(0) === 34 && value.charCodeAt(value.length - 1) === 34) {
+            value = value.slice(1, -1)
+          }
 
           if (currentSection === '' || currentSection === 'application') {
             if (key === 'config/name') info.name = value
             if (key === 'run/main_scene') info.mainScene = value
             if (key === 'config/features') {
-              const featMatch = rawValue.match(/PackedStringArray\((.+)\)/)
-              if (featMatch) {
-                info.features = parseCommaSeparatedList(featMatch[1])
+              if (rawValue.startsWith('PackedStringArray(') && rawValue.endsWith(')')) {
+                info.features = parseCommaSeparatedList(rawValue.slice(18, -1))
               }
             }
           }

@@ -92,4 +92,54 @@ describe('Scene Injection Security Tests', () => {
       ).rejects.toThrow('Invalid characters in parameters')
     })
   })
+  describe('UI Tool', () => {
+    it('should reject newlines in properties for create_control', async () => {
+      const { handleUI } = await import('../../src/tools/composite/ui.js')
+
+      await expect(
+        handleUI(
+          'create_control',
+          {
+            scene_path: 'scene.tscn',
+            name: 'MaliciousControl',
+            type: 'Control',
+            properties: {
+              normal_prop: 'value\n[node name="hacked"]',
+            },
+          },
+          config,
+        ),
+      ).rejects.toThrow('Invalid property value')
+
+      await expect(
+        handleUI(
+          'create_control',
+          {
+            scene_path: 'scene.tscn',
+            name: 'MaliciousControl2',
+            type: 'Control',
+            properties: {
+              'bad_key\n[node]': 'value',
+            },
+          },
+          config,
+        ),
+      ).rejects.toThrow('Invalid property key')
+
+      await expect(
+        handleUI(
+          'create_control',
+          {
+            scene_path: 'scene.tscn',
+            name: 'MaliciousControl3',
+            type: 'Control',
+            properties: {
+              'bad_key=': 'value',
+            },
+          },
+          config,
+        ),
+      ).rejects.toThrow('Invalid property key')
+    })
+  })
 })

@@ -8,6 +8,8 @@ import { join } from 'node:path'
 import { formatSuccess, GodotMCPError } from '../helpers/errors.js'
 import { pathExists } from '../helpers/paths.js'
 
+let cachedDocsDir: string | null = null
+
 const VALID_TOPICS = [
   'project',
   'scenes',
@@ -33,6 +35,8 @@ type TopicName = (typeof VALID_TOPICS)[number]
  * Get the docs directory path
  */
 async function getDocsDir(): Promise<string> {
+  if (cachedDocsDir) return cachedDocsDir
+
   const candidates = [
     join(import.meta.dirname || '', '..', '..', 'docs'),
     // Bundled CLI at bin/cli.mjs -> ../build/src/docs/
@@ -43,19 +47,28 @@ async function getDocsDir(): Promise<string> {
     join(process.cwd(), 'build', 'src', 'docs'),
   ]
 
-  const results = await Promise.all(
-    candidates.map(async (candidate) => {
+  // ⚡ Bolt: Use a pre-allocated array for promises to avoid .map() overhead
+  const promises = new Array(candidates.length)
+  for (let i = 0; i < candidates.length; i++) {
+    const candidate = candidates[i]
+    promises[i] = (async () => {
       // Validate candidate contains actual tool docs (not a random 'docs' directory)
       const markerFile = join(candidate, 'help.md')
       const exists = await pathExists(markerFile)
       return exists ? candidate : null
-    }),
-  )
+    })()
+  }
+
+  const results = await Promise.all(promises)
 
   const found = results.find((res) => res !== null)
-  if (found) return found
+  if (found) {
+    cachedDocsDir = found
+    return found
+  }
 
-  return join(process.cwd(), 'src', 'docs')
+  cachedDocsDir = join(process.cwd(), 'src', 'docs')
+  return cachedDocsDir
 }
 
 /**

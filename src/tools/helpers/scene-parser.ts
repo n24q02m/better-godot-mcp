@@ -103,6 +103,55 @@ export async function parseScene(filePath: string): Promise<ParsedScene> {
 }
 
 /**
+ * Normalize node path: strip common LLM mistakes like "/root/SceneName/" prefix.
+ * Returns the corrected path and whether it was auto-corrected.
+ */
+export function normalizeNodePath(path: string): { path: string; corrected: boolean } {
+  if (!path || path === '.') return { path, corrected: false }
+
+  let current = path
+  let corrected = false
+
+  // Repeatedly strip prefixes that can be combined
+  while (true) {
+    let changed = false
+    // Strip res:// prefix
+    if (current.startsWith('res://')) {
+      current = current.slice(6)
+      changed = true
+      corrected = true
+    }
+    // Strip leading ./
+    if (current.startsWith('./')) {
+      current = current.slice(2)
+      changed = true
+      corrected = true
+    }
+    if (!changed) break
+  }
+
+  if (!current || current === '.') return { path: '.', corrected }
+
+  // Handle case where path IS just /root or /root/SceneName (absolute SceneTree paths)
+  if (current === '/root' || current === '/root/' || current.match(/^\/root\/[^/]+\/?$/)) {
+    return { path: '.', corrected: true }
+  }
+
+  // Strip /root/SceneName/ prefix that LLMs commonly generate
+  const rootMatch = current.match(/^\/root\/[^/]+\/(.+)$/)
+  if (rootMatch) {
+    return { path: rootMatch[1], corrected: true }
+  }
+
+  // Strip leading slash
+  if (current.startsWith('/')) {
+    return { path: current.slice(1), corrected: true }
+  }
+
+  return { path: current, corrected }
+}
+
+/**
  * Parse .tscn content string into structured data
  */
 export function parseSceneContent(content: string): ParsedScene {

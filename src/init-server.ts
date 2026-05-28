@@ -82,11 +82,14 @@ export async function initServer(): Promise<void> {
       const { runHttpServer } = await import('@n24q02m/mcp-core')
       const port = process.env.PORT ? Number.parseInt(process.env.PORT, 10) : 0
       const host = process.env.HOST
+
+      // Await createGodotServer once to avoid async factory issues in runHttpServer
+      const server = await createGodotServer()
+
       const handle = await runHttpServer(
         // Godot uses the lower-level Server; runHttpServer only calls `.connect(transport)`
         // which both Server and McpServer expose with the same signature.
-        async () =>
-          (await createGodotServer()) as unknown as import('@modelcontextprotocol/sdk/server/mcp.js').McpServer,
+        () => server as unknown as import('@modelcontextprotocol/sdk/server/mcp.js').McpServer,
         {
           serverName: SERVER_NAME,
           port,

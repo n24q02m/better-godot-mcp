@@ -17,3 +17,7 @@
 ## 2026-05-28 - [Refactor synchronous child processes to async in detector]
 **Learning:** Using synchronous `execFileSync` inside loops or hot paths (like system-wide Godot binary detection) blocks the Node.js event loop, preventing the server from handling other MCP requests and degrading overall system responsiveness.
 **Action:** Replace `execFileSync` with `promisify(execFile)` in `src/godot/detector.ts`. Convert the entire detection chain (`tryGetVersion`, `findInPath`, `detectGodot`) to `async` functions and update upstream callers in `src/init-server.ts` and `src/tools/composite/config.ts` to `await` the results. Use `vi.mocked(...).mockResolvedValue` or custom callback implementation in Vitest mocks to handle the new asynchronous behavior in unit tests.
+
+## 2026-05-28 - [Handle async factory constraints in runHttpServer]
+**Learning:** The `runHttpServer` function from `@n24q02m/mcp-core` expects a factory function that returns a synchronous `McpServer` instance (or something compatible). Passing an `async` factory results in a TypeScript error (TS2740) because the return type becomes `Promise<McpServer>`.
+**Action:** Await the asynchronous server creation (`await createGodotServer()`) once before calling `runHttpServer`, and pass a synchronous arrow function that returns the already-resolved server instance to the tool.

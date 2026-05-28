@@ -20,6 +20,44 @@ function resolveBusLayoutPath(projectPath: string | null | undefined, baseDir: s
   return join(safeResolve(baseDir, projectPath), 'default_bus_layout.tres')
 }
 
+/**
+ * Helper to parse all buses from layout content.
+ */
+function parseBuses(content: string): { index: number; name: string }[] {
+  const buses: { index: number; name: string }[] = []
+  const busRegex = /bus\/(\d+)\/name\s*=\s*"([^"]*)"/g
+  for (const match of content.matchAll(busRegex)) {
+    buses.push({
+      index: Number.parseInt(match[1], 10),
+      name: match[2],
+    })
+  }
+  return buses
+}
+
+/**
+ * Helper to find a bus index by name. Returns -1 if not found.
+ */
+function findBusIndex(content: string, busName: string): number {
+  for (const bus of parseBuses(content)) {
+    if (bus.name === busName) {
+      return bus.index
+    }
+  }
+  return -1
+}
+
+/**
+ * Helper to format an effect reference entry.
+ */
+function formatEffectRef(busIndex: number, effectIndex: number, subResId: string): string {
+  return [
+    `bus/${busIndex}/effect/${effectIndex}/effect = SubResource("${subResId}")`,
+    `bus/${busIndex}/effect/${effectIndex}/enabled = true`,
+    '',
+  ].join('\n')
+}
+
 export async function handleAudio(action: string, args: Record<string, unknown>, config: GodotConfig) {
   const projectPath = (args.project_path as string) || config.projectPath
   const baseDir = config.projectPath || process.cwd()
@@ -33,13 +71,7 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       }
 
       const content = await readFile(busLayoutPath, 'utf-8')
-      const buses: { name: string; volume?: string; solo?: boolean; mute?: boolean }[] = []
-
-      // Parse bus entries
-      const busRegex = /bus\/(\d+)\/name\s*=\s*"([^"]*)"/g
-      for (const match of content.matchAll(busRegex)) {
-        buses.push({ name: match[2] })
-      }
+      const buses = parseBuses(content).map((b) => ({ name: b.name }))
 
       if (buses.length === 0) buses.push({ name: 'Master' })
       return formatJSON({ buses })
@@ -85,7 +117,8 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       }
 
       // Count existing buses
-      const busCount = (content.match(/bus\/\d+\/name/g) || []).length
+      const buses = parseBuses(content)
+      const busCount = buses.length
 
       const newBus = [
         `bus/${busCount}/name = "${busName}"`,
@@ -151,14 +184,7 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       }
 
       // Find the target bus index
-      const busRegex = /bus\/(\d+)\/name\s*=\s*"([^"]*)"/g
-      let busIndex = -1
-      for (const match of content.matchAll(busRegex)) {
-        if (match[2] === busName) {
-          busIndex = Number.parseInt(match[1], 10)
-          break
-        }
-      }
+      const busIndex = findBusIndex(content, busName)
       if (busIndex === -1) {
         throw new GodotMCPError(`Bus "${busName}" not found`, 'AUDIO_ERROR', 'Add the bus first with add_bus.')
       }
@@ -181,7 +207,7 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       }
 
       // Add effect reference to the bus
-      const effectRef = `bus/${busIndex}/effect/${effectIndex}/effect = SubResource("${subResId}")\nbus/${busIndex}/effect/${effectIndex}/enabled = true\n`
+      const effectRef = formatEffectRef(busIndex, effectIndex, subResId)
       content = `${content.trimEnd()}\n${effectRef}`
 
       await writeFile(busLayoutPath, content, 'utf-8')

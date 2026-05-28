@@ -8,7 +8,7 @@
  * 4. Validate version >= 4.1
  */
 
-import { execFileSync } from 'node:child_process'
+import { execFile } from 'node:child_process'
 import {
   accessSync,
   closeSync,
@@ -21,7 +21,10 @@ import {
   statSync,
 } from 'node:fs'
 import { join } from 'node:path'
+import { promisify } from 'node:util'
 import type { DetectionResult, GodotVersion } from './types.js'
+
+const execFileAsync = promisify(execFile)
 
 const GODOT_BINARY_NAMES = ['godot', 'godot4', 'godot-preview', 'Godot_v4']
 const MIN_VERSION = { major: 4, minor: 1 }
@@ -57,15 +60,13 @@ export function isVersionSupported(version: GodotVersion): boolean {
  * When skipSignatureCheck is true (e.g. user explicitly provided the path),
  * the binary signature heuristic is skipped and only --version validation is used.
  */
-export function tryGetVersion(binaryPath: string, skipSignatureCheck = false): GodotVersion | null {
+export async function tryGetVersion(binaryPath: string, skipSignatureCheck = false): Promise<GodotVersion | null> {
   if (!skipSignatureCheck && !isLikelyGodotBinary(binaryPath)) return null
   try {
-    const output = execFileSync(binaryPath, ['--version'], {
+    const { stdout } = await execFileAsync(binaryPath, ['--version'], {
       timeout: 5000,
-      stdio: ['pipe', 'pipe', 'pipe'],
-      encoding: 'utf-8',
     })
-    return parseGodotVersion(output)
+    return parseGodotVersion(stdout)
   } catch {
     return null
   }
@@ -141,17 +142,15 @@ export function isExecutable(filePath: string): boolean {
 /**
  * Try to find binary in system PATH using which/where
  */
-function findInPath(): string | null {
+async function findInPath(): Promise<string | null> {
   const cmd = process.platform === 'win32' ? 'where' : 'which'
   for (const name of GODOT_BINARY_NAMES) {
     try {
-      const result = execFileSync(cmd, [name], {
+      const { stdout } = await execFileAsync(cmd, [name], {
         timeout: 3000,
-        stdio: ['pipe', 'pipe', 'pipe'],
-        encoding: 'utf-8',
       })
       // ⚡ Bolt: Avoid split('\n')[0] array allocation overhead for first line extraction
-      const trimmedResult = result.trim()
+      const trimmedResult = stdout.trim()
       const newlineIdx = trimmedResult.indexOf('\n')
       const path = (newlineIdx !== -1 ? trimmedResult.slice(0, newlineIdx) : trimmedResult).trim()
       if (path && isExecutable(path)) return path
@@ -260,20 +259,20 @@ function getSystemPaths(): string[] {
  *
  * @returns Detection result or null if not found
  */
-export function detectGodot(): DetectionResult | null {
+export async function detectGodot(): Promise<DetectionResult | null> {
   // 1. Check GODOT_PATH env var — perform signature heuristic check for security
   const envPath = process.env.GODOT_PATH
   if (envPath && isExecutable(envPath)) {
-    const version = tryGetVersion(envPath)
+    const version = await tryGetVersion(envPath)
     if (version && isVersionSupported(version)) {
       return { path: envPath, version, source: 'env' }
     }
   }
 
   // 2. Check system PATH
-  const pathResult = findInPath()
+  const pathResult = await findInPath()
   if (pathResult) {
-    const version = tryGetVersion(pathResult)
+    const version = await tryGetVersion(pathResult)
     if (version && isVersionSupported(version)) {
       return { path: pathResult, version, source: 'path' }
     }
@@ -282,7 +281,7 @@ export function detectGodot(): DetectionResult | null {
   // 3. Check platform-specific locations
   for (const systemPath of getSystemPaths()) {
     if (isExecutable(systemPath)) {
-      const version = tryGetVersion(systemPath)
+      const version = await tryGetVersion(systemPath)
       if (version && isVersionSupported(version)) {
         return { path: systemPath, version, source: 'system' }
       }

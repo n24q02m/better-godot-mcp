@@ -71,7 +71,7 @@ export async function handleConfig(action: string, args: Record<string, unknown>
             `The path '${value}' is not an executable file.`,
           )
         }
-        const version = tryGetVersion(value)
+        const version = await tryGetVersion(value)
         if (!version) {
           throw new GodotMCPError(
             'Invalid Godot binary',
@@ -97,7 +97,7 @@ export async function handleConfig(action: string, args: Record<string, unknown>
     }
 
     case 'detect_godot': {
-      const result = detectGodot()
+      const result = await detectGodot()
       if (!result) {
         return formatJSON({
           found: false,
@@ -121,7 +121,7 @@ export async function handleConfig(action: string, args: Record<string, unknown>
     }
 
     case 'check': {
-      const detection = detectGodot()
+      const detection = await detectGodot()
       const projectPath = config.projectPath
 
       const status = {

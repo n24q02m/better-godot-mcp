@@ -83,6 +83,13 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
   // Truncate to prevent CPU exhaustion from excessively long inputs
   const safeInput = input.length > 100 ? input.slice(0, 100) : input
   const lower = safeInput.toLowerCase()
+
+  // High-priority exact match check
+  for (const option of validOptions) {
+    if (option.toLowerCase() === lower) return option
+  }
+  let bestPrefixMatch: string | null = null
+  let bestPrefixDiff = Number.MAX_SAFE_INTEGER
   let bestMatch: string | null = null
   let bestScore = 0
 
@@ -93,10 +100,16 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
 
   for (const option of validOptions) {
     const optionLower = option.toLowerCase()
-    // Quick prefix/containment match
+    // Track prefix/containment match
     if (optionLower.startsWith(lower) || lower.startsWith(optionLower)) {
-      return option
+      const diff = Math.abs(optionLower.length - lower.length)
+      if (diff < bestPrefixDiff) {
+        bestPrefixDiff = diff
+        bestPrefixMatch = option
+      }
+      continue
     }
+    if (bestPrefixMatch) continue
 
     const optionBigrams = new Set<string>()
     for (let i = 0; i < optionLower.length - 1; i++) {
@@ -118,7 +131,7 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
     }
   }
 
-  return bestMatch
+  return bestPrefixMatch || bestMatch
 }
 
 /**

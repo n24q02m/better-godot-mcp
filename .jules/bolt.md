@@ -9,3 +9,7 @@
 ## 2025-03-09 - [Optimize parseProjectGodot string parsing]
 **Learning:** Parsing `project.godot` (or other INI-like configurations) line-by-line using regular expressions inside a hot loop (e.g., `^\[(.+)\]$`, `/^([^\s=]+)\s*=\s*(.+)$/`) causes severe performance bottlenecks due to RegExp compilation, execution, and extensive GC pressure from intermediary match objects and string allocations.
 **Action:** Replace regular expressions within file parsing loops with manual string operations: use `charCodeAt` to identify section boundaries (e.g., `91` for `[`), `indexOf('=')` for key-value extraction, and direct `.slice()` + `.trim()` for data separation. Apply manual quote removal checking string bounds and `charCodeAt(0) === 34` instead of `.replace(/^"(.*)"$/, '$1')`.
+
+## 2025-05-28 - [Refactor long handleNavigation switch blocks]
+**Learning:** Large monolithic switch blocks in tool handlers like `handleNavigation` (src/tools/composite/navigation.ts) increase cognitive load and make testing individual actions harder.
+**Action:** Split action handlers into independent functions (`handleCreateRegion`, `handleAddAgent`, `handleAddObstacle`) to reduce complexity and improve maintainability. Encapsulate repetitive validation logic into a local `validateParams` helper.

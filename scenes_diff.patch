@@ -1,0 +1,69 @@
+<<<<<<< SEARCH
+    if (start < end) {
+      const firstChar = content.charCodeAt(start)
+
+      if (firstChar === 91) {
+        // '[' character indicates a new section
+        const line = content.slice(start, end)
+        if (line.startsWith('[node ')) {
+          const nodeMatch = line.match(rxNode)
+          if (nodeMatch) {
+            const node: SceneNode = {
+              name: nodeMatch[1],
+              type: nodeMatch[2],
+              parent: nodeMatch[3] ?? null,
+              properties: {},
+              script: null,
+            }
+
+            if (!node.parent && nodes.length === 0) {
+              rootNode = node.name
+              rootType = node.type
+            }
+
+            nodes.push(node)
+          }
+        } else if (line.startsWith('[ext_resource') || line.startsWith('[sub_resource')) {
+          resources.push(line)
+        }
+      } else if (firstChar === 115 && nodes.length > 0) {
+        // 's' character, check for script
+        const line = content.slice(start, end)
+        if (line.startsWith('script')) {
+          const scriptMatch = line.match(rxScript)
+          if (scriptMatch) {
+            nodes[nodes.length - 1].script = scriptMatch[1]
+          }
+        }
+      }
+    }
+=======
+    if (start >= end) {
+      pos = nextNewline + 1
+      continue
+    }
+
+    const firstChar = content.charCodeAt(start)
+
+    if (firstChar === 91) {
+      // '[' character indicates a new section
+      const line = content.slice(start, end)
+      const node = tryParseNode(line)
+
+      if (node) {
+        if (!node.parent && nodes.length === 0) {
+          rootNode = node.name
+          rootType = node.type
+        }
+        nodes.push(node)
+      } else if (line.startsWith('[ext_resource') || line.startsWith('[sub_resource')) {
+        resources.push(line)
+      }
+    } else if (firstChar === 115 && nodes.length > 0) {
+      // 's' character, check for script
+      const script = tryParseScript(content.slice(start, end))
+      if (script) {
+        nodes[nodes.length - 1].script = script
+      }
+    }
+>>>>>>> REPLACE

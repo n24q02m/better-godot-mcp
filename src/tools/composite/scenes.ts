@@ -13,6 +13,31 @@ import { setSettingInContent } from '../helpers/project-settings.js'
 // Pre-compiled regex for parsing scene metadata without splitting lines
 const rxNode = /^\[node\s+name="([^"]+)"\s+type="([^"]+)"(?:\s+parent="([^"]*)")?/
 const rxScript = /^script\s*=\s*(.+)$/
+/**
+ * Try to parse a node section line
+ */
+function tryParseNode(line: string): SceneNode | null {
+  if (!line.startsWith('[node ')) return null
+  const nodeMatch = line.match(rxNode)
+  if (!nodeMatch) return null
+
+  return {
+    name: nodeMatch[1],
+    type: nodeMatch[2],
+    parent: nodeMatch[3] ?? null,
+    properties: {},
+    script: null,
+  }
+}
+
+/**
+ * Try to parse a script property line
+ */
+function tryParseScript(line: string): string | null {
+  if (!line.startsWith('script')) return null
+  const scriptMatch = line.match(rxScript)
+  return scriptMatch ? scriptMatch[1] : null
+}
 
 /**
  * Parse a .tscn file to extract scene information
@@ -40,42 +65,32 @@ async function parseTscnFile(filePath: string): Promise<SceneInfo> {
     while (start < end && content.charCodeAt(start) <= 32) start++
     while (end > start && content.charCodeAt(end - 1) <= 32) end--
 
-    if (start < end) {
-      const firstChar = content.charCodeAt(start)
+    if (start >= end) {
+      pos = nextNewline + 1
+      continue
+    }
 
-      if (firstChar === 91) {
-        // '[' character indicates a new section
-        const line = content.slice(start, end)
-        if (line.startsWith('[node ')) {
-          const nodeMatch = line.match(rxNode)
-          if (nodeMatch) {
-            const node: SceneNode = {
-              name: nodeMatch[1],
-              type: nodeMatch[2],
-              parent: nodeMatch[3] ?? null,
-              properties: {},
-              script: null,
-            }
+    const firstChar = content.charCodeAt(start)
 
-            if (!node.parent && nodes.length === 0) {
-              rootNode = node.name
-              rootType = node.type
-            }
+    if (firstChar === 91) {
+      // '[' character indicates a new section
+      const line = content.slice(start, end)
+      const node = tryParseNode(line)
 
-            nodes.push(node)
-          }
-        } else if (line.startsWith('[ext_resource') || line.startsWith('[sub_resource')) {
-          resources.push(line)
+      if (node) {
+        if (!node.parent && nodes.length === 0) {
+          rootNode = node.name
+          rootType = node.type
         }
-      } else if (firstChar === 115 && nodes.length > 0) {
-        // 's' character, check for script
-        const line = content.slice(start, end)
-        if (line.startsWith('script')) {
-          const scriptMatch = line.match(rxScript)
-          if (scriptMatch) {
-            nodes[nodes.length - 1].script = scriptMatch[1]
-          }
-        }
+        nodes.push(node)
+      } else if (line.startsWith('[ext_resource') || line.startsWith('[sub_resource')) {
+        resources.push(line)
+      }
+    } else if (firstChar === 115 && nodes.length > 0) {
+      // 's' character, check for script
+      const script = tryParseScript(content.slice(start, end))
+      if (script) {
+        nodes[nodes.length - 1].script = script
       }
     }
 

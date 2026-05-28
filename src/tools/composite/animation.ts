@@ -16,7 +16,7 @@ async function resolveScene(projectPath: string | null | undefined, scenePath: s
   return fullPath
 }
 
-async function createPlayer(projectPath: string | undefined, args: Record<string, unknown>) {
+async function createPlayer(projectPath: string | null | undefined, args: Record<string, unknown>) {
   const scenePath = args.scene_path as string
   if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
   const playerName = (args.name as string) || 'AnimationPlayer'
@@ -51,7 +51,7 @@ async function createPlayer(projectPath: string | undefined, args: Record<string
   return formatSuccess(`Created AnimationPlayer: ${playerName} under ${parent}`)
 }
 
-async function addAnimation(projectPath: string | undefined, args: Record<string, unknown>) {
+async function addAnimation(projectPath: string | null | undefined, args: Record<string, unknown>) {
   const scenePath = args.scene_path as string
   if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
   const animName = args.anim_name as string
@@ -97,7 +97,7 @@ async function addAnimation(projectPath: string | undefined, args: Record<string
   return formatSuccess(`Added animation: ${animName} (duration: ${duration}s, loop: ${loop})`)
 }
 
-async function addTrack(projectPath: string | undefined, args: Record<string, unknown>) {
+async function addTrack(projectPath: string | null | undefined, args: Record<string, unknown>) {
   const scenePath = args.scene_path as string
   if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
   const animName = args.anim_name as string
@@ -159,7 +159,7 @@ async function addKeyframe() {
   )
 }
 
-async function listAnimations(projectPath: string | undefined, args: Record<string, unknown>) {
+async function listAnimations(projectPath: string | null | undefined, args: Record<string, unknown>) {
   const scenePath = args.scene_path as string
   if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
 

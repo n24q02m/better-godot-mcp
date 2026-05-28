@@ -234,8 +234,6 @@ async function listScripts(baseDir: string, projectPath: string | undefined) {
   const resolvedPath = safeResolve(baseDir, projectPath)
   const scripts = await findScriptFiles(resolvedPath)
 
-  // OPTIMIZATION: Use substring and a pre-allocated array instead of .map() and node:path.relative
-  // for significantly faster execution on large arrays of prefixed paths.
   const prefixLen = resolvedPath.length + (resolvedPath.endsWith('/') || resolvedPath.endsWith('\\') ? 0 : 1)
   const relativePaths = new Array(scripts.length)
   for (let i = 0; i < scripts.length; i++) {

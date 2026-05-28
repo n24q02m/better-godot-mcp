@@ -13,6 +13,34 @@ import { pathExists, safeResolve } from '../helpers/paths.js'
 import { getSetting, parseProjectSettingsAsync, setSettingInContent } from '../helpers/project-settings.js'
 import { parseCommaSeparatedList } from '../helpers/strings.js'
 
+/**
+ * Apply a project setting to the info object, handling special fields like name and config_version.
+ */
+function applyProjectSetting(
+  info: ProjectInfo,
+  currentSection: string,
+  key: string,
+  value: string,
+  rawValue: string,
+): void {
+  if (currentSection === '' || currentSection === 'application') {
+    if (key === 'config/name') info.name = value
+    if (key === 'run/main_scene') info.mainScene = value
+    if (key === 'config/features') {
+      const featMatch = rawValue.match(/PackedStringArray\((.+)\)/)
+      if (featMatch) {
+        info.features = parseCommaSeparatedList(featMatch[1])
+      }
+    }
+  }
+
+  if (key === 'config_version') {
+    info.configVersion = Number.parseInt(value, 10)
+  }
+
+  info.settings[`${currentSection ? `${currentSection}/` : ''}${key}`] = value
+}
+
 async function parseProjectGodot(projectPath: string): Promise<ProjectInfo> {
   const configPath = join(projectPath, 'project.godot')
   // Performance optimization: using async pathExists instead of existsSync
@@ -42,43 +70,37 @@ async function parseProjectGodot(projectPath: string): Promise<ProjectInfo> {
     while (start < end && content.charCodeAt(start) <= 32) start++
     while (end > start && content.charCodeAt(end - 1) <= 32) end--
 
-    if (start < end) {
-      const trimmed = content.slice(start, end)
-      const firstChar = trimmed.charCodeAt(0)
-      const lastChar = trimmed.charCodeAt(trimmed.length - 1)
+    // Skip empty lines or comments (59 is ';')
+    if (start >= end || content.charCodeAt(start) === 59) {
+      pos = nextNewline === -1 ? len : nextNewline + 1
+      continue
+    }
 
-      // Section header
-      if (firstChar === 91 && lastChar === 93) {
-        // '[' and ']'
-        currentSection = trimmed.slice(1, -1)
-      } else {
-        // Key-value pair
-        const eqIdx = trimmed.indexOf('=')
-        if (eqIdx !== -1) {
-          // ⚡ Bolt: Direct string slice and length checks replace expensive RegExp compilation and matching
-          const key = trimmed.slice(0, eqIdx).trimEnd()
-          const rawValue = trimmed.slice(eqIdx + 1).trimStart()
+    const trimmed = content.slice(start, end)
+    const firstChar = trimmed.charCodeAt(0)
+    const lastChar = trimmed.charCodeAt(trimmed.length - 1)
 
-          const value =
-            rawValue.length >= 2 && rawValue.charCodeAt(0) === 34 && rawValue.charCodeAt(rawValue.length - 1) === 34
-              ? rawValue.slice(1, -1)
-              : rawValue
+    // Section header
+    if (firstChar === 91 && lastChar === 93) {
+      // '[' and ']'
+      currentSection = trimmed.slice(1, -1)
+      pos = nextNewline === -1 ? len : nextNewline + 1
+      continue
+    }
 
-          if (currentSection === '' || currentSection === 'application') {
-            if (key === 'config/name') info.name = value
-            if (key === 'run/main_scene') info.mainScene = value
-            if (key === 'config/features') {
-              const featMatch = rawValue.match(/PackedStringArray\((.+)\)/)
-              if (featMatch) {
-                info.features = parseCommaSeparatedList(featMatch[1])
-              }
-            }
-          }
+    // Key-value pair
+    const eqIdx = trimmed.indexOf('=')
+    if (eqIdx !== -1) {
+      // ⚡ Bolt: Direct string slice and length checks replace expensive RegExp compilation and matching
+      const key = trimmed.slice(0, eqIdx).trimEnd()
+      const rawValue = trimmed.slice(eqIdx + 1).trimStart()
 
-          if (key === 'config_version') info.configVersion = Number.parseInt(value, 10)
-          info.settings[`${currentSection ? `${currentSection}/` : ''}${key}`] = value
-        }
-      }
+      const value =
+        rawValue.length >= 2 && rawValue.charCodeAt(0) === 34 && rawValue.charCodeAt(rawValue.length - 1) === 34
+          ? rawValue.slice(1, -1)
+          : rawValue
+
+      applyProjectSetting(info, currentSection, key, value, rawValue)
     }
 
     pos = nextNewline === -1 ? len : nextNewline + 1

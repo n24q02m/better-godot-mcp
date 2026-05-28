@@ -67,11 +67,7 @@ async function addBus(args: Record<string, unknown>, projectPath: string) {
 
   validateNoNewlines('Invalid characters in parameters', busName, sendTo)
   if (busName.includes('"') || sendTo.includes('"')) {
-    throw new GodotMCPError(
-      'Invalid characters in parameters',
-      'INVALID_ARGS',
-      'Parameters must not contain quotes.',
-    )
+    throw new GodotMCPError('Invalid characters in parameters', 'INVALID_ARGS', 'Parameters must not contain quotes.')
   }
 
   let content = await getBusLayoutContent(busLayoutPath)
@@ -111,11 +107,7 @@ async function addEffect(args: Record<string, unknown>, projectPath: string) {
 
   validateNoNewlines('Invalid characters in parameters', busName, effectType)
   if (busName.includes('"') || effectType.includes('"')) {
-    throw new GodotMCPError(
-      'Invalid characters in parameters',
-      'INVALID_ARGS',
-      'Parameters must not contain quotes.',
-    )
+    throw new GodotMCPError('Invalid characters in parameters', 'INVALID_ARGS', 'Parameters must not contain quotes.')
   }
 
   // Normalize effect type name (allow shorthand like "Reverb" -> "AudioEffectReverb")
@@ -174,11 +166,7 @@ async function createStream(args: Record<string, unknown>, projectPath: string) 
 
   validateNoNewlines('Invalid characters in parameters', nodeName, streamType, parent, bus)
   if (nodeName.includes('"') || streamType.includes('"') || parent.includes('"') || bus.includes('"')) {
-    throw new GodotMCPError(
-      'Invalid characters in parameters',
-      'INVALID_ARGS',
-      'Parameters must not contain quotes.',
-    )
+    throw new GodotMCPError('Invalid characters in parameters', 'INVALID_ARGS', 'Parameters must not contain quotes.')
   }
 
   const fullPath = safeResolve(projectPath, scenePath)

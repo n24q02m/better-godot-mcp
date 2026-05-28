@@ -15,6 +15,11 @@ import {
   setNodePropertyInContent,
 } from '../helpers/scene-parser.js'
 
+// ⚡ Bolt: Pre-compiled regex for fast character validation to avoid repeated includes() or RegExp compilation
+const INVALID_NAME_TYPE_PARENT_RE = /["\n\r]/
+const INVALID_PROP_KEY_RE = /[=\n\r]/
+const INVALID_NEWLINE_RE = /[\n\r]/
+
 function resolveScenePath(projectPath: string, scenePath: string): string {
   return safeResolve(projectPath, scenePath)
 }
@@ -43,18 +48,19 @@ async function handleAddNode(projectPath: string, args: Record<string, unknown>)
   const nodeName = args.name as string
   if (!nodeName) throw new GodotMCPError('No node name specified', 'INVALID_ARGS', 'Provide name for the new node.')
 
-  if (nodeName.includes('"') || nodeName.includes('\n') || nodeName.includes('\r')) {
+  // ⚡ Bolt: Replaced multiple .includes() with a single pre-compiled regex .test()
+  if (INVALID_NAME_TYPE_PARENT_RE.test(nodeName)) {
     throw new GodotMCPError('Invalid node name', 'INVALID_ARGS', 'Node name must not contain quotes or newlines.')
   }
 
   const nodeType = (args.type as string) || 'Node'
-  if (nodeType.includes('"') || nodeType.includes('\n') || nodeType.includes('\r')) {
+  if (INVALID_NAME_TYPE_PARENT_RE.test(nodeType)) {
     throw new GodotMCPError('Invalid node type', 'INVALID_ARGS', 'Node type must not contain quotes or newlines.')
   }
 
   const rawParent = (args.parent as string) || '.'
   const { path: parent } = normalizeNodePath(rawParent)
-  if (parent.includes('"') || parent.includes('\n') || parent.includes('\r')) {
+  if (INVALID_NAME_TYPE_PARENT_RE.test(parent)) {
     throw new GodotMCPError('Invalid parent path', 'INVALID_ARGS', 'Parent path must not contain quotes or newlines.')
   }
 
@@ -85,14 +91,19 @@ async function handleAddNode(projectPath: string, args: Record<string, unknown>)
         'properties must be an object with string keys and values.',
       )
     }
-    for (const [key, value] of Object.entries(args.properties)) {
+    // ⚡ Bolt: Replaced Object.entries() with for...in loop to avoid entry array allocations.
+    // Inside the loop, multiple .includes() are replaced with pre-compiled regex .test().
+    for (const key in args.properties) {
+      if (!Object.hasOwn(args.properties, key)) continue
+      const value = (args.properties as Record<string, unknown>)[key]
+
       if (typeof key !== 'string' || typeof value !== 'string') {
         throw new GodotMCPError('Invalid property value', 'INVALID_ARGS', 'Property keys and values must be strings.')
       }
-      if (key.includes('=') || key.includes('\n') || key.includes('\r')) {
+      if (INVALID_PROP_KEY_RE.test(key)) {
         throw new GodotMCPError('Invalid property key', 'INVALID_ARGS', 'Property keys must not contain "=", newlines.')
       }
-      if (value.includes('\n') || value.includes('\r')) {
+      if (INVALID_NEWLINE_RE.test(value)) {
         throw new GodotMCPError('Invalid property value', 'INVALID_ARGS', 'Property values must not contain newlines.')
       }
       nodeDecl += `${key} = ${value}\n`
@@ -131,7 +142,8 @@ async function handleRenameNode(projectPath: string, args: Record<string, unknow
   if (!nodeName || !newName)
     throw new GodotMCPError('Both name and new_name required', 'INVALID_ARGS', 'Provide name and new_name.')
 
-  if (newName.includes('"') || newName.includes('\n') || newName.includes('\r')) {
+  // ⚡ Bolt: Replaced multiple .includes() with a single pre-compiled regex .test()
+  if (INVALID_NAME_TYPE_PARENT_RE.test(newName)) {
     throw new GodotMCPError('Invalid node name', 'INVALID_ARGS', 'New node name must not contain quotes or newlines.')
   }
 
@@ -185,10 +197,11 @@ async function handleSetNodeProperty(projectPath: string, args: Record<string, u
     throw new GodotMCPError('name, property, and value required', 'INVALID_ARGS', 'Provide name, property, and value.')
   }
 
-  if (property.includes('=') || property.includes('\n') || property.includes('\r')) {
+  // ⚡ Bolt: Replaced multiple .includes() with pre-compiled regex .test()
+  if (INVALID_PROP_KEY_RE.test(property)) {
     throw new GodotMCPError('Invalid property key', 'INVALID_ARGS', 'Property keys must not contain "=", newlines.')
   }
-  if (value.includes('\n') || value.includes('\r')) {
+  if (INVALID_NEWLINE_RE.test(value)) {
     throw new GodotMCPError('Invalid property value', 'INVALID_ARGS', 'Property values must not contain newlines.')
   }
 

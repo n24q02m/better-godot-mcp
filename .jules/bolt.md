@@ -9,3 +9,7 @@
 ## 2025-03-09 - [Optimize parseProjectGodot string parsing]
 **Learning:** Parsing `project.godot` (or other INI-like configurations) line-by-line using regular expressions inside a hot loop (e.g., `^\[(.+)\]$`, `/^([^\s=]+)\s*=\s*(.+)$/`) causes severe performance bottlenecks due to RegExp compilation, execution, and extensive GC pressure from intermediary match objects and string allocations.
 **Action:** Replace regular expressions within file parsing loops with manual string operations: use `charCodeAt` to identify section boundaries (e.g., `91` for `[`), `indexOf('=')` for key-value extraction, and direct `.slice()` + `.trim()` for data separation. Apply manual quote removal checking string bounds and `charCodeAt(0) === 34` instead of `.replace(/^"(.*)"$/, '$1')`.
+
+## 2025-05-14 - String includes() optimization in loops
+**Learning:** Multiple `.includes()` calls on the same string within a loop can be optimized by using a single pre-compiled Regular Expression `.test()` call. Additionally, `Object.entries()` creates intermediate arrays which can be avoided by using a `for...in` loop with `Object.hasOwn()` check for better performance in hot paths.
+**Action:** Replaced `.includes()` with pre-compiled regex `.test()` and `Object.entries()` with `for...in` in `src/tools/composite/nodes.ts`.

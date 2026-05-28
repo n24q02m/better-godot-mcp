@@ -2,6 +2,8 @@
  * Scripts tool - GDScript file management
  * Actions: create | read | write | attach | list | delete
  */
+// ⚡ Bolt: Pre-compiled regex for fast string validation.
+const QUOTE_NEWLINE_RE = /["\n\r]/
 
 import { mkdir, readdir, readFile, unlink, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
@@ -186,14 +188,15 @@ async function attachScript(args: Record<string, unknown>, resolvePath: (path: s
     )
   }
 
-  if (scriptPath.includes('\n') || scriptPath.includes('\r') || scriptPath.includes('"')) {
+  // ⚡ Bolt: Fast validation using pre-compiled regex.
+  if (QUOTE_NEWLINE_RE.test(scriptPath)) {
     throw new GodotMCPError(
       'Invalid script path',
       'INVALID_ARGS',
       'Script path must not contain newlines or double quotes.',
     )
   }
-  if (nodeName && (nodeName.includes('\n') || nodeName.includes('\r') || nodeName.includes('"'))) {
+  if (nodeName && QUOTE_NEWLINE_RE.test(nodeName)) {
     throw new GodotMCPError(
       'Invalid node name',
       'INVALID_ARGS',

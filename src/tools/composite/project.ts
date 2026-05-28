@@ -8,6 +8,10 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { execGodotAsync, runGodotProject } from '../../godot/headless.js'
 import type { GodotConfig, ProjectInfo } from '../../godot/types.js'
+
+// ⚡ Bolt: Pre-compiled regex for fast string validation.
+const NEWLINE_RE = /[\n\r]/
+
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
 import { getSetting, parseProjectSettingsAsync, setSettingInContent } from '../helpers/project-settings.js'
@@ -127,7 +131,8 @@ export async function handleProject(action: string, args: Record<string, unknown
       if (scenePath !== undefined && typeof scenePath !== 'string') {
         throw new GodotMCPError('Invalid scene path', 'INVALID_ARGS', 'Scene path must be a string.')
       }
-      if (scenePath && (scenePath.includes('\n') || scenePath.includes('\r'))) {
+      // ⚡ Bolt: Fast validation using pre-compiled regex.
+      if (scenePath && NEWLINE_RE.test(scenePath)) {
         throw new GodotMCPError('Invalid scene path', 'INVALID_ARGS', 'Scene path must not contain newlines.')
       }
       if (scenePath?.startsWith('-')) {
@@ -208,11 +213,13 @@ export async function handleProject(action: string, args: Record<string, unknown
       if (!key || value === undefined)
         throw new GodotMCPError('key and value required', 'INVALID_ARGS', 'Provide key and value.')
 
-      if (typeof key === 'string' && (key.includes('\n') || key.includes('\r'))) {
+      // ⚡ Bolt: Fast validation using pre-compiled regex.
+      if (typeof key === 'string' && NEWLINE_RE.test(key)) {
         throw new GodotMCPError('Invalid key format', 'INVALID_ARGS', 'Key must not contain newlines.')
       }
 
-      if (typeof value === 'string' && (value.includes('\n') || value.includes('\r'))) {
+      // ⚡ Bolt: Fast validation using pre-compiled regex.
+      if (typeof value === 'string' && NEWLINE_RE.test(value)) {
         throw new GodotMCPError('Invalid value format', 'INVALID_ARGS', 'Value must not contain newlines.')
       }
 

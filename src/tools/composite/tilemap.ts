@@ -8,6 +8,10 @@ import { access, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
+
+// ⚡ Bolt: Pre-compiled regex for fast string validation.
+const QUOTE_NEWLINE_RE = /["\n\r]/
+
 import { safeResolve } from '../helpers/paths.js'
 
 /**
@@ -67,7 +71,8 @@ export async function handleTilemap(action: string, args: Record<string, unknown
         throw new GodotMCPError('tileset_path and texture_path required', 'INVALID_ARGS', 'Both are required.')
       }
 
-      if (texturePath.includes('\n') || texturePath.includes('\r') || texturePath.includes('"')) {
+      // ⚡ Bolt: Fast validation using pre-compiled regex.
+      if (QUOTE_NEWLINE_RE.test(texturePath)) {
         throw new GodotMCPError(
           'Invalid texture path',
           'INVALID_ARGS',

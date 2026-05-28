@@ -4,6 +4,10 @@
  */
 
 import { copyFile, mkdir, readdir, readFile, unlink, writeFile } from 'node:fs/promises'
+
+// ⚡ Bolt: Pre-compiled regex for fast string validation.
+const QUOTE_NEWLINE_RE = /["\n\r]/
+
 import { basename, dirname, join } from 'node:path'
 import type { GodotConfig, SceneInfo, SceneNode } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
@@ -174,11 +178,13 @@ export async function handleScenes(action: string, args: Record<string, unknown>
       const rootType = (args.root_type as string) || 'Node2D'
       const rootName = (args.root_name as string) || basename(scenePath, '.tscn')
 
-      if (rootName.includes('"') || rootName.includes('\n') || rootName.includes('\r')) {
+      // ⚡ Bolt: Fast validation using pre-compiled regex.
+      if (QUOTE_NEWLINE_RE.test(rootName)) {
         throw new GodotMCPError('Invalid root name', 'INVALID_ARGS', 'Root name must not contain quotes or newlines.')
       }
 
-      if (rootType.includes('"') || rootType.includes('\n') || rootType.includes('\r')) {
+      // ⚡ Bolt: Fast validation using pre-compiled regex.
+      if (QUOTE_NEWLINE_RE.test(rootType)) {
         throw new GodotMCPError('Invalid root type', 'INVALID_ARGS', 'Root type must not contain quotes or newlines.')
       }
 
@@ -264,7 +270,8 @@ export async function handleScenes(action: string, args: Record<string, unknown>
 
     case 'set_main': {
       // projectPath and scenePath are guaranteed
-      if (scenePath.includes('"') || scenePath.includes('\n') || scenePath.includes('\r')) {
+      // ⚡ Bolt: Fast validation using pre-compiled regex.
+      if (QUOTE_NEWLINE_RE.test(scenePath)) {
         throw new GodotMCPError('Invalid scene path', 'INVALID_ARGS', 'Scene path must not contain quotes or newlines.')
       }
 

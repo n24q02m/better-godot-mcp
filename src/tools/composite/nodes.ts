@@ -2,6 +2,10 @@
  * Nodes tool - Scene node manipulation
  * Actions: add | remove | rename | list | set_property | get_property
  */
+// ⚡ Bolt: Pre-compiled regex for fast string validation to avoid multiple includes() in hot paths.
+const QUOTE_NEWLINE_RE = /["\n\r]/
+const EQUALS_NEWLINE_RE = /[=\n\r]/
+const NEWLINE_RE = /[\n\r]/
 
 import { readFile, writeFile } from 'node:fs/promises'
 import type { GodotConfig } from '../../godot/types.js'
@@ -43,18 +47,19 @@ async function handleAddNode(projectPath: string, args: Record<string, unknown>)
   const nodeName = args.name as string
   if (!nodeName) throw new GodotMCPError('No node name specified', 'INVALID_ARGS', 'Provide name for the new node.')
 
-  if (nodeName.includes('"') || nodeName.includes('\n') || nodeName.includes('\r')) {
+  // ⚡ Bolt: Fast validation using pre-compiled regex to prevent quote/newline injection.
+  if (QUOTE_NEWLINE_RE.test(nodeName)) {
     throw new GodotMCPError('Invalid node name', 'INVALID_ARGS', 'Node name must not contain quotes or newlines.')
   }
 
   const nodeType = (args.type as string) || 'Node'
-  if (nodeType.includes('"') || nodeType.includes('\n') || nodeType.includes('\r')) {
+  if (QUOTE_NEWLINE_RE.test(nodeType)) {
     throw new GodotMCPError('Invalid node type', 'INVALID_ARGS', 'Node type must not contain quotes or newlines.')
   }
 
   const rawParent = (args.parent as string) || '.'
   const { path: parent } = normalizeNodePath(rawParent)
-  if (parent.includes('"') || parent.includes('\n') || parent.includes('\r')) {
+  if (QUOTE_NEWLINE_RE.test(parent)) {
     throw new GodotMCPError('Invalid parent path', 'INVALID_ARGS', 'Parent path must not contain quotes or newlines.')
   }
 
@@ -89,10 +94,11 @@ async function handleAddNode(projectPath: string, args: Record<string, unknown>)
       if (typeof key !== 'string' || typeof value !== 'string') {
         throw new GodotMCPError('Invalid property value', 'INVALID_ARGS', 'Property keys and values must be strings.')
       }
-      if (key.includes('=') || key.includes('\n') || key.includes('\r')) {
+      // ⚡ Bolt: Fast validation using pre-compiled regex.
+      if (EQUALS_NEWLINE_RE.test(key)) {
         throw new GodotMCPError('Invalid property key', 'INVALID_ARGS', 'Property keys must not contain "=", newlines.')
       }
-      if (value.includes('\n') || value.includes('\r')) {
+      if (NEWLINE_RE.test(value)) {
         throw new GodotMCPError('Invalid property value', 'INVALID_ARGS', 'Property values must not contain newlines.')
       }
       nodeDecl += `${key} = ${value}\n`
@@ -131,7 +137,8 @@ async function handleRenameNode(projectPath: string, args: Record<string, unknow
   if (!nodeName || !newName)
     throw new GodotMCPError('Both name and new_name required', 'INVALID_ARGS', 'Provide name and new_name.')
 
-  if (newName.includes('"') || newName.includes('\n') || newName.includes('\r')) {
+  // ⚡ Bolt: Fast validation using pre-compiled regex.
+  if (QUOTE_NEWLINE_RE.test(newName)) {
     throw new GodotMCPError('Invalid node name', 'INVALID_ARGS', 'New node name must not contain quotes or newlines.')
   }
 
@@ -185,10 +192,11 @@ async function handleSetNodeProperty(projectPath: string, args: Record<string, u
     throw new GodotMCPError('name, property, and value required', 'INVALID_ARGS', 'Provide name, property, and value.')
   }
 
-  if (property.includes('=') || property.includes('\n') || property.includes('\r')) {
+  // ⚡ Bolt: Fast validation using pre-compiled regex.
+  if (EQUALS_NEWLINE_RE.test(property)) {
     throw new GodotMCPError('Invalid property key', 'INVALID_ARGS', 'Property keys must not contain "=", newlines.')
   }
-  if (value.includes('\n') || value.includes('\r')) {
+  if (NEWLINE_RE.test(value)) {
     throw new GodotMCPError('Invalid property value', 'INVALID_ARGS', 'Property values must not contain newlines.')
   }
 

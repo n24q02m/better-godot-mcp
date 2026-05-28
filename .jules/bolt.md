@@ -9,3 +9,6 @@
 ## 2025-03-09 - [Optimize parseProjectGodot string parsing]
 **Learning:** Parsing `project.godot` (or other INI-like configurations) line-by-line using regular expressions inside a hot loop (e.g., `^\[(.+)\]$`, `/^([^\s=]+)\s*=\s*(.+)$/`) causes severe performance bottlenecks due to RegExp compilation, execution, and extensive GC pressure from intermediary match objects and string allocations.
 **Action:** Replace regular expressions within file parsing loops with manual string operations: use `charCodeAt` to identify section boundaries (e.g., `91` for `[`), `indexOf('=')` for key-value extraction, and direct `.slice()` + `.trim()` for data separation. Apply manual quote removal checking string bounds and `charCodeAt(0) === 34` instead of `.replace(/^"(.*)"$/, '$1')`.
+## 2025-05-14 - Pre-compiled Regex for Validation
+**Learning:** Multiple `String.includes()` calls in validation loops are significantly slower than a single `RegExp.test()` with a pre-compiled regex. Benchmarking showed a ~4-5x speedup (e.g., 2028ms vs 424ms for 1M iterations).
+**Action:** Refactored all repetitive newline, quote, and equals-sign validation patterns across composite tools to use module-level regex constants.

@@ -4,6 +4,10 @@
  */
 
 import { readFile, writeFile } from 'node:fs/promises'
+
+// ⚡ Bolt: Pre-compiled regex for fast string validation.
+const QUOTE_NEWLINE_RE = /["\n\r]/
+
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
@@ -25,14 +29,8 @@ export async function handleAnimation(action: string, args: Record<string, unkno
       const playerName = (args.name as string) || 'AnimationPlayer'
       const parent = (args.parent as string) || '.'
 
-      if (
-        playerName.includes('\n') ||
-        playerName.includes('\r') ||
-        playerName.includes('"') ||
-        parent.includes('\n') ||
-        parent.includes('\r') ||
-        parent.includes('"')
-      ) {
+      // ⚡ Bolt: Fast validation using pre-compiled regex.
+      if (QUOTE_NEWLINE_RE.test(playerName) || QUOTE_NEWLINE_RE.test(parent)) {
         throw new GodotMCPError(
           'Invalid characters in parameters',
           'INVALID_ARGS',
@@ -59,7 +57,8 @@ export async function handleAnimation(action: string, args: Record<string, unkno
       const duration = (args.duration as number) || 1.0
       const loop = args.loop !== false
 
-      if (animName.includes('\n') || animName.includes('\r') || animName.includes('"')) {
+      // ⚡ Bolt: Fast validation using pre-compiled regex.
+      if (QUOTE_NEWLINE_RE.test(animName)) {
         throw new GodotMCPError(
           'Invalid characters in anim_name',
           'INVALID_ARGS',
@@ -102,19 +101,12 @@ export async function handleAnimation(action: string, args: Record<string, unkno
         )
       }
 
+      // ⚡ Bolt: Fast validation using pre-compiled regex.
       if (
-        animName.includes('\n') ||
-        animName.includes('\r') ||
-        animName.includes('"') ||
-        trackType.includes('\n') ||
-        trackType.includes('\r') ||
-        trackType.includes('"') ||
-        nodePath.includes('\n') ||
-        nodePath.includes('\r') ||
-        nodePath.includes('"') ||
-        property.includes('\n') ||
-        property.includes('\r') ||
-        property.includes('"')
+        QUOTE_NEWLINE_RE.test(animName) ||
+        QUOTE_NEWLINE_RE.test(trackType) ||
+        QUOTE_NEWLINE_RE.test(nodePath) ||
+        QUOTE_NEWLINE_RE.test(property)
       ) {
         throw new GodotMCPError(
           'Invalid characters in parameters',

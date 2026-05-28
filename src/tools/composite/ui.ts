@@ -7,6 +7,12 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
+
+// ⚡ Bolt: Pre-compiled regex for fast string validation to avoid multiple includes() in hot paths.
+const QUOTE_NEWLINE_RE = /["\n\r]/
+const EQUALS_NEWLINE_RE = /[=\n\r]/
+const NEWLINE_RE = /[\n\r]/
+
 import { pathExists, safeResolve } from '../helpers/paths.js'
 import { escapeRegExp, parseScene } from '../helpers/scene-parser.js'
 
@@ -82,17 +88,8 @@ async function handleCreateControl(projectPath: string | null | undefined, args:
 
   if (!controlName) throw new GodotMCPError('No name specified', 'INVALID_ARGS', 'Provide control node name.')
 
-  if (
-    controlName.includes('"') ||
-    controlName.includes('\n') ||
-    controlName.includes('\r') ||
-    controlType.includes('"') ||
-    controlType.includes('\n') ||
-    controlType.includes('\r') ||
-    parent.includes('"') ||
-    parent.includes('\n') ||
-    parent.includes('\r')
-  ) {
+  // ⚡ Bolt: Fast validation using pre-compiled regex to prevent quote/newline injection.
+  if (QUOTE_NEWLINE_RE.test(controlName) || QUOTE_NEWLINE_RE.test(controlType) || QUOTE_NEWLINE_RE.test(parent)) {
     throw new GodotMCPError(
       'Invalid characters in parameters',
       'INVALID_ARGS',
@@ -127,10 +124,11 @@ async function handleCreateControl(projectPath: string | null | undefined, args:
       if (typeof key !== 'string' || typeof value !== 'string') {
         throw new GodotMCPError('Invalid property value', 'INVALID_ARGS', 'Property keys and values must be strings.')
       }
-      if (key.includes('=') || key.includes('\n') || key.includes('\r')) {
+      // ⚡ Bolt: Fast validation using pre-compiled regex.
+      if (EQUALS_NEWLINE_RE.test(key)) {
         throw new GodotMCPError('Invalid property key', 'INVALID_ARGS', 'Property keys must not contain "=", newlines.')
       }
-      if (value.includes('\n') || value.includes('\r')) {
+      if (NEWLINE_RE.test(value)) {
         throw new GodotMCPError('Invalid property value', 'INVALID_ARGS', 'Property values must not contain newlines.')
       }
       nodeDecl += `${key} = ${value}\n`
@@ -169,14 +167,8 @@ async function handleLayout(projectPath: string | null | undefined, args: Record
   if (!nodeName) throw new GodotMCPError('No name specified', 'INVALID_ARGS', 'Provide node name.')
   const preset = (args.preset as string) || 'full_rect'
 
-  if (
-    nodeName.includes('"') ||
-    nodeName.includes('\n') ||
-    nodeName.includes('\r') ||
-    preset.includes('"') ||
-    preset.includes('\n') ||
-    preset.includes('\r')
-  ) {
+  // ⚡ Bolt: Fast validation using pre-compiled regex.
+  if (QUOTE_NEWLINE_RE.test(nodeName) || QUOTE_NEWLINE_RE.test(preset)) {
     throw new GodotMCPError(
       'Invalid characters in parameters',
       'INVALID_ARGS',

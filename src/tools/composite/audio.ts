@@ -4,6 +4,10 @@
  */
 
 import { readFile, writeFile } from 'node:fs/promises'
+
+// ⚡ Bolt: Pre-compiled regex for fast string validation.
+const QUOTE_NEWLINE_RE = /["\n\r]/
+
 import { join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
@@ -51,14 +55,8 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       if (!busName) throw new GodotMCPError('No bus_name specified', 'INVALID_ARGS', 'Provide bus name.')
       const sendTo = (args.send_to as string) || 'Master'
 
-      if (
-        busName.includes('"') ||
-        busName.includes('\n') ||
-        busName.includes('\r') ||
-        sendTo.includes('"') ||
-        sendTo.includes('\n') ||
-        sendTo.includes('\r')
-      ) {
+      // ⚡ Bolt: Fast validation using pre-compiled regex.
+      if (QUOTE_NEWLINE_RE.test(busName) || QUOTE_NEWLINE_RE.test(sendTo)) {
         throw new GodotMCPError(
           'Invalid characters in parameters',
           'INVALID_ARGS',
@@ -114,14 +112,8 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
         )
       }
 
-      if (
-        busName.includes('"') ||
-        busName.includes('\n') ||
-        busName.includes('\r') ||
-        effectType.includes('"') ||
-        effectType.includes('\n') ||
-        effectType.includes('\r')
-      ) {
+      // ⚡ Bolt: Fast validation using pre-compiled regex.
+      if (QUOTE_NEWLINE_RE.test(busName) || QUOTE_NEWLINE_RE.test(effectType)) {
         throw new GodotMCPError(
           'Invalid characters in parameters',
           'INVALID_ARGS',
@@ -196,19 +188,12 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       const parent = (args.parent as string) || '.'
       const bus = (args.bus as string) || 'Master'
 
+      // ⚡ Bolt: Fast validation using pre-compiled regex.
       if (
-        nodeName.includes('"') ||
-        nodeName.includes('\n') ||
-        nodeName.includes('\r') ||
-        streamType.includes('"') ||
-        streamType.includes('\n') ||
-        streamType.includes('\r') ||
-        parent.includes('"') ||
-        parent.includes('\n') ||
-        parent.includes('\r') ||
-        bus.includes('"') ||
-        bus.includes('\n') ||
-        bus.includes('\r')
+        QUOTE_NEWLINE_RE.test(nodeName) ||
+        QUOTE_NEWLINE_RE.test(streamType) ||
+        QUOTE_NEWLINE_RE.test(parent) ||
+        QUOTE_NEWLINE_RE.test(bus)
       ) {
         throw new GodotMCPError(
           'Invalid characters in parameters',

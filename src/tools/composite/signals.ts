@@ -9,13 +9,17 @@ import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '..
 import { safeResolve } from '../helpers/paths.js'
 import { parseSceneContent } from '../helpers/scene-parser.js'
 
+// ⚡ Bolt: Pre-compiled regex for fast parameter validation.
+const SIGNAL_PARAM_RE = /[\n\r"\]]/
+
 function validateParameters(...params: unknown[]) {
   for (const param of params) {
     if (typeof param !== 'string' && typeof param !== 'number' && param !== undefined) {
       throw new GodotMCPError('Invalid parameter type', 'INVALID_ARGS', 'Signal parameters must be strings or numbers.')
     }
     const s = String(param)
-    if (s.includes('\n') || s.includes('\r') || s.includes('"') || s.includes(']')) {
+    // ⚡ Bolt: Fast validation using pre-compiled regex.
+    if (SIGNAL_PARAM_RE.test(s)) {
       throw new GodotMCPError(
         'Invalid characters in parameters',
         'INVALID_ARGS',

@@ -52,6 +52,9 @@ export function wrapToolResult<T extends { content: Array<{ type: string; text: 
   }
 }
 
+// ⚡ Bolt: Pre-compiled regex for fast newline detection.
+const NEWLINE_RE = /[\n\r]/
+
 /**
  * Validates that the provided values do not contain newlines.
  * Prevents injection attacks into Godot text files (.tscn, .tres, project.godot).
@@ -63,7 +66,8 @@ export function validateNoNewlines(
   ...values: (string | number | boolean | undefined | null)[]
 ): void {
   for (const val of values) {
-    if (typeof val === 'string' && (val.includes('\n') || val.includes('\r'))) {
+    // ⚡ Bolt: Fast validation using pre-compiled regex.
+    if (typeof val === 'string' && NEWLINE_RE.test(val)) {
       throw new GodotMCPError(customMessage || 'Invalid arguments: newlines not allowed', 'INVALID_ARGS')
     }
   }

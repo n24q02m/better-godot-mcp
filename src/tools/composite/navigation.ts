@@ -4,6 +4,10 @@
  */
 
 import { readFile, writeFile } from 'node:fs/promises'
+
+// ⚡ Bolt: Pre-compiled regex for fast string validation.
+const QUOTE_NEWLINE_RE = /["\n\r]/
+
 import type { GodotConfig } from '../../godot/types.js'
 import { formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
@@ -33,17 +37,8 @@ export async function handleNavigation(action: string, args: Record<string, unkn
       const parent = (args.parent as string) || '.'
       const dimension = (args.dimension as string) || '3D'
 
-      if (
-        regionName.includes('\n') ||
-        regionName.includes('\r') ||
-        regionName.includes('"') ||
-        parent.includes('\n') ||
-        parent.includes('\r') ||
-        parent.includes('"') ||
-        dimension.includes('\n') ||
-        dimension.includes('\r') ||
-        dimension.includes('"')
-      ) {
+      // ⚡ Bolt: Fast validation using pre-compiled regex.
+      if (QUOTE_NEWLINE_RE.test(regionName) || QUOTE_NEWLINE_RE.test(parent) || QUOTE_NEWLINE_RE.test(dimension)) {
         throw new GodotMCPError(
           'Invalid characters in parameters',
           'INVALID_ARGS',
@@ -68,17 +63,8 @@ export async function handleNavigation(action: string, args: Record<string, unkn
       const parent = (args.parent as string) || '.'
       const dimension = (args.dimension as string) || '3D'
 
-      if (
-        agentName.includes('\n') ||
-        agentName.includes('\r') ||
-        agentName.includes('"') ||
-        parent.includes('\n') ||
-        parent.includes('\r') ||
-        parent.includes('"') ||
-        dimension.includes('\n') ||
-        dimension.includes('\r') ||
-        dimension.includes('"')
-      ) {
+      // ⚡ Bolt: Fast validation using pre-compiled regex.
+      if (QUOTE_NEWLINE_RE.test(agentName) || QUOTE_NEWLINE_RE.test(parent) || QUOTE_NEWLINE_RE.test(dimension)) {
         throw new GodotMCPError(
           'Invalid characters in parameters',
           'INVALID_ARGS',
@@ -109,17 +95,8 @@ export async function handleNavigation(action: string, args: Record<string, unkn
       const parent = (args.parent as string) || '.'
       const dimension = (args.dimension as string) || '3D'
 
-      if (
-        obstacleName.includes('\n') ||
-        obstacleName.includes('\r') ||
-        obstacleName.includes('"') ||
-        parent.includes('\n') ||
-        parent.includes('\r') ||
-        parent.includes('"') ||
-        dimension.includes('\n') ||
-        dimension.includes('\r') ||
-        dimension.includes('"')
-      ) {
+      // ⚡ Bolt: Fast validation using pre-compiled regex.
+      if (QUOTE_NEWLINE_RE.test(obstacleName) || QUOTE_NEWLINE_RE.test(parent) || QUOTE_NEWLINE_RE.test(dimension)) {
         throw new GodotMCPError(
           'Invalid characters in parameters',
           'INVALID_ARGS',

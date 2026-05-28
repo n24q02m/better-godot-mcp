@@ -164,124 +164,126 @@ function resolvePath(base: string | undefined, relativePath: string): string {
   return safeResolve(process.cwd(), relativePath)
 }
 
+async function handleCreateScene(projectPath: string, scenePath: string, args: Record<string, unknown>) {
+  const rootType = (args.root_type as string) || 'Node2D'
+  const rootName = (args.root_name as string) || basename(scenePath, '.tscn')
+
+  if (rootName.includes('"') || rootName.includes('\n') || rootName.includes('\r')) {
+    throw new GodotMCPError('Invalid root name', 'INVALID_ARGS', 'Root name must not contain quotes or newlines.')
+  }
+
+  if (rootType.includes('"') || rootType.includes('\n') || rootType.includes('\r')) {
+    throw new GodotMCPError('Invalid root type', 'INVALID_ARGS', 'Root type must not contain quotes or newlines.')
+  }
+
+  const fullPath = safeResolve(projectPath, scenePath)
+  if (await pathExists(fullPath)) {
+    throw new GodotMCPError(
+      `Scene already exists: ${scenePath}`,
+      'SCENE_ERROR',
+      'Use a different path or delete the existing scene first.',
+    )
+  }
+
+  const content = generateTscnContent(rootName, rootType)
+  await mkdir(dirname(fullPath), { recursive: true })
+  await writeFile(fullPath, content, 'utf-8')
+
+  return formatSuccess(`Created scene: ${scenePath}\nRoot: ${rootName} (${rootType})`)
+}
+
+async function handleListScenes(baseDir: string, projectPath: string) {
+  const resolvedPath = safeResolve(baseDir, projectPath)
+  const scenes = await findSceneFiles(resolvedPath)
+
+  // OPTIMIZATION: Use substring and a pre-allocated array instead of .map() and node:path.relative
+  // for significantly faster execution on large arrays of prefixed paths.
+  const prefixLen = resolvedPath.length + (resolvedPath.endsWith('/') || resolvedPath.endsWith('\\') ? 0 : 1)
+  const relativePaths = new Array(scenes.length)
+  for (let i = 0; i < scenes.length; i++) {
+    // ⚡ Bolt: Using replaceAll('\\', '/') avoids RegExp allocation overhead
+    relativePaths[i] = scenes[i].substring(prefixLen).replaceAll('\\', '/')
+  }
+
+  return formatJSON({
+    project: resolvedPath,
+    count: relativePaths.length,
+    scenes: relativePaths,
+  })
+}
+
+async function handleSceneInfo(projectPath: string | undefined, scenePath: string) {
+  const fullPath = resolvePath(projectPath, scenePath)
+  if (!(await pathExists(fullPath))) {
+    throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path and try again.')
+  }
+
+  const info = await parseTscnFile(fullPath)
+  return formatJSON(info)
+}
+
+async function handleDeleteScene(projectPath: string | undefined, scenePath: string) {
+  const fullPath = resolvePath(projectPath, scenePath)
+  if (!(await pathExists(fullPath))) {
+    throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
+  }
+
+  await unlink(fullPath)
+  return formatSuccess(`Deleted scene: ${scenePath}`)
+}
+
+async function handleDuplicateScene(projectPath: string | undefined, scenePath: string, newPath: string) {
+  const srcFull = resolvePath(projectPath, scenePath)
+  const dstFull = resolvePath(projectPath, newPath)
+
+  if (!(await pathExists(srcFull))) {
+    throw new GodotMCPError(`Source scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the source path.')
+  }
+  if (await pathExists(dstFull)) {
+    throw new GodotMCPError(`Destination already exists: ${newPath}`, 'SCENE_ERROR', 'Choose a different destination.')
+  }
+
+  await mkdir(dirname(dstFull), { recursive: true })
+  await copyFile(srcFull, dstFull)
+  return formatSuccess(`Duplicated: ${scenePath} -> ${newPath}`)
+}
+
+async function handleSetMainScene(baseDir: string, projectPath: string, scenePath: string) {
+  if (scenePath.includes('"') || scenePath.includes('\n') || scenePath.includes('\r')) {
+    throw new GodotMCPError('Invalid scene path', 'INVALID_ARGS', 'Scene path must not contain quotes or newlines.')
+  }
+
+  const configPath = join(safeResolve(baseDir, projectPath), 'project.godot')
+  if (!(await pathExists(configPath))) {
+    throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
+  }
+
+  // ⚡ Bolt: Using replaceAll('\\', '/') avoids RegExp allocation overhead
+  const resPath = `res://${scenePath.replaceAll('\\', '/')}`
+  const content = await readFile(configPath, 'utf-8')
+  const updated = setSettingInContent(content, 'application/run/main_scene', `"${resPath}"`)
+  await writeFile(configPath, updated, 'utf-8')
+
+  return formatSuccess(`Set main scene: ${resPath}`)
+}
+
 export async function handleScenes(action: string, args: Record<string, unknown>, config: GodotConfig) {
   const baseDir = config.projectPath || process.cwd()
   const { projectPath, scenePath, newPath } = validateSceneArgs(action, args, config)
 
   switch (action) {
-    case 'create': {
-      // projectPath and scenePath are guaranteed by validation
-      const rootType = (args.root_type as string) || 'Node2D'
-      const rootName = (args.root_name as string) || basename(scenePath, '.tscn')
-
-      if (rootName.includes('"') || rootName.includes('\n') || rootName.includes('\r')) {
-        throw new GodotMCPError('Invalid root name', 'INVALID_ARGS', 'Root name must not contain quotes or newlines.')
-      }
-
-      if (rootType.includes('"') || rootType.includes('\n') || rootType.includes('\r')) {
-        throw new GodotMCPError('Invalid root type', 'INVALID_ARGS', 'Root type must not contain quotes or newlines.')
-      }
-
-      const fullPath = safeResolve(projectPath as string, scenePath)
-      if (await pathExists(fullPath)) {
-        throw new GodotMCPError(
-          `Scene already exists: ${scenePath}`,
-          'SCENE_ERROR',
-          'Use a different path or delete the existing scene first.',
-        )
-      }
-
-      const content = generateTscnContent(rootName, rootType)
-      await mkdir(dirname(fullPath), { recursive: true })
-      await writeFile(fullPath, content, 'utf-8')
-
-      return formatSuccess(`Created scene: ${scenePath}\nRoot: ${rootName} (${rootType})`)
-    }
-
-    case 'list': {
-      // projectPath is guaranteed
-      const resolvedPath = safeResolve(baseDir, projectPath as string)
-      const scenes = await findSceneFiles(resolvedPath)
-
-      // OPTIMIZATION: Use substring and a pre-allocated array instead of .map() and node:path.relative
-      // for significantly faster execution on large arrays of prefixed paths.
-      const prefixLen = resolvedPath.length + (resolvedPath.endsWith('/') || resolvedPath.endsWith('\\') ? 0 : 1)
-      const relativePaths = new Array(scenes.length)
-      for (let i = 0; i < scenes.length; i++) {
-        // ⚡ Bolt: Using replaceAll('\\', '/') avoids RegExp allocation overhead
-        relativePaths[i] = scenes[i].substring(prefixLen).replaceAll('\\', '/')
-      }
-
-      return formatJSON({
-        project: resolvedPath,
-        count: relativePaths.length,
-        scenes: relativePaths,
-      })
-    }
-
-    case 'info': {
-      // scenePath is guaranteed
-      const fullPath = resolvePath(projectPath, scenePath)
-      if (!(await pathExists(fullPath))) {
-        throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path and try again.')
-      }
-
-      const info = await parseTscnFile(fullPath)
-      return formatJSON(info)
-    }
-
-    case 'delete': {
-      // scenePath is guaranteed
-      const fullPath = resolvePath(projectPath, scenePath)
-      if (!(await pathExists(fullPath))) {
-        throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
-      }
-
-      await unlink(fullPath)
-      return formatSuccess(`Deleted scene: ${scenePath}`)
-    }
-
-    case 'duplicate': {
-      // scenePath and newPath are guaranteed
-      const srcFull = resolvePath(projectPath, scenePath)
-      const dstFull = resolvePath(projectPath, newPath as string)
-
-      if (!(await pathExists(srcFull))) {
-        throw new GodotMCPError(`Source scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the source path.')
-      }
-      if (await pathExists(dstFull)) {
-        throw new GodotMCPError(
-          `Destination already exists: ${newPath}`,
-          'SCENE_ERROR',
-          'Choose a different destination.',
-        )
-      }
-
-      await mkdir(dirname(dstFull), { recursive: true })
-      await copyFile(srcFull, dstFull)
-      return formatSuccess(`Duplicated: ${scenePath} -> ${newPath}`)
-    }
-
-    case 'set_main': {
-      // projectPath and scenePath are guaranteed
-      if (scenePath.includes('"') || scenePath.includes('\n') || scenePath.includes('\r')) {
-        throw new GodotMCPError('Invalid scene path', 'INVALID_ARGS', 'Scene path must not contain quotes or newlines.')
-      }
-
-      const configPath = join(safeResolve(baseDir, projectPath as string), 'project.godot')
-      if (!(await pathExists(configPath))) {
-        throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
-      }
-
-      // ⚡ Bolt: Using replaceAll('\\', '/') avoids RegExp allocation overhead
-      const resPath = `res://${scenePath.replaceAll('\\', '/')}`
-      const content = await readFile(configPath, 'utf-8')
-      const updated = setSettingInContent(content, 'application/run/main_scene', `"${resPath}"`)
-      await writeFile(configPath, updated, 'utf-8')
-
-      return formatSuccess(`Set main scene: ${resPath}`)
-    }
-
+    case 'create':
+      return handleCreateScene(projectPath as string, scenePath, args)
+    case 'list':
+      return handleListScenes(baseDir, projectPath as string)
+    case 'info':
+      return handleSceneInfo(projectPath, scenePath)
+    case 'delete':
+      return handleDeleteScene(projectPath, scenePath)
+    case 'duplicate':
+      return handleDuplicateScene(projectPath, scenePath, newPath as string)
+    case 'set_main':
+      return handleSetMainScene(baseDir, projectPath as string, scenePath)
     default:
       throwUnknownAction(action, ['create', 'list', 'info', 'delete', 'duplicate', 'set_main'])
   }

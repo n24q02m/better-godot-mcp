@@ -5,30 +5,36 @@
 /**
  * Fast-path parser for comma-separated lists, avoiding split/map/filter allocations.
  * Uses a single-pass loop to find delimiters, trimming whitespace and quotes in-place.
+ * Handles quoted items containing commas.
  */
 export function parseCommaSeparatedList(str: string): string[] {
   if (!str) return []
   const result: string[] = []
-  let start = 0
   const len = str.length
+  let inQuotes = false
+  let start = 0
 
-  while (start < len) {
-    const commaIdx = str.indexOf(',', start)
-    const end = commaIdx === -1 ? len : commaIdx
+  for (let i = 0; i <= len; i++) {
+    const char = i < len ? str[i] : ','
+    if (char === '"') {
+      inQuotes = !inQuotes
+    } else if (char === ',' && !inQuotes) {
+      // Trim leading whitespace and quotes
+      let itemStart = start
+      let itemEnd = i - 1
 
-    // Trim leading whitespace and quotes
-    let i = start
-    let j = end - 1
+      while (itemStart <= itemEnd && (str.charCodeAt(itemStart) <= 32 || str[itemStart] === '"')) {
+        itemStart++
+      }
+      while (itemEnd >= itemStart && (str.charCodeAt(itemEnd) <= 32 || str[itemEnd] === '"')) {
+        itemEnd--
+      }
 
-    while (i <= j && (str.charCodeAt(i) <= 32 || str[i] === '"')) i++
-    while (j >= i && (str.charCodeAt(j) <= 32 || str[j] === '"')) j--
-
-    if (i <= j) {
-      result.push(str.slice(i, j + 1))
+      if (itemStart <= itemEnd) {
+        result.push(str.slice(itemStart, itemEnd + 1))
+      }
+      start = i + 1
     }
-
-    if (commaIdx === -1) break
-    start = commaIdx + 1
   }
 
   return result

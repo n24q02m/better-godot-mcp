@@ -34,5 +34,26 @@ describe('strings helpers', () => {
     it('should handle items with inner spaces', () => {
       expect(parseCommaSeparatedList('word1 word2, word3 word4')).toEqual(['word1 word2', 'word3 word4'])
     })
+
+    it('should handle commas inside quotes', () => {
+      expect(parseCommaSeparatedList('"a, b", c')).toEqual(['a, b', 'c'])
+    })
+
+    it('should handle multiple quoted items with commas', () => {
+      expect(parseCommaSeparatedList('"a, b", "c, d", e')).toEqual(['a, b', 'c, d', 'e'])
+    })
+
+    it('should handle unquoted items with commas correctly by not over-trimming', () => {
+      expect(parseCommaSeparatedList('a b, c d')).toEqual(['a b', 'c d'])
+    })
+
+    it('should handle empty quotes', () => {
+      expect(parseCommaSeparatedList('"", " ", a')).toEqual(['a'])
+    })
+
+    it('should handle mixed quotes types (if only double quotes are supported)', () => {
+      // Current implementation only handles double quotes as per requirements and previous behavior
+      expect(parseCommaSeparatedList("'a, b', c")).toEqual(["'a", "b'", 'c'])
+    })
   })
 })

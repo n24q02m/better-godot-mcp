@@ -340,6 +340,13 @@ describe('detector', () => {
       expect(result?.minor).toBe(7)
     })
 
+    it('should return null if execFileSync throws when skipSignatureCheck is true', () => {
+      vi.mocked(execFileSync).mockImplementation(() => {
+        throw new Error('exec failed')
+      })
+      expect(tryGetVersion('/custom/godot', true)).toBeNull()
+    })
+
     it('should require signature check when skipSignatureCheck is false', () => {
       const mockStats = {
         isFile: () => true,

@@ -54,7 +54,7 @@ describe('safeResolve', () => {
     expect(() => safeResolve(baseDir, target)).toThrow(/Access denied/)
   })
 
-  it.skipIf(process.platform !== 'win32')('throws GodotMCPError on Windows-style path traversals', () => {
+  it('throws GodotMCPError on Windows-style path traversals', () => {
     const target = '..\\..\\..\\Windows\\System32\\cmd.exe'
     expect(() => safeResolve(baseDir, target)).toThrowError(GodotMCPError)
     expect(() => safeResolve(baseDir, target)).toThrow(/Access denied/)

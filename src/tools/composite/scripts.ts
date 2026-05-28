@@ -206,7 +206,6 @@ async function attachScript(args: Record<string, unknown>, resolvePath: (path: s
     throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Create the scene first.')
 
   let content = await readFile(sceneFullPath, 'utf-8')
-  // ⚡ Bolt: Using replaceAll('\\', '/') avoids RegExp allocation overhead
   const resPath = `res://${scriptPath.replaceAll('\\', '/')}`
 
   if (nodeName) {
@@ -234,12 +233,9 @@ async function listScripts(baseDir: string, projectPath: string | undefined) {
   const resolvedPath = safeResolve(baseDir, projectPath)
   const scripts = await findScriptFiles(resolvedPath)
 
-  // OPTIMIZATION: Use substring and a pre-allocated array instead of .map() and node:path.relative
-  // for significantly faster execution on large arrays of prefixed paths.
   const prefixLen = resolvedPath.length + (resolvedPath.endsWith('/') || resolvedPath.endsWith('\\') ? 0 : 1)
   const relativePaths = new Array(scripts.length)
   for (let i = 0; i < scripts.length; i++) {
-    // ⚡ Bolt: Using replaceAll('\\', '/') avoids RegExp allocation overhead
     relativePaths[i] = scripts[i].substring(prefixLen).replaceAll('\\', '/')
   }
 

@@ -43,10 +43,6 @@ async function findResourceFiles(
     const entries = await readdir(dir, { withFileTypes: true })
     const promises: Promise<void>[] = []
 
-    // ⚡ Bolt: Removed .map() and .flat() in favor of a shared results array and .push()
-    // This reduces intermediate array allocations and garbage collection pressure
-    // during recursive asynchronous directory traversals for Godot projects with many assets.
-
     for (let i = 0; i < entries.length; i++) {
       const entry = entries[i]
       const name = entry.name
@@ -100,13 +96,10 @@ export async function handleResources(action: string, args: Record<string, unkno
 
       const resources = await findResourceFiles(resolvedPath, exts)
 
-      // OPTIMIZATION: Use substring and a pre-allocated array instead of .map() and node:path.relative
-      // for significantly faster execution on large arrays of prefixed paths.
       const prefixLen = resolvedPath.length + (resolvedPath.endsWith('/') || resolvedPath.endsWith('\\') ? 0 : 1)
       const relativePaths = new Array(resources.length)
       for (let i = 0; i < resources.length; i++) {
         const r = resources[i]
-        // ⚡ Bolt: Using replaceAll('\\', '/') avoids RegExp allocation overhead
         relativePaths[i] = {
           path: r.path.substring(prefixLen).replaceAll('\\', '/'),
           ext: extname(r.path),

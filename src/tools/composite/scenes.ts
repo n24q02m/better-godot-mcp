@@ -203,12 +203,9 @@ export async function handleScenes(action: string, args: Record<string, unknown>
       const resolvedPath = safeResolve(baseDir, projectPath as string)
       const scenes = await findSceneFiles(resolvedPath)
 
-      // OPTIMIZATION: Use substring and a pre-allocated array instead of .map() and node:path.relative
-      // for significantly faster execution on large arrays of prefixed paths.
       const prefixLen = resolvedPath.length + (resolvedPath.endsWith('/') || resolvedPath.endsWith('\\') ? 0 : 1)
       const relativePaths = new Array(scenes.length)
       for (let i = 0; i < scenes.length; i++) {
-        // ⚡ Bolt: Using replaceAll('\\', '/') avoids RegExp allocation overhead
         relativePaths[i] = scenes[i].substring(prefixLen).replaceAll('\\', '/')
       }
 
@@ -273,7 +270,6 @@ export async function handleScenes(action: string, args: Record<string, unknown>
         throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
       }
 
-      // ⚡ Bolt: Using replaceAll('\\', '/') avoids RegExp allocation overhead
       const resPath = `res://${scenePath.replaceAll('\\', '/')}`
       const content = await readFile(configPath, 'utf-8')
       const updated = setSettingInContent(content, 'application/run/main_scene', `"${resPath}"`)

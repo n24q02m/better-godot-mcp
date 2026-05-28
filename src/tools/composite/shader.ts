@@ -180,12 +180,9 @@ export async function handleShader(action: string, args: Record<string, unknown>
       const resolvedPath = safeResolve(baseDir, projectPath)
       const shaders = await findShaderFiles(resolvedPath)
 
-      // OPTIMIZATION: Use substring and a pre-allocated array instead of .map() and node:path.relative
-      // for significantly faster execution on large arrays of prefixed paths.
       const prefixLen = resolvedPath.length + (resolvedPath.endsWith('/') || resolvedPath.endsWith('\\') ? 0 : 1)
       const relativePaths = new Array(shaders.length)
       for (let i = 0; i < shaders.length; i++) {
-        // ⚡ Bolt: Using replaceAll('\\', '/') avoids RegExp allocation overhead
         relativePaths[i] = shaders[i].substring(prefixLen).replaceAll('\\', '/')
       }
 

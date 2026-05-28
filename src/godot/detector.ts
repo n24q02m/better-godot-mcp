@@ -26,6 +26,12 @@ import type { DetectionResult, GodotVersion } from './types.js'
 const GODOT_BINARY_NAMES = ['godot', 'godot4', 'godot-preview', 'Godot_v4']
 const MIN_VERSION = { major: 4, minor: 1 }
 
+// ⚡ Bolt: Pre-compile regexes and buffers to avoid redundant allocations in loops
+const SIG_GODOT_ENGINE = Buffer.from('Godot Engine')
+const SIG_GDSCRIPT = Buffer.from('GDScript')
+const GODOT_WIN64_EXE_RE = /^Godot_v[\d.]+-\w+_win64\.exe$/i
+const GODOT_WIN64_CONSOLE_EXE_RE = /^Godot_v[\d.]+-\w+_win64_console\.exe$/i
+
 /**
  * Parse Godot version string (e.g., "Godot Engine v4.6.stable.official")
  */
@@ -81,33 +87,39 @@ export function isLikelyGodotBinary(filePath: string): boolean {
     fd = openSync(filePath, 'r')
     const stats = fstatSync(fd)
     const fileSize = stats.size
-    const sig1 = Buffer.from('Godot Engine')
-    const sig2 = Buffer.from('GDScript')
 
     const fastSize = 64 * 1024
     const fastBuf = Buffer.alloc(fastSize)
     const headRead = readSync(fd, fastBuf, 0, Math.min(fastSize, fileSize), 0)
-    if (headRead > 0 && (fastBuf.subarray(0, headRead).includes(sig1) || fastBuf.subarray(0, headRead).includes(sig2)))
+    if (
+      headRead > 0 &&
+      (fastBuf.subarray(0, headRead).includes(SIG_GODOT_ENGINE) || fastBuf.subarray(0, headRead).includes(SIG_GDSCRIPT))
+    )
       return true
     if (fileSize > fastSize) {
       const tailOffset = fileSize - fastSize
       const tailRead = readSync(fd, fastBuf, 0, fastSize, tailOffset)
       if (
         tailRead > 0 &&
-        (fastBuf.subarray(0, tailRead).includes(sig1) || fastBuf.subarray(0, tailRead).includes(sig2))
+        (fastBuf.subarray(0, tailRead).includes(SIG_GODOT_ENGINE) ||
+          fastBuf.subarray(0, tailRead).includes(SIG_GDSCRIPT))
       )
         return true
     }
 
     const chunkSize = 4 * 1024 * 1024
-    const maxSigLen = Math.max(sig1.length, sig2.length)
+    const maxSigLen = Math.max(SIG_GODOT_ENGINE.length, SIG_GDSCRIPT.length)
     const overlap = maxSigLen - 1
     const step = chunkSize - overlap
     const buffer = Buffer.alloc(chunkSize)
     for (let offset = 0; offset < fileSize; offset += step) {
       const readLen = Math.min(chunkSize, fileSize - offset)
       const bytesRead = readSync(fd, buffer, 0, readLen, offset)
-      if (buffer.subarray(0, bytesRead).includes(sig1) || buffer.subarray(0, bytesRead).includes(sig2)) return true
+      if (
+        buffer.subarray(0, bytesRead).includes(SIG_GODOT_ENGINE) ||
+        buffer.subarray(0, bytesRead).includes(SIG_GDSCRIPT)
+      )
+        return true
     }
     return false
   } catch {
@@ -179,10 +191,29 @@ function findWinGetGodotBinaries(localAppData: string): string[] {
       const pkgDir = join(packagesDir, dir.name)
       try {
         const files = readdirSync(pkgDir)
+        let regularExe: string | undefined
+        let consoleExe: string | undefined
+
+        // ⚡ Bolt: Single pass over files to find both regular and console executables.
+        // Use fast string short-circuits (startsWith, endsWith) to avoid regex if possible.
+        for (const f of files) {
+          if (!f.startsWith('Godot_v') || !f.endsWith('.exe')) continue
+
+          if (f.includes('console')) {
+            if (!consoleExe && GODOT_WIN64_CONSOLE_EXE_RE.test(f)) {
+              consoleExe = f
+            }
+          } else {
+            if (!regularExe && GODOT_WIN64_EXE_RE.test(f)) {
+              regularExe = f
+            }
+          }
+          // Optimization: if we found both, we can stop
+          if (regularExe && consoleExe) break
+        }
+
         // Prefer GUI version (has actual editor window), then console as fallback
-        const regularExe = files.find((f) => /^Godot_v[\d.]+-\w+_win64\.exe$/i.test(f) && !f.includes('console'))
         if (regularExe) results.push(join(pkgDir, regularExe))
-        const consoleExe = files.find((f) => /^Godot_v[\d.]+-\w+_win64_console\.exe$/i.test(f))
         if (consoleExe) results.push(join(pkgDir, consoleExe))
       } catch {
         // Skip unreadable package directories

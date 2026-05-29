@@ -1,6 +1,6 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { dirname, join, relative, resolve } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { GodotMCPError } from '../../src/tools/helpers/errors.js'
 import { pathExists, safeResolve } from '../../src/tools/helpers/paths.js'
@@ -71,6 +71,62 @@ describe('safeResolve', () => {
     expect(() => safeResolve(baseDir, target)).toThrowError(GodotMCPError)
     expect(() => safeResolve(baseDir, target)).toThrow(/Access denied/)
   })
+})
+
+describe('safeResolve canonicalization (symlink / firmlink hardening)', () => {
+  let realBase: string
+  let outsideDir: string
+
+  beforeAll(async () => {
+    // realpath the temp dir up front so assertions are not confused by the
+    // macOS firmlink layout (/var -> /private/var) of the OS temp location.
+    const root = await realpath(await mkdtemp(join(tmpdir(), 'godot-mcp-safe-resolve-')))
+    realBase = join(root, 'project')
+    outsideDir = join(root, 'outside')
+    await mkdir(realBase)
+    await mkdir(outsideDir)
+    await writeFile(join(outsideDir, 'secret.txt'), 'top secret')
+  })
+
+  afterAll(async () => {
+    await rm(dirname(realBase), { recursive: true, force: true })
+  })
+
+  it('allows a legitimate path inside the real base directory', () => {
+    const result = safeResolve(realBase, 'scenes/level.tscn')
+    expect(result).toBe(resolve(realBase, 'scenes/level.tscn'))
+  })
+
+  it.skipIf(process.platform === 'win32')(
+    'blocks traversal that escapes via a symlinked directory component',
+    async () => {
+      // Create a symlink INSIDE the base that points to a sibling outside dir.
+      // A purely lexical check would treat `escape/secret.txt` as in-base, but
+      // canonicalization reveals it resolves to the outside directory.
+      const link = join(realBase, 'escape')
+      await symlink(outsideDir, link, 'dir')
+
+      expect(() => safeResolve(realBase, 'escape/secret.txt')).toThrowError(GodotMCPError)
+      expect(() => safeResolve(realBase, 'escape/secret.txt')).toThrow(/Access denied/)
+    },
+  )
+
+  it.skipIf(process.platform === 'win32')(
+    'allows a symlinked directory component that still points inside the base',
+    async () => {
+      const innerReal = join(realBase, 'real-inner')
+      await mkdir(innerReal)
+      const innerLink = join(realBase, 'inner-link')
+      await symlink(innerReal, innerLink, 'dir')
+
+      // inner-link -> real-inner, both inside base, so this must be allowed.
+      expect(() => safeResolve(realBase, 'inner-link/file.tscn')).not.toThrow()
+      const result = safeResolve(realBase, 'inner-link/file.tscn')
+      // The returned (lexical) path is still inside the base directory.
+      const rel = relative(realBase, result)
+      expect(rel.startsWith('..')).toBe(false)
+    },
+  )
 })
 
 describe('pathExists', () => {

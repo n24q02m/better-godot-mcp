@@ -29,10 +29,17 @@ const VALID_TOPICS = [
 ] as const
 type TopicName = (typeof VALID_TOPICS)[number]
 
+// ⚡ Bolt: Cache resolved docs dir to avoid redundant I/O on every help request
+let cachedDocsDir: string | null = null
+
 /**
  * Get the docs directory path
  */
 async function getDocsDir(): Promise<string> {
+  if (cachedDocsDir !== null) {
+    return cachedDocsDir
+  }
+
   const candidates = [
     join(import.meta.dirname || '', '..', '..', 'docs'),
     // Bundled CLI at bin/cli.mjs -> ../build/src/docs/
@@ -53,9 +60,14 @@ async function getDocsDir(): Promise<string> {
   )
 
   const found = results.find((res) => res !== null)
-  if (found) return found
 
-  return join(process.cwd(), 'src', 'docs')
+  if (found) {
+    cachedDocsDir = found
+    return found
+  }
+
+  cachedDocsDir = join(process.cwd(), 'src', 'docs')
+  return cachedDocsDir
 }
 
 /**

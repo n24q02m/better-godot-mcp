@@ -9,3 +9,6 @@
 ## 2025-03-09 - [Optimize parseProjectGodot string parsing]
 **Learning:** Parsing `project.godot` (or other INI-like configurations) line-by-line using regular expressions inside a hot loop (e.g., `^\[(.+)\]$`, `/^([^\s=]+)\s*=\s*(.+)$/`) causes severe performance bottlenecks due to RegExp compilation, execution, and extensive GC pressure from intermediary match objects and string allocations.
 **Action:** Replace regular expressions within file parsing loops with manual string operations: use `charCodeAt` to identify section boundaries (e.g., `91` for `[`), `indexOf('=')` for key-value extraction, and direct `.slice()` + `.trim()` for data separation. Apply manual quote removal checking string bounds and `charCodeAt(0) === 34` instead of `.replace(/^"(.*)"$/, '$1')`.
+## 2025-03-10 - Redundant I/O on Tool Invocations
+**Learning:** Found that discovery patterns checking multiple directory candidates for documentation triggers parallel filesystem `stat` checks every time the tool is invoked, causing redundant event loop blocking.
+**Action:** Cache the successfully resolved paths in module-level constants or variables immediately after the first successful lookup, ensuring subsequent tool invocations skip the disk I/O entirely.

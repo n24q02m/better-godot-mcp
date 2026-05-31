@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { handleHelp } from '../../src/tools/composite/help.js'
+import { _resetDocsDirCache, handleHelp } from '../../src/tools/composite/help.js'
 import { GodotMCPError } from '../../src/tools/helpers/errors.js'
 import { pathExists } from '../../src/tools/helpers/paths.js'
 
@@ -17,6 +17,7 @@ vi.mock('../../src/tools/helpers/paths.js', () => ({
 describe('handleHelp', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    _resetDocsDirCache()
   })
 
   it('should return documentation for valid topic', async () => {

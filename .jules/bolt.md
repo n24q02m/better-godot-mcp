@@ -9,3 +9,6 @@
 ## 2025-03-09 - [Optimize parseProjectGodot string parsing]
 **Learning:** Parsing `project.godot` (or other INI-like configurations) line-by-line using regular expressions inside a hot loop (e.g., `^\[(.+)\]$`, `/^([^\s=]+)\s*=\s*(.+)$/`) causes severe performance bottlenecks due to RegExp compilation, execution, and extensive GC pressure from intermediary match objects and string allocations.
 **Action:** Replace regular expressions within file parsing loops with manual string operations: use `charCodeAt` to identify section boundaries (e.g., `91` for `[`), `indexOf('=')` for key-value extraction, and direct `.slice()` + `.trim()` for data separation. Apply manual quote removal checking string bounds and `charCodeAt(0) === 34` instead of `.replace(/^"(.*)"$/, '$1')`.
+## 2024-05-24 - Caching Filesystem Discovery Results
+**Learning:** In Node.js, repeated filesystem operations (like searching multiple directories for a documentation path) block the event loop and introduce significant latency, especially when serving frequent requests. Static paths like the documentation directory don't change during the application lifecycle.
+**Action:** Always cache the results of static filesystem discovery operations (like identifying resource directories) in module-level variables upon the first successful lookup to eliminate redundant I/O in hot paths.

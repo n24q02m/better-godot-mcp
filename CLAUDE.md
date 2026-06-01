@@ -2,7 +2,7 @@
 
 MCP Server cho Godot Engine. TypeScript, Node.js >= 24, bun, ESM.
 17 composite mega-tools cho game development. Zod v4 schema validation.
-Dual-mode: HTTP (default) + stdio (backward compat via `--stdio` flag or `MCP_TRANSPORT=stdio`).
+Dual-mode: stdio (default) + HTTP (via `--http` flag, `MCP_TRANSPORT=http`, or `TRANSPORT_MODE=http`).
 
 ## Commands
 
@@ -25,8 +25,8 @@ bun x vitest run -t "test name"                   # single test
 
 # Build & Dev
 bun run build                    # tsc --build + esbuild CLI bundle
-bun run dev                      # tsx watch dev server (HTTP mode, default)
-bun run dev:http                 # tsx watch dev server (HTTP mode, explicit)
+bun run dev                      # tsx watch dev server (stdio mode, default)
+bun run dev:http                 # tsx watch dev server (HTTP mode, MCP_TRANSPORT=http)
 bun run dev:stdio                # tsx watch dev server (stdio mode)
 
 # Mise shortcuts
@@ -40,10 +40,9 @@ mise run fix       # bun run check:fix
 
 ```
 src/
-  init-server.ts                 # Entry point, transport mode detection
+  init-server.ts                 # Entry point, transport mode detection (HTTP via @n24q02m/mcp-core runHttpServer, no auth)
   transports/
-    stdio.ts                     # Stdio transport (backward compat)
-    http.ts                      # HTTP transport (StreamableHTTPServerTransport, no auth)
+    stdio.ts                     # Stdio transport (default mode)
   godot/                         # Binary detection, headless execution, types
   tools/
     registry.ts                  # Tool definitions (P0-P3 priority) + routing
@@ -59,8 +58,9 @@ tests/
 
 - `GODOT_PROJECT_PATH` -- default project path (tools cung nhan `project_path` param)
 - `GODOT_PATH` -- duong dan toi Godot binary (auto-detect neu khong set)
-- `MCP_TRANSPORT` -- `stdio` de dung stdio mode (default: HTTP)
+- `MCP_TRANSPORT` -- `http` de dung HTTP mode (default: stdio); cung chap nhan `--http` flag hoac `TRANSPORT_MODE=http`
 - `PORT` -- HTTP port (default: 0 = auto-assign)
+- `HOST` -- HTTP host (HTTP mode)
 
 ## Code conventions
 
@@ -110,7 +110,7 @@ Tier policy:
 - **T2 non-interaction** (`make e2e-config CONFIG=<id>` locally) - driver pre-fills relay form from skret AWS SSM `n/a (no skret credentials)` (`ap-southeast-1`). No user gate.
 - **T2 interaction** - driver fills relay form, then prints upstream user-gate URL; user signs in / types OTP at provider. Driver enforces per-flow timeouts (device-code 900s, oauth-redirect 300s, browser-form 600s) and emits `[poll] elapsed=Xs remaining=Ys status=<body>` every 30s. On timeout, container logs + last `setup-status` are saved to `<tmp>/e2e-diag/` BEFORE teardown for post-mortem.
 
-Multi-user remote mode (deployment property; not a separate config) requires `MCP_DCR_SERVER_SECRET` in the same skret namespace - driver refuses to start the container without it when `PUBLIC_URL` is set.
+Multi-user remote mode (deployment property; not a separate config) requires `CREDENTIAL_SECRET` in the same skret namespace - driver refuses to start the container without it when `PUBLIC_URL` is set. (Godot itself stores no credentials, so this applies only to the shared mcp-core HTTP harness.)
 
 References: `mcp-core/scripts/e2e/matrix.yaml`, `~/.claude/skills/mcp-dev/references/e2e-full-matrix.md` (harness-readiness gate), `~/.claude/skills/mcp-dev/references/secrets-skret.md` (per-server credential layout), `~/.claude/skills/mcp-dev/references/multi-user-pattern.md` (per-JWT-sub isolation).
 

@@ -94,7 +94,7 @@ src/
   godot/                      # Godot binary detection, headless execution, types
   tools/
     registry.ts               # Tool definitions (P0-P3 priority) + routing
-    composite/                 # One file per mega-tool (18 tools)
+    composite/                 # One file per mega-tool (17 tools)
     helpers/                   # errors.ts, scene-parser.ts, godot-types.ts, project-settings.ts
 tests/
   fixtures.ts                 # Shared test fixtures

@@ -7,7 +7,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
-import { pathExists, safeResolve } from '../helpers/paths.js'
+import { safeResolve } from '../helpers/paths.js'
 
 /**
  * Helper to resolve the default bus layout path.
@@ -28,11 +28,13 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
     case 'list_buses': {
       const busLayoutPath = resolveBusLayoutPath(projectPath, baseDir)
 
-      if (!(await pathExists(busLayoutPath))) {
+      let content: string
+      try {
+        content = await readFile(busLayoutPath, 'utf-8')
+      } catch {
         return formatJSON({ buses: [{ name: 'Master', volume: 0, effects: [] }], note: 'Using default bus layout.' })
       }
 
-      const content = await readFile(busLayoutPath, 'utf-8')
       const buses: { name: string; volume?: string; solo?: boolean; mute?: boolean }[] = []
 
       // Parse bus entries
@@ -68,9 +70,9 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
 
       let content: string
 
-      if (await pathExists(busLayoutPath)) {
+      try {
         content = await readFile(busLayoutPath, 'utf-8')
-      } else {
+      } catch {
         content = [
           '[gd_resource type="AudioBusLayout" format=3]',
           '',
@@ -134,9 +136,9 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
 
       let content: string
 
-      if (await pathExists(busLayoutPath)) {
+      try {
         content = await readFile(busLayoutPath, 'utf-8')
-      } else {
+      } catch {
         content = [
           '[gd_resource type="AudioBusLayout" format=3]',
           '',
@@ -218,10 +220,13 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       }
 
       const fullPath = safeResolve(projectPath || process.cwd(), scenePath)
-      if (!(await pathExists(fullPath)))
+      let content: string
+      try {
+        content = await readFile(fullPath, 'utf-8')
+      } catch {
         throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check file path.')
+      }
 
-      let content = await readFile(fullPath, 'utf-8')
       const nodeType =
         streamType === '3D' ? 'AudioStreamPlayer3D' : streamType === '2D' ? 'AudioStreamPlayer2D' : 'AudioStreamPlayer'
       const parentAttr = parent === '.' ? '' : ` parent="${parent}"`

@@ -92,6 +92,7 @@ describe('Scene Injection Security Tests', () => {
       ).rejects.toThrow('Invalid characters in parameters')
     })
   })
+
   describe('UI Tool', () => {
     it('should reject newlines in properties for create_control', async () => {
       const { handleUI } = await import('../../src/tools/composite/ui.js')
@@ -140,6 +141,30 @@ describe('Scene Injection Security Tests', () => {
           config,
         ),
       ).rejects.toThrow('Invalid property key')
+    })
+  })
+
+  describe('Audio Tool', () => {
+    it('should reject newlines and quotes in add_bus', async () => {
+      const { handleAudio } = await import('../../src/tools/composite/audio.js')
+      await expect(
+        handleAudio('add_bus', { project_path: '.', bus_name: 'Bus\n[node' }, config),
+      ).rejects.toThrow('Invalid characters in parameters')
+
+      await expect(
+        handleAudio('add_bus', { project_path: '.', bus_name: 'Bus"' }, config),
+      ).rejects.toThrow('Invalid characters in parameters')
+    })
+
+    it('should reject newlines and quotes in create_stream', async () => {
+      const { handleAudio } = await import('../../src/tools/composite/audio.js')
+      await expect(
+        handleAudio('create_stream', { project_path: '.', scene_path: 'scene.tscn', name: 'Stream\n[node' }, config),
+      ).rejects.toThrow('Invalid characters in parameters')
+
+      await expect(
+        handleAudio('create_stream', { project_path: '.', scene_path: 'scene.tscn', name: 'Stream"' }, config),
+      ).rejects.toThrow('Invalid characters in parameters')
     })
   })
 })

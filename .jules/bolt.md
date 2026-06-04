@@ -9,3 +9,6 @@
 ## 2025-03-09 - [Optimize parseProjectGodot string parsing]
 **Learning:** Parsing `project.godot` (or other INI-like configurations) line-by-line using regular expressions inside a hot loop (e.g., `^\[(.+)\]$`, `/^([^\s=]+)\s*=\s*(.+)$/`) causes severe performance bottlenecks due to RegExp compilation, execution, and extensive GC pressure from intermediary match objects and string allocations.
 **Action:** Replace regular expressions within file parsing loops with manual string operations: use `charCodeAt` to identify section boundaries (e.g., `91` for `[`), `indexOf('=')` for key-value extraction, and direct `.slice()` + `.trim()` for data separation. Apply manual quote removal checking string bounds and `charCodeAt(0) === 34` instead of `.replace(/^"(.*)"$/, '$1')`.
+## 2025-05-15 - [PERF] Unnecessary Object.keys allocation
+**Learning:** Replacing `Object.keys(obj).forEach` or `for (const key of Object.keys(obj))` with `for (const key in obj)` avoids creating an intermediate array of strings. This is a micro-optimization that can add up in hot paths like scene parsing.
+**Action:** Refactored `updateNodeInScene` in `src/tools/helpers/scene-parser.ts` to use `for...in` instead of `Object.keys`.

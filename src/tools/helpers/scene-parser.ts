@@ -386,14 +386,13 @@ export function updateNodeInScene(
   }
 
   const updatedProperties = new Set<string>()
-  const keys = Object.keys(updates)
-
+  // ⚡ Bolt: Use for...in to avoid Object.keys allocation
   const newContent = transformSceneContent(content, nodeName, {
     processLine: (line, inTargetNode, isSectionHeader) => {
       if (inTargetNode && !isSectionHeader) {
         // Find if this line is one of our target properties
         const trimmed = line.trimStart()
-        for (const key of keys) {
+        for (const key in updates) {
           if (trimmed.startsWith(`${key} `) || trimmed.startsWith(`${key}=`)) {
             updatedProperties.add(key)
             return `${key} = ${updates[key]}`
@@ -404,7 +403,7 @@ export function updateNodeInScene(
     },
     onTargetNodeEnd: () => {
       const added: string[] = []
-      for (const key of keys) {
+      for (const key in updates) {
         if (!updatedProperties.has(key)) {
           added.push(`${key} = ${updates[key]}`)
         }

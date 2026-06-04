@@ -9,3 +9,7 @@
 ## 2025-03-09 - [Optimize parseProjectGodot string parsing]
 **Learning:** Parsing `project.godot` (or other INI-like configurations) line-by-line using regular expressions inside a hot loop (e.g., `^\[(.+)\]$`, `/^([^\s=]+)\s*=\s*(.+)$/`) causes severe performance bottlenecks due to RegExp compilation, execution, and extensive GC pressure from intermediary match objects and string allocations.
 **Action:** Replace regular expressions within file parsing loops with manual string operations: use `charCodeAt` to identify section boundaries (e.g., `91` for `[`), `indexOf('=')` for key-value extraction, and direct `.slice()` + `.trim()` for data separation. Apply manual quote removal checking string bounds and `charCodeAt(0) === 34` instead of `.replace(/^"(.*)"$/, '$1')`.
+
+## 2025-05-14 - [O(1) Connection Lookups]
+**Learning:** Linear scans (O(N)) in hot paths or frequently used tools can be optimized by using pre-computed Sets or Maps during the parsing stage.
+**Action:** Added `connectionKeys` Set to `ParsedScene` in `src/tools/helpers/scene-parser.ts` and updated `src/tools/composite/signals.ts` to use it for O(1) duplicate checks.

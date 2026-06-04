@@ -152,6 +152,12 @@ export async function handleProject(action: string, args: Record<string, unknown
 
       let stoppedCount = 0
       for (const pid of config.activePids) {
+        // Security: strictly validate that pid is a positive integer before using it in any shell-like commands
+        if (typeof pid !== 'number' || !Number.isSafeInteger(pid) || pid <= 0) {
+          console.error(`[project] Skipping invalid PID in stop action: ${pid}`)
+          continue
+        }
+
         try {
           if (process.platform === 'win32') {
             // Check if process exists before attempting to kill
@@ -170,7 +176,6 @@ export async function handleProject(action: string, args: Record<string, unknown
           // Process might have already terminated
         }
       }
-
       config.activePids = []
       return formatSuccess(`Godot processes stopped (Stopped ${stoppedCount} tracked processes)`)
     }

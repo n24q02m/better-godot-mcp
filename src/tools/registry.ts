@@ -57,8 +57,16 @@ function createAnnotations(
 const P0_TOOLS = [
   {
     name: 'project',
-    description:
-      'Godot project operations.\n\nActions (required params -> optional):\n- info (-> project_path): project metadata\n- version: Godot engine version\n- run (-> scene_path, project_path): launch game\n- stop: stop running game\n- settings_get (key -> project_path): read project setting\n- settings_set (key, value -> project_path): write project setting\n- export (preset, output_path -> project_path): export game build',
+    description: `Godot project operations.
+
+Actions (required params -> optional):
+- info (-> project_path): project metadata
+- version: Godot engine version
+- run (-> scene_path, project_path): launch game
+- stop: stop running game
+- settings_get (key -> project_path): read project setting
+- settings_set (key, value -> project_path): write project setting
+- export (preset, output_path -> project_path): export game build`,
     annotations: createAnnotations('Project'),
     inputSchema: {
       type: 'object' as const,
@@ -66,7 +74,7 @@ const P0_TOOLS = [
         action: {
           type: 'string',
           enum: ['info', 'version', 'run', 'stop', 'settings_get', 'settings_set', 'export'],
-          description: 'Action to perform',
+          description: `Action to perform`,
         },
         project_path: { type: 'string', description: 'Path to Godot project directory' },
         scene_path: { type: 'string', description: 'Path to a specific scene to run (optional)' },
@@ -80,8 +88,17 @@ const P0_TOOLS = [
   },
   {
     name: 'scenes',
-    description:
-      'Scene file (.tscn) CRUD.\n\nActions (required params -> optional):\n- create (scene_path -> root_type="Node2D", root_name, project_path)\n- list (-> project_path)\n- info (scene_path -> project_path)\n- delete (scene_path -> project_path)\n- duplicate (scene_path, new_path -> project_path)\n- set_main (scene_path -> project_path)\n\nscene_path: relative to project root (e.g., "scenes/main.tscn"), NOT res:// prefix. Use nodes tool to edit nodes within a scene.',
+    description: `Scene file (.tscn) CRUD.
+
+Actions (required params -> optional):
+- create (scene_path -> root_type="Node2D", root_name, project_path)
+- list (-> project_path)
+- info (scene_path -> project_path)
+- delete (scene_path -> project_path)
+- duplicate (scene_path, new_path -> project_path)
+- set_main (scene_path -> project_path)
+
+scene_path: relative to project root (e.g., "scenes/main.tscn"), NOT res:// prefix. Use nodes tool to edit nodes within a scene.`,
     annotations: createAnnotations('Scenes', { destructive: true }),
     inputSchema: {
       type: 'object' as const,
@@ -89,12 +106,12 @@ const P0_TOOLS = [
         action: {
           type: 'string',
           enum: ['create', 'list', 'info', 'delete', 'duplicate', 'set_main'],
-          description: 'Action to perform',
+          description: `Action to perform`,
         },
         project_path: { type: 'string', description: 'Path to Godot project directory' },
         scene_path: {
           type: 'string',
-          description: 'Relative scene file path from project root (e.g., "scenes/main.tscn"), not res:// prefix',
+          description: `Relative scene file path from project root (e.g., "scenes/main.tscn"), not res:// prefix`,
         },
         root_type: { type: 'string', description: 'Root node type for create (default: Node2D)' },
         root_name: { type: 'string', description: 'Root node name for create' },
@@ -105,8 +122,17 @@ const P0_TOOLS = [
   },
   {
     name: 'nodes',
-    description:
-      'Scene node operations.\n\nActions (required params -> optional):\n- add (scene_path, name -> type="Node", parent=".", project_path)\n- remove (scene_path, name -> project_path)\n- rename (scene_path, name, new_name -> project_path)\n- list (scene_path -> project_path)\n- set_property (scene_path, name, property, value -> project_path)\n- get_property (scene_path, name, property -> project_path)\n\nNode paths: relative to scene root using "/" (e.g., "Player/Sprite2D"). Use "." for root.',
+    description: `Scene node operations.
+
+Actions (required params -> optional):
+- add (scene_path, name -> type="Node", parent=".", project_path)
+- remove (scene_path, name -> project_path)
+- rename (scene_path, name, new_name -> project_path)
+- list (scene_path -> project_path)
+- set_property (scene_path, name, property, value -> project_path)
+- get_property (scene_path, name, property -> project_path)
+
+Node paths: relative to scene root using "/" (e.g., "Player/Sprite2D"). Use "." for root.`,
     annotations: createAnnotations('Nodes', { destructive: true }),
     inputSchema: {
       type: 'object' as const,
@@ -114,7 +140,7 @@ const P0_TOOLS = [
         action: {
           type: 'string',
           enum: ['add', 'remove', 'rename', 'list', 'set_property', 'get_property'],
-          description: 'Action to perform',
+          description: `Action to perform`,
         },
         project_path: { type: 'string', description: 'Path to Godot project directory' },
         scene_path: { type: 'string', description: 'Path to scene file' },
@@ -122,8 +148,7 @@ const P0_TOOLS = [
         type: { type: 'string', description: 'Node type (for add, default: Node)' },
         parent: {
           type: 'string',
-          description:
-            'Parent node path relative to scene root (for add, default: "." = root). Use "/" separator, e.g., "Player/Sprite2D"',
+          description: `Parent node path relative to scene root (for add, default: "." = root). Use "/" separator, e.g., "Player/Sprite2D"`,
         },
         new_name: { type: 'string', description: 'New name (for rename)' },
         property: { type: 'string', description: 'Property name (for get/set_property)' },
@@ -134,8 +159,17 @@ const P0_TOOLS = [
   },
   {
     name: 'scripts',
-    description:
-      'GDScript file CRUD.\n\nActions (required params -> optional):\n- create (script_path -> extends="Node", content, project_path): generate template\n- read (script_path -> project_path)\n- write (script_path, content -> project_path): replace entire file\n- attach (script_path, scene_path, node_name -> project_path): link to scene node\n- list (-> project_path)\n- delete (script_path -> project_path)\n\nscript_path: relative to project root (e.g., "scripts/player.gd").',
+    description: `GDScript file CRUD.
+
+Actions (required params -> optional):
+- create (script_path -> extends="Node", content, project_path): generate template
+- read (script_path -> project_path)
+- write (script_path, content -> project_path): replace entire file
+- attach (script_path, scene_path, node_name -> project_path): link to scene node
+- list (-> project_path)
+- delete (script_path -> project_path)
+
+script_path: relative to project root (e.g., "scripts/player.gd").`,
     annotations: createAnnotations('Scripts', { destructive: true }),
     inputSchema: {
       type: 'object' as const,
@@ -143,7 +177,7 @@ const P0_TOOLS = [
         action: {
           type: 'string',
           enum: ['create', 'read', 'write', 'attach', 'list', 'delete'],
-          description: 'Action to perform',
+          description: `Action to perform`,
         },
         project_path: { type: 'string', description: 'Path to Godot project directory' },
         script_path: { type: 'string', description: 'Path to GDScript file' },
@@ -157,8 +191,13 @@ const P0_TOOLS = [
   },
   {
     name: 'editor',
-    description:
-      'Godot editor control.\n\nActions (required params -> optional):\n- launch (-> project_path): open editor\n- status (-> project_path): check if editor is running\n\nFor running the game, use project(action="run") instead.',
+    description: `Godot editor control.
+
+Actions (required params -> optional):
+- launch (-> project_path): open editor
+- status (-> project_path): check if editor is running
+
+For running the game, use project(action="run") instead.`,
     annotations: createAnnotations('Editor', { idempotent: true }),
     inputSchema: {
       type: 'object' as const,
@@ -171,8 +210,13 @@ const P0_TOOLS = [
   },
   {
     name: 'config',
-    description:
-      'Server configuration and environment.\n\nActions (required params -> optional):\n- status: current config\n- set (key, value): update setting\n- detect_godot: find Godot binary path\n- check: verify project and Godot availability',
+    description: `Server configuration and environment.
+
+Actions (required params -> optional):
+- status: current config
+- set (key, value): update setting
+- detect_godot: find Godot binary path
+- check: verify project and Godot availability`,
     annotations: createAnnotations('Config', { idempotent: true }),
     inputSchema: {
       type: 'object' as const,
@@ -180,7 +224,7 @@ const P0_TOOLS = [
         action: {
           type: 'string',
           enum: ['status', 'set', 'detect_godot', 'check'],
-          description: 'Action to perform',
+          description: `Action to perform`,
         },
         key: { type: 'string', description: 'Config key (for set)' },
         value: { type: 'string', description: 'Config value (for set)' },
@@ -190,7 +234,7 @@ const P0_TOOLS = [
   },
   {
     name: 'help',
-    description: 'Full documentation for a tool. Use when compressed descriptions are insufficient.',
+    description: `Full documentation for a tool. Use when compressed descriptions are insufficient.`,
     annotations: createAnnotations('Help', { readOnly: true, idempotent: true }),
     inputSchema: {
       type: 'object' as const,
@@ -216,7 +260,7 @@ const P0_TOOLS = [
             'navigation',
             'ui',
           ],
-          description: 'Tool to get documentation for',
+          description: `Tool to get documentation for`,
         },
       },
       required: ['tool_name'],
@@ -231,8 +275,13 @@ const P0_TOOLS = [
 const P1_TOOLS = [
   {
     name: 'resources',
-    description:
-      'Resource file management.\n\nActions (required params -> optional):\n- list (-> type, project_path): browse resources (type: image|audio|font|shader|scene|resource)\n- info (resource_path -> project_path): resource metadata\n- delete (resource_path -> project_path)\n- import_config (resource_path -> project_path): view import settings',
+    description: `Resource file management.
+
+Actions (required params -> optional):
+- list (-> type, project_path): browse resources (type: image|audio|font|shader|scene|resource)
+- info (resource_path -> project_path): resource metadata
+- delete (resource_path -> project_path)
+- import_config (resource_path -> project_path): view import settings`,
     annotations: createAnnotations('Resources', { destructive: true }),
     inputSchema: {
       type: 'object' as const,
@@ -247,8 +296,15 @@ const P1_TOOLS = [
   },
   {
     name: 'input_map',
-    description:
-      'Input action management.\n\nActions (required params -> optional):\n- list (-> project_path): all input actions\n- add_action (action_name -> deadzone=0.5, project_path)\n- remove_action (action_name -> project_path)\n- add_event (action_name, event_type, event_value -> project_path)\n\nevent_type: key | mouse | joypad. event_value: e.g., KEY_SPACE.',
+    description: `Input action management.
+
+Actions (required params -> optional):
+- list (-> project_path): all input actions
+- add_action (action_name -> deadzone=0.5, project_path)
+- remove_action (action_name -> project_path)
+- add_event (action_name, event_type, event_value -> project_path)
+
+event_type: key | mouse | joypad. event_value: e.g., KEY_SPACE.`,
     annotations: createAnnotations('Input Map', { destructive: true }),
     inputSchema: {
       type: 'object' as const,
@@ -256,7 +312,7 @@ const P1_TOOLS = [
         action: {
           type: 'string',
           enum: ['list', 'add_action', 'remove_action', 'add_event'],
-          description: 'Action to perform',
+          description: `Action to perform`,
         },
         project_path: { type: 'string', description: 'Path to Godot project directory' },
         action_name: { type: 'string', description: 'Input action name' },
@@ -269,8 +325,12 @@ const P1_TOOLS = [
   },
   {
     name: 'signals',
-    description:
-      'Signal connection management.\n\nActions (required params -> optional):\n- list (scene_path -> project_path): all signal connections\n- connect (scene_path, signal, from, to, method -> flags, project_path)\n- disconnect (scene_path, signal, from, to, method -> project_path)',
+    description: `Signal connection management.
+
+Actions (required params -> optional):
+- list (scene_path -> project_path): all signal connections
+- connect (scene_path, signal, from, to, method -> flags, project_path)
+- disconnect (scene_path, signal, from, to, method -> project_path)`,
     annotations: createAnnotations('Signals', { destructive: true }),
     inputSchema: {
       type: 'object' as const,
@@ -296,8 +356,7 @@ const P1_TOOLS = [
 const P2_TOOLS = [
   {
     name: 'animation',
-    description:
-      'Animation management. Actions: create_player|add_animation|add_track|add_keyframe|list. Use help tool for full docs.',
+    description: `Animation management. Actions: create_player|add_animation|add_track|add_keyframe|list. Use help tool for full docs.`,
     annotations: createAnnotations('Animation'),
     inputSchema: {
       type: 'object' as const,
@@ -305,7 +364,7 @@ const P2_TOOLS = [
         action: {
           type: 'string',
           enum: ['create_player', 'add_animation', 'add_track', 'add_keyframe', 'list'],
-          description: 'Action to perform',
+          description: `Action to perform`,
         },
         project_path: { type: 'string', description: 'Path to Godot project directory' },
         scene_path: { type: 'string', description: 'Path to scene file' },
@@ -323,8 +382,7 @@ const P2_TOOLS = [
   },
   {
     name: 'tilemap',
-    description:
-      'TileSet and TileMap management. Actions: create_tileset|add_source|set_tile|paint|list. Use help tool for full docs.',
+    description: `TileSet and TileMap management. Actions: create_tileset|add_source|set_tile|paint|list. Use help tool for full docs.`,
     annotations: createAnnotations('TileMap'),
     inputSchema: {
       type: 'object' as const,
@@ -332,7 +390,7 @@ const P2_TOOLS = [
         action: {
           type: 'string',
           enum: ['create_tileset', 'add_source', 'set_tile', 'paint', 'list'],
-          description: 'Action to perform',
+          description: `Action to perform`,
         },
         project_path: { type: 'string', description: 'Path to Godot project directory' },
         scene_path: { type: 'string', description: 'Path to scene file (for list, paint)' },
@@ -345,7 +403,7 @@ const P2_TOOLS = [
   },
   {
     name: 'shader',
-    description: 'Godot shader management. Actions: create|read|write|get_params|list. Use help tool for full docs.',
+    description: `Godot shader management. Actions: create|read|write|get_params|list. Use help tool for full docs.`,
     annotations: createAnnotations('Shader'),
     inputSchema: {
       type: 'object' as const,
@@ -353,13 +411,13 @@ const P2_TOOLS = [
         action: {
           type: 'string',
           enum: ['create', 'read', 'write', 'get_params', 'list'],
-          description: 'Action to perform',
+          description: `Action to perform`,
         },
         project_path: { type: 'string', description: 'Path to Godot project directory' },
         shader_path: { type: 'string', description: 'Path to .gdshader file' },
         shader_type: {
           type: 'string',
-          description: 'Shader type: canvas_item, spatial, particles, sky, fog (for create)',
+          description: `Shader type: canvas_item, spatial, particles, sky, fog (for create)`,
         },
         content: { type: 'string', description: 'Shader content (for create/write)' },
       },
@@ -368,8 +426,7 @@ const P2_TOOLS = [
   },
   {
     name: 'physics',
-    description:
-      'Physics config. Actions: layers|collision_setup|body_config|set_layer_name. Use help tool for full docs.',
+    description: `Physics config. Actions: layers|collision_setup|body_config|set_layer_name. Use help tool for full docs.`,
     annotations: createAnnotations('Physics'),
     inputSchema: {
       type: 'object' as const,
@@ -377,7 +434,7 @@ const P2_TOOLS = [
         action: {
           type: 'string',
           enum: ['layers', 'collision_setup', 'body_config', 'set_layer_name'],
-          description: 'Action to perform',
+          description: `Action to perform`,
         },
         project_path: { type: 'string', description: 'Path to Godot project directory' },
         scene_path: { type: 'string', description: 'Path to scene file' },
@@ -401,8 +458,7 @@ const P2_TOOLS = [
 const P3_TOOLS = [
   {
     name: 'audio',
-    description:
-      'Audio bus and stream management. Actions: list_buses|add_bus|add_effect|create_stream. Use help tool for full docs.',
+    description: `Audio bus and stream management. Actions: list_buses|add_bus|add_effect|create_stream. Use help tool for full docs.`,
     annotations: createAnnotations('Audio'),
     inputSchema: {
       type: 'object' as const,
@@ -410,7 +466,7 @@ const P3_TOOLS = [
         action: {
           type: 'string',
           enum: ['list_buses', 'add_bus', 'add_effect', 'create_stream'],
-          description: 'Action to perform',
+          description: `Action to perform`,
         },
         project_path: { type: 'string', description: 'Path to Godot project directory' },
         scene_path: { type: 'string', description: 'Path to scene file (for create_stream)' },
@@ -427,8 +483,7 @@ const P3_TOOLS = [
   },
   {
     name: 'navigation',
-    description:
-      'Navigation regions, agents, obstacles. Actions: create_region|add_agent|add_obstacle. Use help tool for full docs.',
+    description: `Navigation regions, agents, obstacles. Actions: create_region|add_agent|add_obstacle. Use help tool for full docs.`,
     annotations: createAnnotations('Navigation'),
     inputSchema: {
       type: 'object' as const,
@@ -436,7 +491,7 @@ const P3_TOOLS = [
         action: {
           type: 'string',
           enum: ['create_region', 'add_agent', 'add_obstacle'],
-          description: 'Action to perform',
+          description: `Action to perform`,
         },
         project_path: { type: 'string', description: 'Path to Godot project directory' },
         scene_path: { type: 'string', description: 'Path to scene file' },
@@ -451,8 +506,7 @@ const P3_TOOLS = [
   },
   {
     name: 'ui',
-    description:
-      'UI Control nodes and themes. Actions: create_control|set_theme|layout|list_controls. Use help tool for full docs.',
+    description: `UI Control nodes and themes. Actions: create_control|set_theme|layout|list_controls. Use help tool for full docs.`,
     annotations: createAnnotations('UI'),
     inputSchema: {
       type: 'object' as const,
@@ -460,7 +514,7 @@ const P3_TOOLS = [
         action: {
           type: 'string',
           enum: ['create_control', 'set_theme', 'layout', 'list_controls'],
-          description: 'Action to perform',
+          description: `Action to perform`,
         },
         project_path: { type: 'string', description: 'Path to Godot project directory' },
         scene_path: { type: 'string', description: 'Path to scene file' },
@@ -470,7 +524,7 @@ const P3_TOOLS = [
         theme_path: { type: 'string', description: 'Path to theme .tres file (for set_theme)' },
         preset: {
           type: 'string',
-          description: 'Layout preset: full_rect, center, top_wide, bottom_wide, left_wide, right_wide',
+          description: `Layout preset: full_rect, center, top_wide, bottom_wide, left_wide, right_wide`,
         },
         font_size: { type: 'number', description: 'Default font size (for set_theme)' },
       },

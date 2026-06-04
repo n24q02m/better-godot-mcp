@@ -182,6 +182,14 @@ describe('errors', () => {
       // 0.5: (2 * 2) / (4 + 4) = 0.5. Should match.
       expect(findClosestMatch('12345', ['123xy'])).toBe('123xy')
     })
+
+    it('should return exact match even if a prefix match comes first', () => {
+      expect(findClosestMatch('create', ['create_node', 'create'])).toBe('create')
+    })
+
+    it('should return the closest prefix match by length', () => {
+      expect(findClosestMatch('cre', ['create_node', 'create'])).toBe('create')
+    })
   })
 
   // ==========================================

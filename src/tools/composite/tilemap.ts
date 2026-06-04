@@ -9,6 +9,7 @@ import { dirname } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
+import { countString } from '../helpers/strings.js'
 
 /**
  * Async helper to check file existence without blocking the event loop
@@ -87,7 +88,8 @@ export async function handleTilemap(action: string, args: Record<string, unknown
       const resPath = `res://${texturePath.replaceAll('\\', '/')}`
 
       // Count existing sources to get next ID
-      const sourceCount = (content.match(/\[ext_resource/g) || []).length
+      // ⚡ Bolt: Using countString avoids intermediate array allocation from match()
+      const sourceCount = countString(content, '[ext_resource')
       const sourceId = `source_${sourceCount}`
 
       // Add ext_resource reference

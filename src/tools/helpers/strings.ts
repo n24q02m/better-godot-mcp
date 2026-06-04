@@ -33,3 +33,31 @@ export function parseCommaSeparatedList(str: string): string[] {
 
   return result
 }
+
+/**
+ * Efficiently counts occurrences of a regular expression in a string.
+ * Uses matchAll to avoid creating an intermediate array of all matches.
+ * Note: The regex MUST have the 'g' flag.
+ */
+export function countMatches(str: string, regex: RegExp): number {
+  let count = 0
+  for (const _ of str.matchAll(regex)) {
+    count++
+  }
+  return count
+}
+
+/**
+ * Efficiently counts occurrences of a substring in a string.
+ * Uses indexOf in a loop to avoid RegExp overhead and array allocations.
+ */
+export function countString(str: string, substr: string): number {
+  if (substr.length === 0) return 0
+  let count = 0
+  let pos = str.indexOf(substr)
+  while (pos !== -1) {
+    count++
+    pos = str.indexOf(substr, pos + substr.length)
+  }
+  return count
+}

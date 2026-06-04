@@ -92,6 +92,12 @@ export interface ParsedScene {
   nodes: SceneNodeInfo[]
   connections: SignalConnection[]
   raw: string
+  /** ⚡ Bolt: Fast lookup for nodes by their full hierarchical path (parent:name) */
+  nodesByPath: Map<string, SceneNodeInfo>
+  /** ⚡ Bolt: Fast lookup for the first node matching a given name */
+  nodesByName: Map<string, SceneNodeInfo>
+  /** ⚡ Bolt: Fast lookup for signal connections by key (signal:from:to:method) */
+  connectionsKeyed: Map<string, SignalConnection>
 }
 
 /**
@@ -111,6 +117,9 @@ export function parseSceneContent(content: string): ParsedScene {
   const subResources: SubResource[] = []
   const nodes: SceneNodeInfo[] = []
   const connections: SignalConnection[] = []
+  const nodesByPath = new Map<string, SceneNodeInfo>()
+  const nodesByName = new Map<string, SceneNodeInfo>()
+  const connectionsKeyed = new Map<string, SignalConnection>()
 
   let currentSection: 'header' | 'ext_resource' | 'sub_resource' | 'node' | 'connection' | null = null
   let currentNode: SceneNodeInfo | null = null
@@ -118,6 +127,19 @@ export function parseSceneContent(content: string): ParsedScene {
 
   let startIndex = 0
   const len = content.length
+
+  const saveCurrentNode = () => {
+    if (currentNode) {
+      nodes.push(currentNode)
+      // Populate maps
+      const pathKey = `${currentNode.parent || '.'}:${currentNode.name}`
+      nodesByPath.set(pathKey, currentNode)
+      if (!nodesByName.has(currentNode.name)) {
+        nodesByName.set(currentNode.name, currentNode)
+      }
+      currentNode = null
+    }
+  }
 
   while (startIndex < len) {
     let endIndex = content.indexOf('\n', startIndex)
@@ -142,9 +164,8 @@ export function parseSceneContent(content: string): ParsedScene {
         if (firstChar === 91) {
           // '[' character indicates a new section
           // Save previous node/sub_resource
-          if (currentNode) nodes.push(currentNode)
+          saveCurrentNode()
           if (currentSubResource) subResources.push(currentSubResource)
-          currentNode = null
           currentSubResource = null
 
           const secondChar = content.charCodeAt(start + 1)
@@ -171,7 +192,12 @@ export function parseSceneContent(content: string): ParsedScene {
             // 'c' -> [connection
             currentSection = 'connection'
             const conn = parseConnection(line)
-            if (conn) connections.push(conn)
+            if (conn) {
+              connections.push(conn)
+              // Populate connections map
+              const connKey = `${conn.signal}:${conn.from}:${conn.to}:${conn.method}`
+              connectionsKeyed.set(connKey, conn)
+            }
           }
         } else if (currentSection === 'node' || currentSection === 'sub_resource') {
           const target = currentSection === 'node' ? currentNode?.properties : currentSubResource?.properties
@@ -186,10 +212,20 @@ export function parseSceneContent(content: string): ParsedScene {
   }
 
   // Save last pending section
-  if (currentNode) nodes.push(currentNode)
+  saveCurrentNode()
   if (currentSubResource) subResources.push(currentSubResource)
 
-  return { header, extResources, subResources, nodes, connections, raw: content }
+  return {
+    header,
+    extResources,
+    subResources,
+    nodes,
+    connections,
+    raw: content,
+    nodesByPath,
+    nodesByName,
+    connectionsKeyed,
+  }
 }
 
 /**
@@ -420,7 +456,7 @@ export function updateNodeInScene(
 }
 
 export function findNode(scene: ParsedScene, name: string): SceneNodeInfo | undefined {
-  return scene.nodes.find((n) => n.name === name)
+  return scene.nodesByName.get(name)
 }
 
 /**

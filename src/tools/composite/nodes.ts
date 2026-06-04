@@ -64,7 +64,7 @@ async function handleAddNode(projectPath: string, args: Record<string, unknown>)
 
   const content = await readFile(fullPath, 'utf-8')
   const scene = parseSceneContent(content)
-  const duplicate = scene.nodes.find((n) => n.name === nodeName && (n.parent || '.') === parent)
+  const duplicate = scene.nodesByPath.get(`${parent}:${nodeName}`)
   if (duplicate) {
     throw new GodotMCPError(
       `Node "${nodeName}" already exists under parent "${parent}"`,

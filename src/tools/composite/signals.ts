@@ -80,9 +80,7 @@ export async function handleSignals(action: string, args: Record<string, unknown
 
       // Check for duplicate
       const scene = parseSceneContent(content)
-      const existing = scene.connections.find(
-        (c) => c.signal === signal && c.from === from && c.to === to && c.method === method,
-      )
+      const existing = scene.connectionsKeyed.get(`${signal}:${from}:${to}:${method}`)
       if (existing) {
         throw new GodotMCPError(
           'Connection already exists',

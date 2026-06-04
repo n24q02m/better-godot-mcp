@@ -8,7 +8,7 @@ import { dirname, join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
-import { escapeRegExp } from '../helpers/scene-parser.js'
+import { updateNodeInScene } from '../helpers/scene-parser.js'
 
 const NODE_SECTION_RE = /(\[node [^\]]+\])/
 
@@ -210,15 +210,15 @@ async function attachScript(args: Record<string, unknown>, resolvePath: (path: s
   const resPath = `res://${scriptPath.replaceAll('\\', '/')}`
 
   if (nodeName) {
-    const nodePattern = new RegExp(`(\\[node name="${escapeRegExp(nodeName)}"[^\\]]*\\])`)
-    const match = content.match(nodePattern)
-    if (!match)
+    const updates = { script: `ExtResource("${resPath}")` }
+    const { content: newContent, updated } = updateNodeInScene(content, nodeName, updates)
+    if (!updated)
       throw new GodotMCPError(
         `Node "${nodeName}" not found in scene`,
         'NODE_ERROR',
         'Check node name with nodes.list action.',
       )
-    content = content.replace(nodePattern, (_match, p1) => `${p1}\nscript = ExtResource("${resPath}")`)
+    content = newContent
   } else {
     content = content.replace(NODE_SECTION_RE, (_match, p1) => `${p1}\nscript = ExtResource("${resPath}")`)
   }

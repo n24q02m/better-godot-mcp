@@ -1,6 +1,6 @@
 /**
- * Scripts tool - GDScript file management
- * Actions: create | read | write | attach | list | delete
+ * Scripts tool - Script attachment and management
+ * Actions: attach | list | delete | edit
  */
 
 import { mkdir, readdir, readFile, unlink, writeFile } from 'node:fs/promises'
@@ -8,7 +8,7 @@ import { dirname, join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
-import { escapeRegExp } from '../helpers/scene-parser.js'
+import { updateNodeInScene } from '../helpers/scene-parser.js'
 
 const NODE_SECTION_RE = /(\[node [^\]]+\])/
 
@@ -210,16 +210,17 @@ async function attachScript(args: Record<string, unknown>, resolvePath: (path: s
   const resPath = `res://${scriptPath.replaceAll('\\', '/')}`
 
   if (nodeName) {
-    const nodePattern = new RegExp(`(\\[node name="${escapeRegExp(nodeName)}"[^\\]]*\\])`)
-    const match = content.match(nodePattern)
-    if (!match)
+    const updates = { script: `ExtResource("${resPath}")` }
+    const { content: updatedContent, updated } = updateNodeInScene(content, nodeName, updates)
+    if (!updated)
       throw new GodotMCPError(
         `Node "${nodeName}" not found in scene`,
         'NODE_ERROR',
         'Check node name with nodes.list action.',
       )
-    content = content.replace(nodePattern, (_match, p1) => `${p1}\nscript = ExtResource("${resPath}")`)
+    content = updatedContent
   } else {
+    // If no node name, attach to the first node in the scene (root)
     content = content.replace(NODE_SECTION_RE, (_match, p1) => `${p1}\nscript = ExtResource("${resPath}")`)
   }
 
@@ -262,12 +263,6 @@ export async function handleScripts(action: string, args: Record<string, unknown
   const baseDir = config.projectPath || process.cwd()
   // Validate args.project_path against the trusted baseDir to prevent path traversal vulnerabilities
   const projectPath = args.project_path ? safeResolve(baseDir, args.project_path as string) : config.projectPath
-
-  if (!projectPath && action !== 'list') {
-    // List handles missing projectPath internally, but others need it for safeResolve base
-    // Though list also throws if missing. Let's rely on standard checks inside but ensure projectPath is available for resolution.
-    // Actually, all actions check projectPath. We can resolve it early.
-  }
 
   // Helper to resolve path securely
   const resolvePath = (path: string) => {

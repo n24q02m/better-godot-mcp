@@ -1,0 +1,4 @@
+## 2025-05-14 - ReDoS in Input Map Pattern Removal
+**Vulnerability:** Potential ReDoS (Regular Expression Denial of Service) via unsafe dynamic RegExps in `src/tools/composite/input-map.ts`. The pattern `${escapeRegExp(actionName)}=\{[^}]*\}\n?` used greedy quantifiers on user-controlled input (via `actionName`) or potentially complex config files, which could lead to exponential backtracking.
+**Learning:** Dynamic RegExps with greedy patterns like `[^}]*` or `[^\\]]*` are dangerous when applied to large files or when input can be manipulated to trigger backtracking. While `escapeRegExp` prevents control character injection, it doesn't solve the structural complexity risk.
+**Prevention:** Replace complex dynamic RegExps with stateful, line-by-line scanners/transformers. This approach is O(N) relative to the file size and avoids backtracking entirely. I implemented `transformInputMap` to handle action block isolation and modification safely.

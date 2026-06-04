@@ -1,101 +1,45 @@
-/**
- * Input Map tool - Input action management via project.godot
- * Actions: list | add_action | remove_action | add_event
- */
-
 import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { serializeGodotObject } from '../helpers/godot-types.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
-import { escapeRegExp } from '../helpers/scene-parser.js'
 
 /**
  * Godot 4.x Key enum numeric values (@GlobalScope.Key)
  * Letters are ASCII codes, special keys use the 4194304+ range (2^22 bit set)
  */
-const GODOT_KEY_CODES: Record<string, number> = {
-  // Letters (ASCII)
-  KEY_A: 65,
-  KEY_B: 66,
-  KEY_C: 67,
-  KEY_D: 68,
-  KEY_E: 69,
-  KEY_F: 70,
-  KEY_G: 71,
-  KEY_H: 72,
-  KEY_I: 73,
-  KEY_J: 74,
-  KEY_K: 75,
-  KEY_L: 76,
-  KEY_M: 77,
-  KEY_N: 78,
-  KEY_O: 79,
-  KEY_P: 80,
-  KEY_Q: 81,
-  KEY_R: 82,
-  KEY_S: 83,
-  KEY_T: 84,
-  KEY_U: 85,
-  KEY_V: 86,
-  KEY_W: 87,
-  KEY_X: 88,
-  KEY_Y: 89,
-  KEY_Z: 90,
-  // Numbers
-  KEY_0: 48,
-  KEY_1: 49,
-  KEY_2: 50,
-  KEY_3: 51,
-  KEY_4: 52,
-  KEY_5: 53,
-  KEY_6: 54,
-  KEY_7: 55,
-  KEY_8: 56,
-  KEY_9: 57,
-  // Common keys
+const KEY_MAP: Record<string, number> = {
   KEY_SPACE: 32,
+  KEY_ENTER: 4194309,
   KEY_ESCAPE: 4194305,
   KEY_TAB: 4194306,
   KEY_BACKSPACE: 4194308,
-  KEY_ENTER: 4194309,
-  KEY_INSERT: 4194311,
-  KEY_DELETE: 4194312,
-  KEY_PAUSE: 4194313,
-  KEY_HOME: 4194315,
-  KEY_END: 4194316,
-  KEY_PAGEUP: 4194323,
-  KEY_PAGEDOWN: 4194324,
-  // Arrow keys
+  KEY_INSERT: 4194310,
+  KEY_DELETE: 4194311,
   KEY_LEFT: 4194319,
   KEY_UP: 4194320,
   KEY_RIGHT: 4194321,
   KEY_DOWN: 4194322,
-  // Modifiers
-  KEY_SHIFT: 4194325,
-  KEY_CTRL: 4194326,
-  KEY_ALT: 4194328,
-  KEY_META: 4194329,
-  // Function keys
-  KEY_F1: 4194332,
-  KEY_F2: 4194333,
-  KEY_F3: 4194334,
-  KEY_F4: 4194335,
-  KEY_F5: 4194336,
-  KEY_F6: 4194337,
-  KEY_F7: 4194338,
-  KEY_F8: 4194339,
-  KEY_F9: 4194340,
-  KEY_F10: 4194341,
-  KEY_F11: 4194342,
-  KEY_F12: 4194343,
+  KEY_PAGEUP: 4194323,
+  KEY_PAGEDOWN: 4194324,
+  KEY_HOME: 4194325,
+  KEY_END: 4194326,
+  KEY_F1: 4194328,
+  KEY_F2: 4194329,
+  KEY_F3: 4194330,
+  KEY_F4: 4194331,
+  KEY_F5: 4194332,
+  KEY_F6: 4194333,
+  KEY_F7: 4194334,
+  KEY_F8: 4194335,
+  KEY_F9: 4194336,
+  KEY_F10: 4194337,
+  KEY_F11: 4194338,
+  KEY_F12: 4194339,
 }
 
-/**
- * Godot 4.x MouseButton enum numeric values
- */
-const GODOT_MOUSE_CODES: Record<string, number> = {
+const MOUSE_MAP: Record<string, number> = {
   MOUSE_BUTTON_LEFT: 1,
   MOUSE_BUTTON_RIGHT: 2,
   MOUSE_BUTTON_MIDDLE: 3,
@@ -103,60 +47,56 @@ const GODOT_MOUSE_CODES: Record<string, number> = {
   MOUSE_BUTTON_WHEEL_DOWN: 5,
   MOUSE_BUTTON_WHEEL_LEFT: 6,
   MOUSE_BUTTON_WHEEL_RIGHT: 7,
+  MOUSE_BUTTON_XBUTTON1: 8,
+  MOUSE_BUTTON_XBUTTON2: 9,
 }
 
-/**
- * Resolve a key name to its numeric Godot code.
- * Accepts both "KEY_SPACE" and raw numeric strings like "32".
- */
-function resolveKeyCode(value: string): number {
-  const upper = value.toUpperCase()
-  if (upper in GODOT_KEY_CODES) return GODOT_KEY_CODES[upper]
-  const parsed = Number.parseInt(value, 10)
-  if (!Number.isNaN(parsed)) return parsed
-  throw new GodotMCPError(
-    `Unknown key: ${value}`,
-    'INVALID_ARGS',
-    `Valid keys: ${Object.keys(GODOT_KEY_CODES).join(', ')}`,
-  )
-}
-
-/**
- * Resolve a mouse button name to its numeric Godot code.
- */
-function resolveMouseCode(value: string): number {
-  const upper = value.toUpperCase()
-  if (upper in GODOT_MOUSE_CODES) return GODOT_MOUSE_CODES[upper]
-  const parsed = Number.parseInt(value, 10)
-  if (!Number.isNaN(parsed)) return parsed
-  throw new GodotMCPError(
-    `Unknown mouse button: ${value}`,
-    'INVALID_ARGS',
-    `Valid buttons: ${Object.keys(GODOT_MOUSE_CODES).join(', ')}`,
-  )
-}
-
-/**
- * Fast-path parser for comma-separated lists, avoiding split/map/filter allocations.
- */
-function parseEventsList(str: string): string[] {
-  if (!str) return []
-  const results: string[] = []
-  let start = 0
-  const len = str.length
-  while (start < len) {
-    let end = str.indexOf(',', start)
-    if (end === -1) end = len
-    let i = start
-    while (i < end && str.charCodeAt(i) <= 32) i++
-    let j = end - 1
-    while (j >= i && str.charCodeAt(j) <= 32) j--
-    if (i <= j) {
-      results.push(str.slice(i, j + 1))
-    }
-    start = end + 1
+function resolveKeyCode(key: string): number {
+  if (key.startsWith('KEY_')) {
+    const val = KEY_MAP[key]
+    if (val !== undefined) return val
+    if (key.length === 5) return key.charCodeAt(4) // KEY_A etc
   }
-  return results
+  const num = Number.parseInt(key, 10)
+  if (!Number.isNaN(num)) return num
+  throw new GodotMCPError(`Unknown key: ${key}`, 'INVALID_ARGS', 'Use KEY_SPACE or numeric code.')
+}
+
+function resolveMouseCode(button: string): number {
+  if (button.startsWith('MOUSE_BUTTON_')) {
+    const val = MOUSE_MAP[button]
+    if (val !== undefined) return val
+  }
+  const num = Number.parseInt(button, 10)
+  if (!Number.isNaN(num)) return num
+  throw new GodotMCPError(`Unknown mouse button: ${button}`, 'INVALID_ARGS', 'Use MOUSE_BUTTON_LEFT or numeric code.')
+}
+
+function parseEventsList(raw: string): string[] {
+  // Very basic parser for the events list string
+  // Format: [InputEventKey(...), InputEventMouseButton(...)]
+  const events: string[] = []
+  let depth = 0
+  let current = ''
+
+  for (let i = 0; i < raw.length; i++) {
+    const char = raw[i]
+    if (char === '(') depth++
+    if (char === ')') depth--
+
+    if (char === ',' && depth === 0) {
+      events.push(current.trim())
+      current = ''
+    } else {
+      current += char
+    }
+  }
+
+  if (current.trim()) {
+    events.push(current.trim())
+  }
+
+  return events
 }
 
 async function getProjectGodotPath(projectPath: string | null | undefined, baseDir: string): Promise<string> {
@@ -212,7 +152,7 @@ function parseInputActions(content: string): Map<string, string[]> {
           break
         } else if (inInputSection) {
           // Single-line format: action_name={...}
-          const match = trimmed.match(/^(\w+)=\{(.+)\}$/)
+          const match = trimmed.match(/^([a-zA-Z0-9_-]+)=\{(.+)\}$/)
           if (match) {
             const actionName = match[1]
             const eventsMatch = match[2].match(/"events":\s*\[([^\]]*)\]/)
@@ -223,7 +163,7 @@ function parseInputActions(content: string): Map<string, string[]> {
             //   "deadzone": 0.2,
             //   "events": [...]
             // }
-            const startMatch = trimmed.match(/^(\w+)=\{(.*)$/)
+            const startMatch = trimmed.match(/^([a-zA-Z0-9_-]+)=\{(.*)$/)
             if (startMatch) {
               currentActionName = startMatch[1]
               currentActionAccumulator = startMatch[2]
@@ -237,6 +177,73 @@ function parseInputActions(content: string): Map<string, string[]> {
   }
 
   return actions
+}
+
+/**
+ * Internal utility to transform input map content line by line with action tracking
+ */
+function transformInputMap(
+  content: string,
+  actionName: string,
+  callbacks: {
+    processActionLine: (line: string, isStart: boolean, isEnd: boolean) => string | string[] | null
+  },
+): { content: string; actionFound: boolean } {
+  const result: string[] = []
+  let inInputSection = false
+  let inTargetAction = false
+  let actionFound = false
+
+  let pos = 0
+  const len = content.length
+
+  while (pos < len) {
+    let nextNewline = content.indexOf('\n', pos)
+    if (nextNewline === -1) nextNewline = len
+
+    const line = content.slice(pos, nextNewline)
+    const trimmed = line.trim()
+
+    if (trimmed === '[input]') {
+      inInputSection = true
+      result.push(line)
+    } else if (trimmed.startsWith('[') && inInputSection) {
+      inInputSection = false
+      result.push(line)
+    } else if (inInputSection) {
+      if (!inTargetAction) {
+        // Check for start of target action
+        if (trimmed.startsWith(`${actionName}={`)) {
+          inTargetAction = true
+          actionFound = true
+          const isEnd = trimmed.endsWith('}')
+          const processed = callbacks.processActionLine(line, true, isEnd)
+          if (processed !== null) {
+            if (Array.isArray(processed)) result.push(...processed)
+            else result.push(processed)
+          }
+          if (isEnd) inTargetAction = false
+        } else {
+          result.push(line)
+        }
+      } else {
+        // We are in the target action (multi-line)
+        const isEnd = trimmed.endsWith('}')
+        const processed = callbacks.processActionLine(line, false, isEnd)
+        if (processed !== null) {
+          if (Array.isArray(processed)) result.push(...processed)
+          else result.push(processed)
+        }
+        if (isEnd) inTargetAction = false
+      }
+    } else {
+      result.push(line)
+    }
+
+    pos = nextNewline + 1
+  }
+
+  return { content: result.join('\n'), actionFound }
 }
 
 export async function handleInputMap(action: string, args: Record<string, unknown>, config: GodotConfig) {
@@ -308,11 +315,13 @@ export async function handleInputMap(action: string, args: Record<string, unknow
       }
 
       const content = await readFile(configPath, 'utf-8')
-      // Remove the action line(s) - handles multi-line format
-      const pattern = new RegExp(`${escapeRegExp(actionName)}=\\{[^}]*\\}\\n?`, 'g')
-      const updated = content.replace(pattern, '')
 
-      if (updated === content) {
+      // ⚡ Bolt: Use transformInputMap to safely remove action without ReDoS-prone RegExp
+      const { content: updated, actionFound } = transformInputMap(content, actionName, {
+        processActionLine: () => null, // Skip all lines of the action
+      })
+
+      if (!actionFound) {
         throw new GodotMCPError(`Action "${actionName}" not found`, 'INPUT_ERROR', 'Check action name with list.')
       }
 
@@ -409,20 +418,30 @@ export async function handleInputMap(action: string, args: Record<string, unknow
           )
       }
 
-      // Find existing events array and append
-      const actionRegex = new RegExp(`(${escapeRegExp(actionName)}=\\{[^}]*"events":\\s*\\[)([^\\]]*)\\]`)
-      const match = content.match(actionRegex)
-      if (!match) {
+      // ⚡ Bolt: Use transformInputMap to safely append event without ReDoS-prone RegExp
+      const { content: updated, actionFound } = transformInputMap(content, actionName, {
+        processActionLine: (line) => {
+          const trimmed = line.trim()
+          if (trimmed.includes('"events":')) {
+            const bracketIdx = line.lastIndexOf(']')
+            if (bracketIdx !== -1) {
+              const beforeBracket = line.slice(0, bracketIdx)
+              const afterBracket = line.slice(bracketIdx)
+              const isEmpty = beforeBracket.trimEnd().endsWith('[')
+              return `${beforeBracket}${isEmpty ? '' : ', '}${eventObj}${afterBracket}`
+            }
+          }
+          return line
+        },
+      })
+
+      if (!actionFound) {
         throw new GodotMCPError(
           `Action "${actionName}" not found`,
           'INPUT_ERROR',
           'Add the action first with add_action.',
         )
       }
-
-      const existingEvents = match[2].trim()
-      const newEvents = existingEvents ? `${existingEvents}, ${eventObj}` : eventObj
-      const updated = content.replace(actionRegex, (_match, p1) => `${p1}${newEvents}]`)
 
       await writeFile(configPath, updated, 'utf-8')
       return formatSuccess(`Added ${eventType} event to action: ${actionName}`)

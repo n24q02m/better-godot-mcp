@@ -1,9 +1,26 @@
-import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from 'node:fs/promises'
+import { realpathSync } from 'node:fs'
+import { access, mkdir, mkdtemp, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, relative, resolve } from 'node:path'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { GodotMCPError } from '../../src/tools/helpers/errors.js'
 import { pathExists, safeResolve } from '../../src/tools/helpers/paths.js'
+
+vi.mock('node:fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs')>()
+  return {
+    ...actual,
+    realpathSync: vi.fn(actual.realpathSync),
+  }
+})
+
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>()
+  return {
+    ...actual,
+    access: vi.fn(actual.access),
+  }
+})
 
 describe('safeResolve', () => {
   const baseDir = resolve('/mock/base/dir')
@@ -70,6 +87,20 @@ describe('safeResolve', () => {
     const target = '/mock/base/dir-secret/file.ts'
     expect(() => safeResolve(baseDir, target)).toThrowError(GodotMCPError)
     expect(() => safeResolve(baseDir, target)).toThrow(/Access denied/)
+  })
+
+  it('covers canonicalize root fallback when realpathSync throws at root', () => {
+    const mockedRealpathSync = vi.mocked(realpathSync)
+    mockedRealpathSync.mockImplementation(() => {
+      throw new Error('Root error')
+    })
+
+    try {
+      const result = safeResolve('/some/dir', 'file.ts')
+      expect(result).toBe(resolve('/some/dir', 'file.ts'))
+    } finally {
+      mockedRealpathSync.mockRestore()
+    }
   })
 })
 
@@ -158,5 +189,16 @@ describe('pathExists', () => {
     const nonExistentPath = join(testDir, 'does-not-exist')
 
     expect(await pathExists(nonExistentPath)).toBe(false)
+  })
+
+  it('returns false when access throws an unexpected error', async () => {
+    const mockedAccess = vi.mocked(access)
+    mockedAccess.mockRejectedValue(new Error('Unexpected error'))
+
+    try {
+      expect(await pathExists('/any/path')).toBe(false)
+    } finally {
+      mockedAccess.mockRestore()
+    }
   })
 })

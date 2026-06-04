@@ -257,4 +257,39 @@ describe('audio', () => {
   it('should throw for unknown action', async () => {
     await expect(handleAudio('invalid_action', { project_path: projectPath }, config)).rejects.toThrow('Unknown action')
   })
+
+  describe('safety', () => {
+    it('should handle extremely large bus indices correctly by escaping scientific notation', async () => {
+      // Create a layout file with a large bus index
+      const layoutPath = join(projectPath, 'default_bus_layout.tres')
+      const largeIndex = '1000000000000000000000' // 1e+21
+      const content = `[gd_resource type="AudioBusLayout" format=3]\n\n[resource]\nbus/${largeIndex}/name = "LargeBus"\n`
+      const { writeFileSync } = await import('node:fs')
+      writeFileSync(layoutPath, content, 'utf-8')
+
+      const result = await handleAudio(
+        'add_effect',
+        {
+          project_path: projectPath,
+          bus_name: 'LargeBus',
+          effect_type: 'Reverb',
+        },
+        config,
+      )
+
+      expect(result.content[0].text).toContain('Added AudioEffectReverb to bus "LargeBus"')
+      const { readFileSync } = await import('node:fs')
+      const updatedContent = readFileSync(layoutPath, 'utf-8')
+      // If escaped correctly, it should find 0 existing effects (as the regex matches '1e+21' literally)
+      // and use effect index 0.
+      expect(updatedContent).toContain('bus/1e+21/effect/0/effect')
+    })
+  })
+
+  // ==========================================
+  // Invalid Action
+  // ==========================================
+  it('should throw for unknown action', async () => {
+    await expect(handleAudio('invalid_action', { project_path: projectPath }, config)).rejects.toThrow('Unknown action')
+  })
 })

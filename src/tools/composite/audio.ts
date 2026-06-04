@@ -8,6 +8,7 @@ import { join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
+import { escapeRegExp } from '../helpers/scene-parser.js'
 
 /**
  * Helper to resolve the default bus layout path.
@@ -159,12 +160,13 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
           break
         }
       }
-      if (busIndex === -1) {
+      if (busIndex === -1 || !Number.isFinite(busIndex)) {
         throw new GodotMCPError(`Bus "${busName}" not found`, 'AUDIO_ERROR', 'Add the bus first with add_bus.')
       }
 
       // Count existing effects on this bus
-      const effectCountRegex = new RegExp(`bus/${busIndex}/effect/\\d+/effect`, 'g')
+      const escapedBusIndex = escapeRegExp(busIndex.toString())
+      const effectCountRegex = new RegExp(`bus/${escapedBusIndex}/effect/\\d+/effect`, 'g')
       const existingEffects = content.match(effectCountRegex) || []
       const effectIndex = existingEffects.length
 

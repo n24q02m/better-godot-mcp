@@ -7,7 +7,7 @@ import { readdir, readFile, stat, unlink } from 'node:fs/promises'
 import { extname, join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
-import { pathExists, safeResolve } from '../helpers/paths.js'
+import { safeResolve } from '../helpers/paths.js'
 
 const RESOURCE_EXTENSIONS = new Set([
   '.tres',
@@ -121,41 +121,55 @@ export async function handleResources(action: string, args: Record<string, unkno
       const resPath = args.resource_path as string
       if (!resPath) throw new GodotMCPError('No resource_path specified', 'INVALID_ARGS', 'Provide resource_path.')
       const fullPath = safeResolve(projectPath || process.cwd(), resPath)
-      if (!(await pathExists(fullPath)))
-        throw new GodotMCPError(`Resource not found: ${resPath}`, 'RESOURCE_ERROR', 'Check the file path.')
 
-      const fileStat = await stat(fullPath)
-      const ext = extname(fullPath)
-      const info: Record<string, unknown> = {
-        path: resPath,
-        extension: ext,
-        size: fileStat.size,
-        modified: fileStat.mtime.toISOString(),
+      try {
+        const fileStat = await stat(fullPath)
+        const ext = extname(fullPath)
+        const info: Record<string, unknown> = {
+          path: resPath,
+          extension: ext,
+          size: fileStat.size,
+          modified: fileStat.mtime.toISOString(),
+        }
+
+        // Parse .tres/.import files for metadata
+        if (ext === '.tres' || ext === '.import') {
+          const content = await readFile(fullPath, 'utf-8')
+          const typeMatch = content.match(/type="([^"]*)"/)
+          if (typeMatch) info.type = typeMatch[1]
+          const pathMatch = content.match(/path="([^"]*)"/)
+          if (pathMatch) info.importPath = pathMatch[1]
+        }
+
+        return formatJSON(info)
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+          throw new GodotMCPError(`Resource not found: ${resPath}`, 'RESOURCE_ERROR', 'Check the file path.')
+        }
+        throw err
       }
-
-      // Parse .tres/.import files for metadata
-      if (ext === '.tres' || ext === '.import') {
-        const content = await readFile(fullPath, 'utf-8')
-        const typeMatch = content.match(/type="([^"]*)"/)
-        if (typeMatch) info.type = typeMatch[1]
-        const pathMatch = content.match(/path="([^"]*)"/)
-        if (pathMatch) info.importPath = pathMatch[1]
-      }
-
-      return formatJSON(info)
     }
 
     case 'delete': {
       const resPath = args.resource_path as string
       if (!resPath) throw new GodotMCPError('No resource_path specified', 'INVALID_ARGS', 'Provide resource_path.')
       const fullPath = safeResolve(projectPath || process.cwd(), resPath)
-      if (!(await pathExists(fullPath)))
-        throw new GodotMCPError(`Resource not found: ${resPath}`, 'RESOURCE_ERROR', 'Check the file path.')
 
-      await unlink(fullPath)
+      try {
+        await unlink(fullPath)
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+          throw new GodotMCPError(`Resource not found: ${resPath}`, 'RESOURCE_ERROR', 'Check the file path.')
+        }
+        throw err
+      }
+
       // Also delete .import file if exists
-      const importFile = `${fullPath}.import`
-      if (await pathExists(importFile)) await unlink(importFile)
+      try {
+        await unlink(`${fullPath}.import`)
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err
+      }
 
       return formatSuccess(`Deleted resource: ${resPath}`)
     }
@@ -166,12 +180,15 @@ export async function handleResources(action: string, args: Record<string, unkno
 
       const importPath = safeResolve(projectPath || process.cwd(), `${resPath}.import`)
 
-      if (!(await pathExists(importPath))) {
-        return formatJSON({ path: resPath, imported: false, message: 'No .import file found.' })
+      try {
+        const content = await readFile(importPath, 'utf-8')
+        return formatSuccess(`Import config for ${resPath}:\n\n${content}`)
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+          return formatJSON({ path: resPath, imported: false, message: 'No .import file found.' })
+        }
+        throw err
       }
-
-      const content = await readFile(importPath, 'utf-8')
-      return formatSuccess(`Import config for ${resPath}:\n\n${content}`)
     }
 
     default:

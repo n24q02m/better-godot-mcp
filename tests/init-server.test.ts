@@ -222,7 +222,10 @@ describe('initServer', () => {
       const { initServer } = await import('../src/init-server.js')
 
       await expect(initServer()).rejects.toThrow('Connect failed')
-      expect(console.error).toHaveBeenCalledWith('Failed to initialize server:', testError)
+      expect(console.error).toHaveBeenCalledWith(
+        expect.stringContaining('ERROR: Failed to initialize server:'),
+        'Connect failed',
+      )
     })
 
     it('should handle errors during HTTP startup', async () => {
@@ -236,7 +239,10 @@ describe('initServer', () => {
       const { initServer } = await import('../src/init-server.js')
 
       await expect(initServer()).rejects.toThrow('Port in use')
-      expect(console.error).toHaveBeenCalledWith('Failed to initialize server:', testError)
+      expect(console.error).toHaveBeenCalledWith(
+        expect.stringContaining('ERROR: Failed to initialize server:'),
+        'Port in use',
+      )
     })
   })
 

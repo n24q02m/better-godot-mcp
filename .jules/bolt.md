@@ -9,3 +9,7 @@
 ## 2025-03-09 - [Optimize parseProjectGodot string parsing]
 **Learning:** Parsing `project.godot` (or other INI-like configurations) line-by-line using regular expressions inside a hot loop (e.g., `^\[(.+)\]$`, `/^([^\s=]+)\s*=\s*(.+)$/`) causes severe performance bottlenecks due to RegExp compilation, execution, and extensive GC pressure from intermediary match objects and string allocations.
 **Action:** Replace regular expressions within file parsing loops with manual string operations: use `charCodeAt` to identify section boundaries (e.g., `91` for `[`), `indexOf('=')` for key-value extraction, and direct `.slice()` + `.trim()` for data separation. Apply manual quote removal checking string bounds and `charCodeAt(0) === 34` instead of `.replace(/^"(.*)"$/, '$1')`.
+
+## 2025-05-15 - Centralized Logger Implementation
+**Learning:** Using a centralized logger instead of `console.error` directly allows for consistent formatting (prefixes) and centralized control over log transport/filtering (e.g. debug mode based on environment). In MCP stdio transport, all diagnostics MUST go to `stderr` (`console.error` in Node.js) to avoid corrupting the JSON-RPC stream on `stdout`.
+**Action:** Implemented `src/tools/helpers/logger.ts` and refactored `src/init-server.ts` to use it. Updated `tests/init-server.test.ts` to reflect the new log format.

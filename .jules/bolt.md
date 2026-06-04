@@ -9,3 +9,6 @@
 ## 2025-03-09 - [Optimize parseProjectGodot string parsing]
 **Learning:** Parsing `project.godot` (or other INI-like configurations) line-by-line using regular expressions inside a hot loop (e.g., `^\[(.+)\]$`, `/^([^\s=]+)\s*=\s*(.+)$/`) causes severe performance bottlenecks due to RegExp compilation, execution, and extensive GC pressure from intermediary match objects and string allocations.
 **Action:** Replace regular expressions within file parsing loops with manual string operations: use `charCodeAt` to identify section boundaries (e.g., `91` for `[`), `indexOf('=')` for key-value extraction, and direct `.slice()` + `.trim()` for data separation. Apply manual quote removal checking string bounds and `charCodeAt(0) === 34` instead of `.replace(/^"(.*)"$/, '$1')`.
+## 2025-05-22 - [Shared Node Path Normalization]
+**Learning:** LLMs frequently produce inconsistent Godot node paths, including "res://", "./", and "/root/SceneName/" prefixes. Centralizing this normalization logic in a shared helper ensures consistency across all tools.
+**Action:** Created `normalizeNodePath` in `src/tools/helpers/scene-parser.ts` and integrated it into `nodes.ts`, `signals.ts`, and `scripts.ts`.

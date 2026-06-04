@@ -7,7 +7,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
-import { parseSceneContent } from '../helpers/scene-parser.js'
+import { normalizeNodePath, parseSceneContent } from '../helpers/scene-parser.js'
 
 function validateParameters(...params: unknown[]) {
   for (const param of params) {
@@ -58,8 +58,8 @@ export async function handleSignals(action: string, args: Record<string, unknown
 
     case 'connect': {
       const signal = args.signal as string
-      const from = args.from as string
-      const to = args.to as string
+      const { path: from } = normalizeNodePath((args.from as string) || '')
+      const { path: to } = normalizeNodePath((args.to as string) || '')
       const method = args.method as string
       if (!signal || !from || !to || !method) {
         throw new GodotMCPError(
@@ -102,8 +102,8 @@ export async function handleSignals(action: string, args: Record<string, unknown
 
     case 'disconnect': {
       const signal = args.signal as string
-      const from = args.from as string
-      const to = args.to as string
+      const { path: from } = normalizeNodePath((args.from as string) || '')
+      const { path: to } = normalizeNodePath((args.to as string) || '')
       const method = args.method as string
       if (!signal || !from || !to || !method) {
         throw new GodotMCPError(

@@ -521,3 +521,58 @@ export function getNodeProperty(scene: ParsedScene, nodeName: string, property: 
   const node = findNode(scene, nodeName)
   return node?.properties[property]
 }
+
+/**
+ * Normalize node path: strip common LLM mistakes like "res://", "./", or "/root/SceneName/" prefix.
+ * Returns the corrected path and whether it was auto-corrected.
+ */
+
+/**
+ * Normalize node path: strip common LLM mistakes like "res://", "./", or "/root/SceneName/" prefix.
+ * Returns the corrected path and whether it was auto-corrected.
+ */
+
+/**
+ * Normalize node path: strip common LLM mistakes like "res://", "./", or "/root/SceneName/" prefix.
+ * Returns the corrected path and whether it was auto-corrected.
+ */
+export function normalizeNodePath(path: string): { path: string; corrected: boolean } {
+  if (!path || path === '.') return { path, corrected: false }
+
+  let current = path
+  let corrected = false
+
+  // 1. Strip res:// and ./ prefixes
+  while (current.startsWith('res://') || current.startsWith('./')) {
+    if (current.startsWith('res://')) {
+      current = current.slice(6)
+    } else {
+      current = current.slice(2)
+    }
+    corrected = true
+  }
+
+  if (!current || current === '.') return { path: '.', corrected: true }
+
+  // 2. Handle absolute references: /root/SceneName/Node
+  if (current.startsWith('/root') || current.startsWith('root/')) {
+    const temp = current.startsWith('/') ? current.slice(1) : current
+    const parts = temp.split('/').filter((p) => p.length > 0)
+    if (parts.length <= 2) {
+      // "root" or "root/SceneName"
+      return { path: '.', corrected: true }
+    }
+    // "root/SceneName/Node/Child" -> "Node/Child"
+    return { path: parts.slice(2).join('/'), corrected: true }
+  }
+
+  // 3. Strip leading slash
+  if (current.startsWith('/')) {
+    current = current.slice(1)
+    corrected = true
+  }
+
+  if (!current || current === '.') return { path: '.', corrected: true }
+
+  return { path: current, corrected }
+}

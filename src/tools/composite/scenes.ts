@@ -222,33 +222,35 @@ export async function handleScenes(action: string, args: Record<string, unknown>
     case 'info': {
       // scenePath is guaranteed
       const fullPath = resolvePath(projectPath, scenePath)
-      if (!(await pathExists(fullPath))) {
-        throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path and try again.')
+      try {
+        const info = await parseTscnFile(fullPath)
+        return formatJSON(info)
+      } catch (err: unknown) {
+        if (err instanceof Error && (err as NodeJS.ErrnoException).code === 'ENOENT') {
+          throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path and try again.')
+        }
+        throw err
       }
-
-      const info = await parseTscnFile(fullPath)
-      return formatJSON(info)
     }
 
     case 'delete': {
       // scenePath is guaranteed
       const fullPath = resolvePath(projectPath, scenePath)
-      if (!(await pathExists(fullPath))) {
-        throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
+      try {
+        await unlink(fullPath)
+        return formatSuccess(`Deleted scene: ${scenePath}`)
+      } catch (err: unknown) {
+        if (err instanceof Error && (err as NodeJS.ErrnoException).code === 'ENOENT') {
+          throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
+        }
+        throw err
       }
-
-      await unlink(fullPath)
-      return formatSuccess(`Deleted scene: ${scenePath}`)
     }
 
     case 'duplicate': {
       // scenePath and newPath are guaranteed
       const srcFull = resolvePath(projectPath, scenePath)
       const dstFull = resolvePath(projectPath, newPath as string)
-
-      if (!(await pathExists(srcFull))) {
-        throw new GodotMCPError(`Source scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the source path.')
-      }
       if (await pathExists(dstFull)) {
         throw new GodotMCPError(
           `Destination already exists: ${newPath}`,
@@ -257,9 +259,16 @@ export async function handleScenes(action: string, args: Record<string, unknown>
         )
       }
 
-      await mkdir(dirname(dstFull), { recursive: true })
-      await copyFile(srcFull, dstFull)
-      return formatSuccess(`Duplicated: ${scenePath} -> ${newPath}`)
+      try {
+        await mkdir(dirname(dstFull), { recursive: true })
+        await copyFile(srcFull, dstFull)
+        return formatSuccess(`Duplicated: ${scenePath} -> ${newPath}`)
+      } catch (err: unknown) {
+        if (err instanceof Error && (err as NodeJS.ErrnoException).code === 'ENOENT') {
+          throw new GodotMCPError(`Source scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the source path.')
+        }
+        throw err
+      }
     }
 
     case 'set_main': {
@@ -269,17 +278,21 @@ export async function handleScenes(action: string, args: Record<string, unknown>
       }
 
       const configPath = join(safeResolve(baseDir, projectPath as string), 'project.godot')
-      if (!(await pathExists(configPath))) {
-        throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
-      }
 
       // ⚡ Bolt: Using replaceAll('\\', '/') avoids RegExp allocation overhead
       const resPath = `res://${scenePath.replaceAll('\\', '/')}`
-      const content = await readFile(configPath, 'utf-8')
-      const updated = setSettingInContent(content, 'application/run/main_scene', `"${resPath}"`)
-      await writeFile(configPath, updated, 'utf-8')
+      try {
+        const content = await readFile(configPath, 'utf-8')
+        const updated = setSettingInContent(content, 'application/run/main_scene', `"${resPath}"`)
+        await writeFile(configPath, updated, 'utf-8')
 
-      return formatSuccess(`Set main scene: ${resPath}`)
+        return formatSuccess(`Set main scene: ${resPath}`)
+      } catch (err: unknown) {
+        if (err instanceof Error && (err as NodeJS.ErrnoException).code === 'ENOENT') {
+          throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
+        }
+        throw err
+      }
     }
 
     default:

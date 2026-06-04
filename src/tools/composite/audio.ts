@@ -35,10 +35,32 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       const content = await readFile(busLayoutPath, 'utf-8')
       const buses: { name: string; volume?: string; solo?: boolean; mute?: boolean }[] = []
 
-      // Parse bus entries
-      const busRegex = /bus\/(\d+)\/name\s*=\s*"([^"]*)"/g
-      for (const match of content.matchAll(busRegex)) {
-        buses.push({ name: match[2] })
+      // Parse bus entries manually to avoid regex allocations
+      let pos = 0
+      const len = content.length
+      while (pos < len) {
+        const nextNewline = content.indexOf('\n', pos)
+        const lineEnd = nextNewline === -1 ? len : nextNewline
+
+        let start = pos
+        while (start < lineEnd && content.charCodeAt(start) <= 32) start++
+
+        if (content.startsWith('bus/', start)) {
+          const nameIdx = content.indexOf('/name', start)
+          if (nameIdx !== -1 && nameIdx < lineEnd) {
+            const eqIdx = content.indexOf('=', nameIdx)
+            if (eqIdx !== -1 && eqIdx < lineEnd) {
+              const valStart = content.indexOf('"', eqIdx)
+              if (valStart !== -1 && valStart < lineEnd) {
+                const valEnd = content.indexOf('"', valStart + 1)
+                if (valEnd !== -1 && valEnd < lineEnd) {
+                  buses.push({ name: content.slice(valStart + 1, valEnd) })
+                }
+              }
+            }
+          }
+        }
+        pos = nextNewline === -1 ? len : nextNewline + 1
       }
 
       if (buses.length === 0) buses.push({ name: 'Master' })
@@ -84,8 +106,19 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
         ].join('\n')
       }
 
-      // Count existing buses
-      const busCount = (content.match(/bus\/\d+\/name/g) || []).length
+      // Count existing buses manually
+      let busCount = 0
+      let searchPos = 0
+      while (true) {
+        const idx = content.indexOf('/name', searchPos)
+        if (idx === -1) break
+        let i = idx - 1
+        while (i >= 0 && content.charCodeAt(i) >= 48 && content.charCodeAt(i) <= 57) i--
+        if (i >= 3 && content.charCodeAt(i) === 47 && content.substring(i - 3, i) === 'bus') {
+          busCount++
+        }
+        searchPos = idx + 5
+      }
 
       const newBus = [
         `bus/${busCount}/name = "${busName}"`,
@@ -150,23 +183,60 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
         ].join('\n')
       }
 
-      // Find the target bus index
-      const busRegex = /bus\/(\d+)\/name\s*=\s*"([^"]*)"/g
+      // Find the target bus index manually
       let busIndex = -1
-      for (const match of content.matchAll(busRegex)) {
-        if (match[2] === busName) {
-          busIndex = Number.parseInt(match[1], 10)
-          break
+      let searchPos = 0
+      const contentLen = content.length
+      while (searchPos < contentLen) {
+        const nextNewline = content.indexOf('\n', searchPos)
+        const lineEnd = nextNewline === -1 ? contentLen : nextNewline
+
+        let start = searchPos
+        while (start < lineEnd && content.charCodeAt(start) <= 32) start++
+
+        if (content.startsWith('bus/', start)) {
+          const nameIdx = content.indexOf('/name', start)
+          if (nameIdx !== -1 && nameIdx < lineEnd) {
+            const eqIdx = content.indexOf('=', nameIdx)
+            if (eqIdx !== -1 && eqIdx < lineEnd) {
+              const valStart = content.indexOf('"', eqIdx)
+              if (valStart !== -1 && valStart < lineEnd) {
+                const valEnd = content.indexOf('"', valStart + 1)
+                if (valEnd !== -1 && valEnd < lineEnd) {
+                  const currentName = content.slice(valStart + 1, valEnd)
+                  if (currentName === busName) {
+                    const indexStr = content.slice(start + 4, nameIdx)
+                    busIndex = Number.parseInt(indexStr, 10)
+                    break
+                  }
+                }
+              }
+            }
+          }
         }
+        searchPos = nextNewline === -1 ? contentLen : nextNewline + 1
       }
       if (busIndex === -1) {
         throw new GodotMCPError(`Bus "${busName}" not found`, 'AUDIO_ERROR', 'Add the bus first with add_bus.')
       }
 
-      // Count existing effects on this bus
-      const effectCountRegex = new RegExp(`bus/${busIndex}/effect/\\d+/effect`, 'g')
-      const existingEffects = content.match(effectCountRegex) || []
-      const effectIndex = existingEffects.length
+      // Count existing effects on this bus manually
+      const effectPrefix = `bus/${busIndex}/effect/`
+      const effectSuffix = '/effect'
+      let effectIndex = 0
+      let effSearchPos = 0
+      while (true) {
+        const prefixIdx = content.indexOf(effectPrefix, effSearchPos)
+        if (prefixIdx === -1) break
+        const suffixIdx = content.indexOf(effectSuffix, prefixIdx + effectPrefix.length)
+        if (suffixIdx !== -1) {
+          const nextNewline = content.indexOf('\n', prefixIdx)
+          if (nextNewline === -1 || nextNewline > suffixIdx) {
+            effectIndex++
+          }
+        }
+        effSearchPos = prefixIdx + effectPrefix.length
+      }
 
       // Generate unique sub_resource id
       const subResId = `${fullEffectType}_${Date.now()}`

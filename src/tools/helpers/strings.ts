@@ -33,3 +33,34 @@ export function parseCommaSeparatedList(str: string): string[] {
 
   return result
 }
+
+/**
+ * Fast-path string occurrence counting, avoiding match/split allocations.
+ * Replaces patterns like `(str.match(/foo/g) || []).length` for simple strings.
+ */
+export function countString(str: string, search: string): number {
+  if (!str || !search) return 0
+  let count = 0
+  let pos = 0
+  const searchLen = search.length
+  while (true) {
+    pos = str.indexOf(search, pos)
+    if (pos === -1) break
+    count++
+    pos += searchLen
+  }
+  return count
+}
+
+/**
+ * Memory-efficient RegExp occurrence counting using matchAll.
+ * Avoids creating a large intermediate array like `(str.match(/.../g) || []).length`.
+ */
+export function countMatches(str: string, regex: RegExp): number {
+  if (!str || !regex.global) return 0
+  let count = 0
+  for (const _match of str.matchAll(regex)) {
+    count++
+  }
+  return count
+}

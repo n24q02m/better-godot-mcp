@@ -9,3 +9,7 @@
 ## 2025-03-09 - [Optimize parseProjectGodot string parsing]
 **Learning:** Parsing `project.godot` (or other INI-like configurations) line-by-line using regular expressions inside a hot loop (e.g., `^\[(.+)\]$`, `/^([^\s=]+)\s*=\s*(.+)$/`) causes severe performance bottlenecks due to RegExp compilation, execution, and extensive GC pressure from intermediary match objects and string allocations.
 **Action:** Replace regular expressions within file parsing loops with manual string operations: use `charCodeAt` to identify section boundaries (e.g., `91` for `[`), `indexOf('=')` for key-value extraction, and direct `.slice()` + `.trim()` for data separation. Apply manual quote removal checking string bounds and `charCodeAt(0) === 34` instead of `.replace(/^"(.*)"$/, '$1')`.
+
+## 2025-03-22 - [Avoid match for counting string occurrences]
+**Learning:** Using `(content.match(/.../g) || []).length` for simple counting of fixed strings or patterns creates unneeded intermediate array objects. This causes increased garbage collection.
+**Action:** Use `countString` (indexOf loop) for exact string occurrences and `countMatches` (matchAll loop) for regex occurrences to avoid allocating an array, especially inside file parsing tools like `tilemap.ts` or `audio.ts`.

@@ -29,10 +29,14 @@ const VALID_TOPICS = [
 ] as const
 type TopicName = (typeof VALID_TOPICS)[number]
 
+let cachedDocsDir: string | null = null
+
 /**
  * Get the docs directory path
  */
 async function getDocsDir(): Promise<string> {
+  if (cachedDocsDir) return cachedDocsDir
+
   const candidates = [
     join(import.meta.dirname || '', '..', '..', 'docs'),
     // Bundled CLI at bin/cli.mjs -> ../build/src/docs/
@@ -43,19 +47,19 @@ async function getDocsDir(): Promise<string> {
     join(process.cwd(), 'build', 'src', 'docs'),
   ]
 
-  const results = await Promise.all(
-    candidates.map(async (candidate) => {
-      // Validate candidate contains actual tool docs (not a random 'docs' directory)
-      const markerFile = join(candidate, 'help.md')
-      const exists = await pathExists(markerFile)
-      return exists ? candidate : null
-    }),
-  )
+  // ⚡ Bolt: Cache docs dir discovery and use a sequential for-of loop with early return
+  // to avoid redundant I/O operations and array allocations.
+  for (const candidate of candidates) {
+    // Validate candidate contains actual tool docs (not a random 'docs' directory)
+    const markerFile = join(candidate, 'help.md')
+    if (await pathExists(markerFile)) {
+      cachedDocsDir = candidate
+      return cachedDocsDir
+    }
+  }
 
-  const found = results.find((res) => res !== null)
-  if (found) return found
-
-  return join(process.cwd(), 'src', 'docs')
+  cachedDocsDir = join(process.cwd(), 'src', 'docs')
+  return cachedDocsDir
 }
 
 /**

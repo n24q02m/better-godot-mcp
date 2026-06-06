@@ -9,3 +9,7 @@
 ## 2025-03-09 - [Optimize parseProjectGodot string parsing]
 **Learning:** Parsing `project.godot` (or other INI-like configurations) line-by-line using regular expressions inside a hot loop (e.g., `^\[(.+)\]$`, `/^([^\s=]+)\s*=\s*(.+)$/`) causes severe performance bottlenecks due to RegExp compilation, execution, and extensive GC pressure from intermediary match objects and string allocations.
 **Action:** Replace regular expressions within file parsing loops with manual string operations: use `charCodeAt` to identify section boundaries (e.g., `91` for `[`), `indexOf('=')` for key-value extraction, and direct `.slice()` + `.trim()` for data separation. Apply manual quote removal checking string bounds and `charCodeAt(0) === 34` instead of `.replace(/^"(.*)"$/, '$1')`.
+
+## 2025-03-09 - [Optimize documentation directory discovery]
+**Learning:** Using `Promise.all` with `map` for file system discovery operations (like finding the documentation path) executes redundant parallel I/O checks even after a valid path is found. Furthermore, repeating this discovery process on every command blocks the event loop unnecessarily.
+**Action:** Replace parallel `Promise.all(array.map(...))` I/O lookups with a sequential `for...of` loop with an early return, and store the result in a module-level variable to cache the result, preventing redundant file system operations on subsequent invocations.

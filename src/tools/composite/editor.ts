@@ -15,6 +15,11 @@ function getGodotProcesses(config: GodotConfig): Array<{ pid: string; name: stri
   const activeProcesses: Array<{ pid: string; name: string }> = []
 
   for (const pid of config.activePids) {
+    // Prevent Command Injection by strictly validating the PID
+    if (typeof pid !== 'number' || !Number.isSafeInteger(pid) || pid <= 0) {
+      continue
+    }
+
     try {
       process.kill(pid, 0)
       activeProcesses.push({ pid: pid.toString(), name: 'godot' })

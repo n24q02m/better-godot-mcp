@@ -6,10 +6,10 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
-import { pathExists, safeResolve } from '../helpers/paths.js'
+import { pathExists, resolveProjectRoot, safeResolve } from '../helpers/paths.js'
 
-async function resolveScene(projectPath: string | null | undefined, scenePath: string): Promise<string> {
-  const fullPath = safeResolve(projectPath || process.cwd(), scenePath)
+async function resolveScene(projectRoot: string, scenePath: string): Promise<string> {
+  const fullPath = safeResolve(projectRoot, scenePath)
   if (!(await pathExists(fullPath)))
     throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
   return fullPath
@@ -23,7 +23,7 @@ function appendNode(content: string, name: string, type: string, parent: string,
 }
 
 export async function handleNavigation(action: string, args: Record<string, unknown>, config: GodotConfig) {
-  const projectPath = (args.project_path as string) || config.projectPath
+  const projectPath = resolveProjectRoot(args.project_path, config.projectPath)
 
   switch (action) {
     case 'create_region': {

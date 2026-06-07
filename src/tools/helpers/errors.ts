@@ -75,7 +75,10 @@ export function formatJSON(data: unknown): { content: Array<{ type: 'text'; text
 
 /**
  * Find the closest matching string from a list of valid options.
- * Uses bigram similarity for fuzzy matching.
+ * Uses a prioritized hierarchy:
+ * 1. Case-insensitive exact match
+ * 2. Best prefix/containment match (closest in length)
+ * 3. Fuzzy bigram similarity (Dice coefficient)
  */
 export function findClosestMatch(input: string, validOptions: string[]): string | null {
   if (!input || validOptions.length === 0) return null
@@ -83,7 +86,36 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
   // Truncate to prevent CPU exhaustion from excessively long inputs
   const safeInput = input.length > 100 ? input.slice(0, 100) : input
   const lower = safeInput.toLowerCase()
-  let bestMatch: string | null = null
+
+  // 1. Priority: Exact match (case-insensitive)
+  for (const option of validOptions) {
+    if (option.toLowerCase() === lower) {
+      return option
+    }
+  }
+
+  // 2. Priority: Prefix/containment match
+  // We want the one with the smallest absolute length difference
+  let bestPrefixMatch: string | null = null
+  let minLenDiff = Number.POSITIVE_INFINITY
+
+  for (const option of validOptions) {
+    const optionLower = option.toLowerCase()
+    if (optionLower.startsWith(lower) || lower.startsWith(optionLower)) {
+      const lenDiff = Math.abs(optionLower.length - lower.length)
+      if (lenDiff < minLenDiff) {
+        minLenDiff = lenDiff
+        bestPrefixMatch = option
+      }
+    }
+  }
+
+  if (bestPrefixMatch !== null) {
+    return bestPrefixMatch
+  }
+
+  // 3. Fallback: Fuzzy matching using bigram similarity
+  let bestFuzzyMatch: string | null = null
   let bestScore = 0
 
   const inputBigrams = new Set<string>()
@@ -93,11 +125,6 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
 
   for (const option of validOptions) {
     const optionLower = option.toLowerCase()
-    // Quick prefix/containment match
-    if (optionLower.startsWith(lower) || lower.startsWith(optionLower)) {
-      return option
-    }
-
     const optionBigrams = new Set<string>()
     for (let i = 0; i < optionLower.length - 1; i++) {
       optionBigrams.add(optionLower.slice(i, i + 2))
@@ -114,11 +141,11 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
     const score = (2 * overlap) / total
     if (score > bestScore && score > 0.4) {
       bestScore = score
-      bestMatch = option
+      bestFuzzyMatch = option
     }
   }
 
-  return bestMatch
+  return bestFuzzyMatch
 }
 
 /**

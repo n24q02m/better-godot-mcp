@@ -7,7 +7,7 @@ import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
-import { safeResolve } from '../helpers/paths.js'
+import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
 
 const SHADER_TEMPLATES: Record<string, string> = {
   canvas_item: `shader_type canvas_item;
@@ -80,6 +80,9 @@ async function findShaderFiles(dir: string, results: string[] = []): Promise<str
 export async function handleShader(action: string, args: Record<string, unknown>, config: GodotConfig) {
   const projectPath = (args.project_path as string) || config.projectPath
   const baseDir = config.projectPath || process.cwd()
+  // Confined trusted project root for per-file actions (create/read/write/get_params):
+  // the caller-supplied project_path must stay within baseDir (path-traversal guard).
+  const projectRoot = resolveProjectRoot(args.project_path, config.projectPath)
 
   switch (action) {
     case 'create': {
@@ -93,7 +96,7 @@ export async function handleShader(action: string, args: Record<string, unknown>
       const shaderType = (args.shader_type as string) || 'canvas_item'
       const content = (args.content as string) || SHADER_TEMPLATES[shaderType] || SHADER_TEMPLATES.canvas_item
 
-      const fullPath = safeResolve(projectPath || process.cwd(), shaderPath)
+      const fullPath = safeResolve(projectRoot, shaderPath)
 
       // Ensure directory exists
       await mkdir(dirname(fullPath), { recursive: true })
@@ -115,7 +118,7 @@ export async function handleShader(action: string, args: Record<string, unknown>
       const shaderPath = args.shader_path as string
       if (!shaderPath) throw new GodotMCPError('No shader_path specified', 'INVALID_ARGS', 'Provide shader_path.')
 
-      const fullPath = safeResolve(projectPath || process.cwd(), shaderPath)
+      const fullPath = safeResolve(projectRoot, shaderPath)
 
       try {
         const content = await readFile(fullPath, 'utf-8')
@@ -134,7 +137,7 @@ export async function handleShader(action: string, args: Record<string, unknown>
       const content = args.content as string
       if (!content) throw new GodotMCPError('No content specified', 'INVALID_ARGS', 'Provide shader content.')
 
-      const fullPath = safeResolve(projectPath || process.cwd(), shaderPath)
+      const fullPath = safeResolve(projectRoot, shaderPath)
       await mkdir(dirname(fullPath), { recursive: true })
       await writeFile(fullPath, content, 'utf-8')
       return formatSuccess(`Written: ${shaderPath} (${content.length} chars)`)
@@ -144,7 +147,7 @@ export async function handleShader(action: string, args: Record<string, unknown>
       const shaderPath = args.shader_path as string
       if (!shaderPath) throw new GodotMCPError('No shader_path specified', 'INVALID_ARGS', 'Provide shader_path.')
 
-      const fullPath = safeResolve(projectPath || process.cwd(), shaderPath)
+      const fullPath = safeResolve(projectRoot, shaderPath)
 
       try {
         const content = await readFile(fullPath, 'utf-8')

@@ -118,7 +118,9 @@ describe('initServer', () => {
 
       expect(mockStartHttp).toHaveBeenCalledOnce()
       expect(mockStdioTransportConstructor).not.toHaveBeenCalled()
-      expect(console.error).toHaveBeenCalledWith(expect.stringContaining('HTTP mode'))
+      expect(console.error).toHaveBeenCalledWith(
+        expect.stringContaining('[better-godot-mcp] Server started in HTTP mode'),
+      )
     })
 
     it('should use HTTP mode when MCP_TRANSPORT=http', async () => {
@@ -174,7 +176,7 @@ describe('initServer', () => {
 
       const { registerTools } = await import('../src/tools/registry.js')
       expect(registerTools).toHaveBeenCalledOnce()
-      expect(console.error).toHaveBeenCalledWith(expect.stringContaining('Godot detected'))
+      expect(console.error).toHaveBeenCalledWith(expect.stringContaining('[better-godot-mcp] Godot detected'))
     })
 
     it('should initialize server when Godot is not found', async () => {
@@ -186,7 +188,7 @@ describe('initServer', () => {
 
       const { registerTools } = await import('../src/tools/registry.js')
       expect(registerTools).toHaveBeenCalledOnce()
-      expect(console.error).toHaveBeenCalledWith(expect.stringContaining('Godot not found'))
+      expect(console.error).toHaveBeenCalledWith(expect.stringContaining('[better-godot-mcp] WARN: Godot not found'))
     })
 
     it('should instantiate Server with correct name, version, and capabilities', async () => {
@@ -222,7 +224,7 @@ describe('initServer', () => {
       const { initServer } = await import('../src/init-server.js')
 
       await expect(initServer()).rejects.toThrow('Connect failed')
-      expect(console.error).toHaveBeenCalledWith('Failed to initialize server:', testError)
+      expect(console.error).toHaveBeenCalledWith('[better-godot-mcp] ERROR: Failed to initialize server:', testError)
     })
 
     it('should handle errors during HTTP startup', async () => {
@@ -236,7 +238,7 @@ describe('initServer', () => {
       const { initServer } = await import('../src/init-server.js')
 
       await expect(initServer()).rejects.toThrow('Port in use')
-      expect(console.error).toHaveBeenCalledWith('Failed to initialize server:', testError)
+      expect(console.error).toHaveBeenCalledWith('[better-godot-mcp] ERROR: Failed to initialize server:', testError)
     })
   })
 

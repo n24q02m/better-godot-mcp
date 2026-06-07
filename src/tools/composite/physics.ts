@@ -8,8 +8,8 @@ import { join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { toGodotValue } from '../helpers/godot-types.js'
-import { pathExists, safeResolve } from '../helpers/paths.js'
-import { parseProjectSettingsAsync, setSettingInContent } from '../helpers/project-settings.js'
+import { safeResolve } from '../helpers/paths.js'
+import { type ProjectSettings, parseProjectSettingsAsync, setSettingInContent } from '../helpers/project-settings.js'
 import { escapeRegExp } from '../helpers/scene-parser.js'
 import { validateNoNewlines } from '../helpers/security.js'
 
@@ -20,10 +20,16 @@ export async function handlePhysics(action: string, args: Record<string, unknown
     case 'layers': {
       if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
       const configPath = join(safeResolve(config.projectPath || process.cwd(), projectPath), 'project.godot')
-      if (!(await pathExists(configPath)))
-        throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify project path.')
 
-      const settings = await parseProjectSettingsAsync(configPath)
+      let settings: ProjectSettings
+      try {
+        settings = await parseProjectSettingsAsync(configPath)
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+          throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify project path.')
+        }
+        throw err
+      }
       const layers2d: Record<string, string> = {}
       const layers3d: Record<string, string> = {}
 
@@ -51,10 +57,16 @@ export async function handlePhysics(action: string, args: Record<string, unknown
       const collisionMask = args.collision_mask
 
       const fullPath = safeResolve(safeResolve(config.projectPath || process.cwd(), projectPath), scenePath)
-      if (!(await pathExists(fullPath)))
-        throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check file path.')
 
-      let content = await readFile(fullPath, 'utf-8')
+      let content: string
+      try {
+        content = await readFile(fullPath, 'utf-8')
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+          throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check file path.')
+        }
+        throw err
+      }
       const nodeRegex = new RegExp(`(\\[node name="${escapeRegExp(nodeName)}"[^\\]]*\\])`)
       const match = content.match(nodeRegex)
       if (!match) throw new GodotMCPError(`Node "${nodeName}" not found`, 'NODE_ERROR', 'Check node name.')
@@ -91,10 +103,16 @@ export async function handlePhysics(action: string, args: Record<string, unknown
       validateNoNewlines(undefined, scenePath, nodeName)
 
       const fullPath = safeResolve(safeResolve(config.projectPath || process.cwd(), projectPath), scenePath)
-      if (!(await pathExists(fullPath)))
-        throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check file path.')
 
-      let content = await readFile(fullPath, 'utf-8')
+      let content: string
+      try {
+        content = await readFile(fullPath, 'utf-8')
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+          throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check file path.')
+        }
+        throw err
+      }
       const nodeRegex = new RegExp(`(\\[node name="${escapeRegExp(nodeName)}"[^\\]]*\\])`)
       const match = content.match(nodeRegex)
       if (!match) throw new GodotMCPError(`Node "${nodeName}" not found`, 'NODE_ERROR', 'Check node name.')
@@ -133,10 +151,16 @@ export async function handlePhysics(action: string, args: Record<string, unknown
       }
 
       const configPath = join(safeResolve(config.projectPath || process.cwd(), projectPath), 'project.godot')
-      if (!(await pathExists(configPath)))
-        throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify project path.')
 
-      const content = await readFile(configPath, 'utf-8')
+      let content: string
+      try {
+        content = await readFile(configPath, 'utf-8')
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+          throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify project path.')
+        }
+        throw err
+      }
       const key = `layer_names/${dimension}_physics/layer_${layerNum}`
       const updated = setSettingInContent(content, key, `"${name}"`)
       await writeFile(configPath, updated, 'utf-8')

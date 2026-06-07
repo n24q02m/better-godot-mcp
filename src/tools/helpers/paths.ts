@@ -75,6 +75,30 @@ export function safeResolve(baseDir: string, targetPath: string): string {
   return resolvedTarget
 }
 
+/**
+ * Resolves the trusted project root for a tool invocation.
+ *
+ * The caller-supplied `project_path` is UNTRUSTED. It must be confined within
+ * the operator-configured trusted base (`config.projectPath`, falling back to
+ * the server's working directory) before it can be used as a `safeResolve`
+ * base for any file operation. Without this confinement an MCP caller could
+ * point `project_path` at an arbitrary directory and read / write / delete
+ * files outside the intended project (path traversal, CWE-22/23).
+ *
+ * @param projectPathArg The untrusted `project_path` argument from the caller
+ * @param trustedBase The operator-configured project root (e.g. config.projectPath)
+ * @returns The absolute, confined project root to use as the base for all
+ *          subsequent per-file `safeResolve` calls
+ * @throws GodotMCPError if `projectPathArg` escapes the trusted base
+ */
+export function resolveProjectRoot(projectPathArg: unknown, trustedBase: string | null | undefined): string {
+  const base = trustedBase || process.cwd()
+  if (typeof projectPathArg === 'string' && projectPathArg.length > 0) {
+    return safeResolve(base, projectPathArg)
+  }
+  return resolve(base)
+}
+
 import { access } from 'node:fs/promises'
 
 /**

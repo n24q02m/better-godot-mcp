@@ -8,7 +8,7 @@ import { access, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
-import { safeResolve } from '../helpers/paths.js'
+import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
 
 /**
  * Async helper to check file existence without blocking the event loop
@@ -23,7 +23,7 @@ async function pathExists(path: string): Promise<boolean> {
 }
 
 export async function handleTilemap(action: string, args: Record<string, unknown>, config: GodotConfig) {
-  const projectPath = (args.project_path as string) || config.projectPath
+  const projectPath = resolveProjectRoot(args.project_path, config.projectPath)
 
   switch (action) {
     case 'create_tileset': {
@@ -36,7 +36,7 @@ export async function handleTilemap(action: string, args: Record<string, unknown
         )
       const tileSize = (args.tile_size as number) || 16
 
-      const fullPath = safeResolve(projectPath || process.cwd(), tilesetPath)
+      const fullPath = safeResolve(projectPath, tilesetPath)
 
       // Performance optimization: using async pathExists instead of existsSync
       // to avoid blocking the Node.js event loop during I/O operations
@@ -75,7 +75,7 @@ export async function handleTilemap(action: string, args: Record<string, unknown
         )
       }
 
-      const fullPath = safeResolve(projectPath || process.cwd(), tilesetPath)
+      const fullPath = safeResolve(projectPath, tilesetPath)
 
       // Performance optimization: using async pathExists instead of existsSync
       if (!(await pathExists(fullPath)))
@@ -123,7 +123,7 @@ export async function handleTilemap(action: string, args: Record<string, unknown
       const scenePath = args.scene_path as string
       if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
 
-      const fullPath = safeResolve(projectPath || process.cwd(), scenePath)
+      const fullPath = safeResolve(projectPath, scenePath)
 
       // Performance optimization: using async pathExists instead of existsSync
       if (!(await pathExists(fullPath)))

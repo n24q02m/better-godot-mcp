@@ -8,9 +8,7 @@ import { dirname, join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
-import { escapeRegExp } from '../helpers/scene-parser.js'
-
-const NODE_SECTION_RE = /(\[node [^\]]+\])/
+import { updateNodeInScene } from '../helpers/scene-parser.js'
 
 const SCRIPT_TEMPLATES: Record<string, string> = {
   Node: `extends Node
@@ -210,17 +208,23 @@ async function attachScript(args: Record<string, unknown>, resolvePath: (path: s
   const resPath = `res://${scriptPath.replaceAll('\\', '/')}`
 
   if (nodeName) {
-    const nodePattern = new RegExp(`(\\[node name="${escapeRegExp(nodeName)}"[^\\]]*\\])`)
-    const match = content.match(nodePattern)
-    if (!match)
+    const { content: newContent, updated } = updateNodeInScene(content, nodeName, {
+      script: `ExtResource("${resPath}")`,
+    })
+    if (!updated)
       throw new GodotMCPError(
         `Node "${nodeName}" not found in scene`,
         'NODE_ERROR',
         'Check node name with nodes.list action.',
       )
-    content = content.replace(nodePattern, (_match, p1) => `${p1}\nscript = ExtResource("${resPath}")`)
+    content = newContent
   } else {
-    content = content.replace(NODE_SECTION_RE, (_match, p1) => `${p1}\nscript = ExtResource("${resPath}")`)
+    const nodeIdx = content.indexOf('[node ')
+    if (nodeIdx === -1)
+      throw new GodotMCPError('No nodes found in scene', 'NODE_ERROR', 'Scene must have at least one node.')
+    const endOfLine = content.indexOf('\n', nodeIdx)
+    const insertPoint = endOfLine === -1 ? content.length : endOfLine + 1
+    content = `${content.slice(0, insertPoint)}script = ExtResource("${resPath}")\n${content.slice(insertPoint)}`
   }
 
   await writeFile(sceneFullPath, content, 'utf-8')

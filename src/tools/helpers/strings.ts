@@ -33,3 +33,33 @@ export function parseCommaSeparatedList(str: string): string[] {
 
   return result
 }
+
+/**
+ * Efficiently count occurrences of a global RegExp match in a string.
+ * Avoids intermediate array allocations from .match().
+ */
+export function countMatches(str: string, regex: RegExp): number {
+  if (!regex.global) {
+    throw new Error('countMatches requires a global RegExp')
+  }
+  let count = 0
+  for (const _ of str.matchAll(regex)) {
+    count++
+  }
+  return count
+}
+
+/**
+ * Efficiently count occurrences of a substring in a string.
+ * Avoids intermediate array allocations from .match().
+ */
+export function countString(str: string, search: string): number {
+  if (!search) return 0
+  let count = 0
+  let pos = str.indexOf(search)
+  while (pos !== -1) {
+    count++
+    pos = str.indexOf(search, pos + search.length)
+  }
+  return count
+}

@@ -8,6 +8,7 @@ import { join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
+import { countMatches } from '../helpers/strings.js'
 
 /**
  * Helper to resolve the default bus layout path.
@@ -85,7 +86,7 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       }
 
       // Count existing buses
-      const busCount = (content.match(/bus\/\d+\/name/g) || []).length
+      const busCount = countMatches(content, /bus\/\d+\/name/g)
 
       const newBus = [
         `bus/${busCount}/name = "${busName}"`,
@@ -163,10 +164,20 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
         throw new GodotMCPError(`Bus "${busName}" not found`, 'AUDIO_ERROR', 'Add the bus first with add_bus.')
       }
 
+      // Validate busIndex for safety
+      if (!Number.isFinite(busIndex) || busIndex < 0) {
+        throw new GodotMCPError('Invalid bus index found', 'PARSE_ERROR', 'The bus layout file might be malformed.')
+      }
+
       // Count existing effects on this bus
-      const effectCountRegex = new RegExp(`bus/${busIndex}/effect/\\d+/effect`, 'g')
-      const existingEffects = content.match(effectCountRegex) || []
-      const effectIndex = existingEffects.length
+      // Avoid dynamic RegExp by using manual string scanning with a precise prefix
+      const effectPrefix = `bus/${busIndex}/effect/`
+      const effectSuffix = `/effect`
+
+      let effectIndex = 0
+      while (content.includes(`${effectPrefix}${effectIndex}${effectSuffix}`)) {
+        effectIndex++
+      }
 
       // Generate unique sub_resource id
       const subResId = `${fullEffectType}_${Date.now()}`

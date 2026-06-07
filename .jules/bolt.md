@@ -9,3 +9,6 @@
 ## 2025-03-09 - [Optimize parseProjectGodot string parsing]
 **Learning:** Parsing `project.godot` (or other INI-like configurations) line-by-line using regular expressions inside a hot loop (e.g., `^\[(.+)\]$`, `/^([^\s=]+)\s*=\s*(.+)$/`) causes severe performance bottlenecks due to RegExp compilation, execution, and extensive GC pressure from intermediary match objects and string allocations.
 **Action:** Replace regular expressions within file parsing loops with manual string operations: use `charCodeAt` to identify section boundaries (e.g., `91` for `[`), `indexOf('=')` for key-value extraction, and direct `.slice()` + `.trim()` for data separation. Apply manual quote removal checking string bounds and `charCodeAt(0) === 34` instead of `.replace(/^"(.*)"$/, '$1')`.
+
+### Audio effects matching ReDoS mitigation
+To mitigate potential ReDoS vulnerabilities when counting existing effects on a Godot audio bus, replace dynamic `RegExp` construction (which might include unvalidated or scientific-notation numbers) with a manual string scanning loop. Using `content.includes("${effectPrefix}${effectIndex}${effectSuffix}")` in a loop provides a safe and predictable way to find the next available effect index without the risks associated with regex engine backtracking on crafted or unexpected inputs.

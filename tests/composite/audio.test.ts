@@ -257,4 +257,21 @@ describe('audio', () => {
   it('should throw for unknown action', async () => {
     await expect(handleAudio('invalid_action', { project_path: projectPath }, config)).rejects.toThrow('Unknown action')
   })
+
+  // ==========================================
+  // security and robustness
+  // ==========================================
+  describe('security and robustness', () => {
+    it('should correctly count effects without dynamic regex', async () => {
+      // Create a bus and add multiple effects
+      await handleAudio('add_bus', { project_path: projectPath, bus_name: 'SFX' }, config)
+      await handleAudio('add_effect', { project_path: projectPath, bus_name: 'SFX', effect_type: 'Reverb' }, config)
+      await handleAudio('add_effect', { project_path: projectPath, bus_name: 'SFX', effect_type: 'Chorus' }, config)
+
+      const content = readFileSync(join(projectPath, 'default_bus_layout.tres'), 'utf-8')
+      expect(content).toContain('bus/1/effect/0/effect')
+      expect(content).toContain('bus/1/effect/1/effect')
+      expect(content).not.toContain('bus/1/effect/2/effect')
+    })
+  })
 })

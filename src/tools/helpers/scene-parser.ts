@@ -346,7 +346,7 @@ function transformSceneContent(
 
       // Check if this new section is our target node
       const isNodeHeader = content.charCodeAt(start + 1) === 110 // "n"
-      inTargetNode = isNodeHeader && extractAttribute(line, "name=\"", "\"") === nodeName
+      inTargetNode = isNodeHeader && extractAttribute(line, 'name="', '"') === nodeName
     }
 
     const processed = callbacks.processLine(line, inTargetNode, isSectionHeader)

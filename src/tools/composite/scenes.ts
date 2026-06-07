@@ -19,8 +19,20 @@ const rxScript = /^script\s*=\s*(.+)$/
  * Optimized to use direct string index traversal to avoid memory allocations from split('\n')
  * Parses .tscn files ~2x faster
  */
-async function parseTscnFile(filePath: string): Promise<SceneInfo> {
-  const content = await readFile(filePath, 'utf-8')
+async function parseTscnFile(filePath: string, scenePath?: string): Promise<SceneInfo> {
+  let content: string
+  try {
+    content = await readFile(filePath, 'utf-8')
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new GodotMCPError(
+        `Scene not found: ${scenePath || filePath}`,
+        'SCENE_ERROR',
+        'Check the file path and try again.',
+      )
+    }
+    throw error
+  }
 
   const nodes: SceneNode[] = []
   const resources: string[] = []
@@ -222,22 +234,21 @@ export async function handleScenes(action: string, args: Record<string, unknown>
     case 'info': {
       // scenePath is guaranteed
       const fullPath = resolvePath(projectPath, scenePath)
-      if (!(await pathExists(fullPath))) {
-        throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path and try again.')
-      }
-
-      const info = await parseTscnFile(fullPath)
+      const info = await parseTscnFile(fullPath, scenePath)
       return formatJSON(info)
     }
 
     case 'delete': {
       // scenePath is guaranteed
       const fullPath = resolvePath(projectPath, scenePath)
-      if (!(await pathExists(fullPath))) {
-        throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
+      try {
+        await unlink(fullPath)
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+          throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
+        }
+        throw error
       }
-
-      await unlink(fullPath)
       return formatSuccess(`Deleted scene: ${scenePath}`)
     }
 
@@ -246,9 +257,6 @@ export async function handleScenes(action: string, args: Record<string, unknown>
       const srcFull = resolvePath(projectPath, scenePath)
       const dstFull = resolvePath(projectPath, newPath as string)
 
-      if (!(await pathExists(srcFull))) {
-        throw new GodotMCPError(`Source scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the source path.')
-      }
       if (await pathExists(dstFull)) {
         throw new GodotMCPError(
           `Destination already exists: ${newPath}`,
@@ -258,7 +266,14 @@ export async function handleScenes(action: string, args: Record<string, unknown>
       }
 
       await mkdir(dirname(dstFull), { recursive: true })
-      await copyFile(srcFull, dstFull)
+      try {
+        await copyFile(srcFull, dstFull)
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+          throw new GodotMCPError(`Source scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the source path.')
+        }
+        throw error
+      }
       return formatSuccess(`Duplicated: ${scenePath} -> ${newPath}`)
     }
 
@@ -269,13 +284,20 @@ export async function handleScenes(action: string, args: Record<string, unknown>
       }
 
       const configPath = join(safeResolve(baseDir, projectPath as string), 'project.godot')
-      if (!(await pathExists(configPath))) {
-        throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
-      }
 
       // ⚡ Bolt: Using replaceAll('\\', '/') avoids RegExp allocation overhead
       const resPath = `res://${scenePath.replaceAll('\\', '/')}`
-      const content = await readFile(configPath, 'utf-8')
+
+      let content: string
+      try {
+        content = await readFile(configPath, 'utf-8')
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+          throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
+        }
+        throw error
+      }
+
       const updated = setSettingInContent(content, 'application/run/main_scene', `"${resPath}"`)
       await writeFile(configPath, updated, 'utf-8')
 

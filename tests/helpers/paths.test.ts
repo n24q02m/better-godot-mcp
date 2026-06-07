@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, relative, resolve } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { GodotMCPError } from '../../src/tools/helpers/errors.js'
-import { pathExists, safeResolve } from '../../src/tools/helpers/paths.js'
+import { pathExists, resolveProjectRoot, safeResolve } from '../../src/tools/helpers/paths.js'
 
 describe('safeResolve', () => {
   const baseDir = resolve('/mock/base/dir')
@@ -127,6 +127,44 @@ describe('safeResolve canonicalization (symlink / firmlink hardening)', () => {
       expect(rel.startsWith('..')).toBe(false)
     },
   )
+})
+
+describe('resolveProjectRoot', () => {
+  const trustedBase = resolve('/mock/trusted/project')
+
+  it('returns the resolved trusted base when no project_path is given', () => {
+    expect(resolveProjectRoot(undefined, trustedBase)).toBe(trustedBase)
+    expect(resolveProjectRoot('', trustedBase)).toBe(trustedBase)
+    expect(resolveProjectRoot(null, trustedBase)).toBe(trustedBase)
+  })
+
+  it('falls back to process.cwd() when trusted base is unset', () => {
+    expect(resolveProjectRoot(undefined, null)).toBe(resolve(process.cwd()))
+    expect(resolveProjectRoot(undefined, undefined)).toBe(resolve(process.cwd()))
+  })
+
+  it('confines a relative project_path within the trusted base', () => {
+    expect(resolveProjectRoot('sub/project', trustedBase)).toBe(resolve(trustedBase, 'sub/project'))
+  })
+
+  it('accepts an absolute project_path that is inside the trusted base', () => {
+    const inside = resolve(trustedBase, 'inner')
+    expect(resolveProjectRoot(inside, trustedBase)).toBe(inside)
+  })
+
+  it('rejects an absolute project_path outside the trusted base', () => {
+    expect(() => resolveProjectRoot(resolve('/etc'), trustedBase)).toThrowError(GodotMCPError)
+    expect(() => resolveProjectRoot(resolve('/etc'), trustedBase)).toThrow(/Access denied/)
+  })
+
+  it('rejects a relative project_path that traverses outside the trusted base', () => {
+    expect(() => resolveProjectRoot('../../etc', trustedBase)).toThrowError(GodotMCPError)
+  })
+
+  it('ignores non-string project_path values', () => {
+    expect(resolveProjectRoot(123, trustedBase)).toBe(trustedBase)
+    expect(resolveProjectRoot({ evil: '../../etc' }, trustedBase)).toBe(trustedBase)
+  })
 })
 
 describe('pathExists', () => {

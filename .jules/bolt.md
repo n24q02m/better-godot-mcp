@@ -12,3 +12,13 @@
 ## 2025-05-15 - [Optimization] Redundant pathExists checks in resources tool
 **Learning:** Sequential `pathExists` and `stat`/`readFile`/`unlink` operations result in redundant filesystem calls. Direct execution with `try-catch` handling for `ENOENT` is more efficient for existing files.
 **Action:** Replaced `pathExists` followed by I/O operations in `handleResources` with direct calls and `NodeJS.ErrnoException` code checks.
+## 2026-06-04 - [PERF] O(N) Lookups via Object.values and .find()
+**Learning:** In scene parsing and node management, repeated (N)$ searches through arrays (like `scene.nodes` or `scene.connections`) can become a bottleneck as scene complexity grows. Introducing Map-based indexing during the initial single-pass parse provides (1)$ lookups for common search patterns (by path, by name, by signal signature) with negligible memory overhead.
+**Action:** Added `nodesByPath`, `nodesByName`, and `connectionsKeyed` Maps to the `ParsedScene` interface and populated them in `parseSceneContent`. Refactored `findNode`, `handleAddNode`, and `handleSignals` to use these maps.
+## 2025-05-22 - [Optimized Prefix Matching]
+**Learning:** Returning the first prefix match in a list of valid options can lead to incorrect results if a longer, more specific prefix or an exact match exists later in the list.
+**Action:** Refactored `findClosestMatch` in `src/tools/helpers/errors.ts` to use a prioritized hierarchy:
+1. Case-insensitive exact match (early return).
+2. Best prefix/containment match, defined as the one with the smallest absolute length difference relative to the input.
+3. Fuzzy bigram similarity (Dice coefficient) with a threshold > 0.4.
+This ensures that "create" matches "create" even if "create_node" appears earlier in the options list, and "cre" matches "create" over "create_node".

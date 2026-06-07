@@ -7,7 +7,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
-import { pathExists, safeResolve } from '../helpers/paths.js'
+import { pathExists, resolveProjectRoot, safeResolve } from '../helpers/paths.js'
 import { escapeRegExp, parseScene } from '../helpers/scene-parser.js'
 
 const CONTROL_TEMPLATES: Record<string, Record<string, string>> = {
@@ -66,14 +66,14 @@ const CONTROL_TYPES = new Set([
   'NinePatchRect',
 ])
 
-async function resolveScene(projectPath: string | null | undefined, scenePath: string): Promise<string> {
-  const fullPath = safeResolve(projectPath || process.cwd(), scenePath)
+async function resolveScene(projectRoot: string, scenePath: string): Promise<string> {
+  const fullPath = safeResolve(projectRoot, scenePath)
   if (!(await pathExists(fullPath)))
     throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
   return fullPath
 }
 
-async function handleCreateControl(projectPath: string | null | undefined, args: Record<string, unknown>) {
+async function handleCreateControl(projectPath: string, args: Record<string, unknown>) {
   const scenePath = args.scene_path as string
   if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
   const controlName = args.name as string
@@ -143,7 +143,7 @@ async function handleCreateControl(projectPath: string | null | undefined, args:
   return formatSuccess(`Created UI control: ${controlName} (${controlType}) under ${parent}`)
 }
 
-async function handleSetTheme(projectPath: string | null | undefined, args: Record<string, unknown>) {
+async function handleSetTheme(projectPath: string, args: Record<string, unknown>) {
   const themePath = args.theme_path as string
   if (!themePath)
     throw new GodotMCPError('No theme_path specified', 'INVALID_ARGS', 'Provide theme_path (e.g., "themes/main.tres").')
@@ -162,7 +162,7 @@ async function handleSetTheme(projectPath: string | null | undefined, args: Reco
   return formatSuccess(`Created theme: ${themePath} (font size: ${fontSize})`)
 }
 
-async function handleLayout(projectPath: string | null | undefined, args: Record<string, unknown>) {
+async function handleLayout(projectPath: string, args: Record<string, unknown>) {
   const scenePath = args.scene_path as string
   if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
   const nodeName = args.name as string
@@ -232,7 +232,7 @@ async function handleLayout(projectPath: string | null | undefined, args: Record
   return formatSuccess(`Set layout preset "${preset}" on ${nodeName}`)
 }
 
-async function handleListControls(projectPath: string | null | undefined, args: Record<string, unknown>) {
+async function handleListControls(projectPath: string, args: Record<string, unknown>) {
   const scenePath = args.scene_path as string
   if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
 
@@ -251,7 +251,9 @@ async function handleListControls(projectPath: string | null | undefined, args: 
 }
 
 export async function handleUI(action: string, args: Record<string, unknown>, config: GodotConfig) {
-  const projectPath = (args.project_path as string) || config.projectPath
+  // project_path is caller-controlled and untrusted; confine it to the trusted
+  // project root before any handler uses it as a file-resolution base.
+  const projectPath = resolveProjectRoot(args.project_path, config.projectPath)
 
   switch (action) {
     case 'create_control':

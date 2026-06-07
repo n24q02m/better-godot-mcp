@@ -9,7 +9,6 @@ import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { serializeGodotObject } from '../helpers/godot-types.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
-import { escapeRegExp } from '../helpers/scene-parser.js'
 
 /**
  * Godot 4.x Key enum numeric values (@GlobalScope.Key)
@@ -134,6 +133,72 @@ function resolveMouseCode(value: string): number {
     'INVALID_ARGS',
     `Valid buttons: ${Object.keys(GODOT_MOUSE_CODES).join(', ')}`,
   )
+}
+
+/**
+ * Stateful line-by-line transformer for the [input] section in project.godot.
+ * This avoids ReDoS by manually scanning lines instead of using complex RegExps.
+ */
+function transformInputMap(
+  content: string,
+  targetAction: string,
+  transform: (actionContent: string) => string | null,
+): string {
+  const lines = content.split(/\r?\n/)
+  const result: string[] = []
+  let inInputSection = false
+  let inTargetAction = false
+  let currentActionLines: string[] = []
+  let found = false
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    const trimmed = line.trim()
+
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      inInputSection = trimmed === '[input]'
+      result.push(line)
+      continue
+    }
+
+    if (inInputSection) {
+      if (inTargetAction) {
+        currentActionLines.push(line)
+        if (trimmed === '}' || trimmed.endsWith('}')) {
+          inTargetAction = false
+          const transformed = transform(currentActionLines.join('\n'))
+          if (transformed !== null) {
+            result.push(transformed)
+          }
+          found = true
+        }
+      } else {
+        // Look for action start: action_name={
+        if (trimmed.startsWith(`${targetAction}={`)) {
+          inTargetAction = true
+          currentActionLines = [line]
+          if (trimmed.endsWith('}')) {
+            inTargetAction = false
+            const transformed = transform(currentActionLines.join('\n'))
+            if (transformed !== null) {
+              result.push(transformed)
+            }
+            found = true
+          }
+        } else {
+          result.push(line)
+        }
+      }
+    } else {
+      result.push(line)
+    }
+  }
+
+  if (!found) {
+    throw new GodotMCPError(`Action "${targetAction}" not found`, 'INPUT_ERROR', 'Check action name with list.')
+  }
+
+  return result.join('\n')
 }
 
 /**
@@ -308,13 +373,7 @@ export async function handleInputMap(action: string, args: Record<string, unknow
       }
 
       const content = await readFile(configPath, 'utf-8')
-      // Remove the action line(s) - handles multi-line format
-      const pattern = new RegExp(`${escapeRegExp(actionName)}=\\{[^}]*\\}\\n?`, 'g')
-      const updated = content.replace(pattern, '')
-
-      if (updated === content) {
-        throw new GodotMCPError(`Action "${actionName}" not found`, 'INPUT_ERROR', 'Check action name with list.')
-      }
+      const updated = transformInputMap(content, actionName, () => null)
 
       await writeFile(configPath, updated, 'utf-8')
       return formatSuccess(`Removed input action: ${actionName}`)
@@ -409,20 +468,21 @@ export async function handleInputMap(action: string, args: Record<string, unknow
           )
       }
 
-      // Find existing events array and append
-      const actionRegex = new RegExp(`(${escapeRegExp(actionName)}=\\{[^}]*"events":\\s*\\[)([^\\]]*)\\]`)
-      const match = content.match(actionRegex)
-      if (!match) {
-        throw new GodotMCPError(
-          `Action "${actionName}" not found`,
-          'INPUT_ERROR',
-          'Add the action first with add_action.',
-        )
-      }
+      // Transform action using transformInputMap
+      const updated = transformInputMap(content, actionName, (actionContent) => {
+        // Find existing events array and append
+        // Using a simpler RegExp here on a much smaller string (one action block)
+        const actionRegex = /("events":\s*\[)([^\]]*)\]/
+        const match = actionContent.match(actionRegex)
+        if (!match) {
+          // This should ideally not happen if the action is well-formed
+          return actionContent
+        }
 
-      const existingEvents = match[2].trim()
-      const newEvents = existingEvents ? `${existingEvents}, ${eventObj}` : eventObj
-      const updated = content.replace(actionRegex, (_match, p1) => `${p1}${newEvents}]`)
+        const existingEvents = match[2].trim()
+        const newEventsList = existingEvents ? `${existingEvents}, ${eventObj}` : eventObj
+        return actionContent.replace(actionRegex, (_, p1) => `${p1}${newEventsList}]`)
+      })
 
       await writeFile(configPath, updated, 'utf-8')
       return formatSuccess(`Added ${eventType} event to action: ${actionName}`)

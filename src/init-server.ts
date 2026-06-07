@@ -15,6 +15,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import pkg from '../package.json' with { type: 'json' }
 import { detectGodot } from './godot/detector.js'
 import type { GodotConfig } from './godot/types.js'
+import { logger } from './tools/helpers/logger.js'
 import { registerTools } from './tools/registry.js'
 
 const SERVER_NAME = 'better-godot-mcp'
@@ -28,12 +29,10 @@ export function createGodotServer(): Server {
   const detection = detectGodot()
 
   if (detection) {
-    console.error(
-      `[${SERVER_NAME}] Godot detected: ${detection.version.raw} at ${detection.path} (${detection.source})`,
-    )
+    logger.info(`Godot detected: ${detection.version.raw} at ${detection.path} (${detection.source})`)
   } else {
-    console.error(`[${SERVER_NAME}] Godot not found. CLI headless tools will be limited.`)
-    console.error(`[${SERVER_NAME}] Set GODOT_PATH env var or install Godot.`)
+    logger.warn('Godot not found. CLI headless tools will be limited.')
+    logger.warn('Set GODOT_PATH env var or install Godot.')
   }
 
   // Resolve project path from env var (tools also accept project_path per call)
@@ -76,7 +75,7 @@ export async function initServer(): Promise<void> {
       const server = createGodotServer()
       const transport = new StdioServerTransport()
       await server.connect(transport)
-      console.error(`[${SERVER_NAME}] Server started in stdio mode (v${getVersion()})`)
+      logger.info(`Server started in stdio mode (v${getVersion()})`)
       return
     } else {
       const { runHttpServer } = await import('@n24q02m/mcp-core')
@@ -93,9 +92,7 @@ export async function initServer(): Promise<void> {
           // No relaySchema -> no auth, no credential form (godot has no credentials).
         },
       )
-      console.error(
-        `[${SERVER_NAME}] Server started in HTTP mode (v${getVersion()}) on http://${handle.host}:${handle.port}/mcp`,
-      )
+      logger.info(`Server started in HTTP mode (v${getVersion()}) on http://${handle.host}:${handle.port}/mcp`)
       // Keep process alive until SIGINT/SIGTERM.
       await new Promise<void>((resolve) => {
         const shutdown = async (): Promise<void> => {
@@ -107,7 +104,7 @@ export async function initServer(): Promise<void> {
       })
     }
   } catch (error) {
-    console.error('Failed to initialize server:', error)
+    logger.error('Failed to initialize server:', error)
     throw error
   }
 }

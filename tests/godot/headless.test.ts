@@ -49,7 +49,7 @@ describe('headless', () => {
 
       // Mock successful execution
       vi.mocked(child_process.spawnSync).mockReturnValue({
-        stdout: '4.2.1',
+        stdout: 'Godot Engine v4.0.stable.official',
         stderr: '',
         status: 0,
         output: [],
@@ -59,22 +59,51 @@ describe('headless', () => {
 
       const result = execGodotSync(godotPath, args, options)
 
-      expect(child_process.spawnSync).toHaveBeenCalledWith(
-        godotPath,
-        args,
-        expect.objectContaining({
-          timeout: 1000,
-          cwd: '/tmp',
-          encoding: 'utf-8',
-          stdio: ['pipe', 'pipe', 'pipe'],
-        }),
-      )
       expect(result.success).toBe(true)
-      expect(result.stdout).toBe('4.2.1')
+      expect(result.stdout).toBe('Godot Engine v4.0.stable.official')
       expect(result.exitCode).toBe(0)
+      expect(child_process.spawnSync).toHaveBeenCalledWith(godotPath, args, {
+        timeout: 1000,
+        cwd: '/tmp',
+        stdio: ['pipe', 'pipe', 'pipe'],
+        encoding: 'utf-8',
+      })
     })
 
-    it('should use default timeout of 30_000 when none specified', () => {
+    it('returns failure on non-zero exit code', () => {
+      vi.mocked(child_process.spawnSync).mockReturnValue({
+        stdout: '',
+        stderr: 'Error: Something went wrong',
+        status: 1,
+        output: [],
+        pid: 0,
+        signal: null,
+      } as unknown as child_process.SpawnSyncReturns<string>)
+
+      const result = execGodotSync('/usr/bin/godot', ['--invalid'])
+      expect(result.success).toBe(false)
+      expect(result.stderr).toBe('Error: Something went wrong')
+      expect(result.exitCode).toBe(1)
+    })
+
+    it('returns failure on spawnSync error', () => {
+      vi.mocked(child_process.spawnSync).mockReturnValue({
+        error: new Error('Command not found'),
+        status: null,
+        stdout: '',
+        stderr: '',
+        output: [],
+        pid: 0,
+        signal: null,
+      } as unknown as child_process.SpawnSyncReturns<string>)
+
+      const result = execGodotSync('/usr/bin/godot', ['--version'])
+      expect(result.success).toBe(false)
+      expect(result.stderr).toBe('Command not found')
+      expect(result.exitCode).toBe(1)
+    })
+
+    it('uses default timeout if not provided', () => {
       vi.mocked(child_process.spawnSync).mockReturnValue({
         stdout: '',
         stderr: '',
@@ -86,53 +115,18 @@ describe('headless', () => {
 
       execGodotSync('/usr/bin/godot', ['--version'])
       expect(child_process.spawnSync).toHaveBeenCalledWith(
-        '/usr/bin/godot',
-        ['--version'],
-        expect.objectContaining({ timeout: 30_000 }),
+        expect.any(String),
+        expect.any(Array),
+        expect.objectContaining({ timeout: 30000 }),
       )
     })
 
-    it('returns failure result when status is non-zero', () => {
+    it('should handle timeout error in spawnSync', () => {
       vi.mocked(child_process.spawnSync).mockReturnValue({
-        stdout: '',
-        stderr: 'Error: invalid argument',
-        status: 1,
-        output: [],
-        pid: 0,
-        signal: null,
-      } as unknown as child_process.SpawnSyncReturns<string>)
-
-      const result = execGodotSync('/usr/bin/godot', ['--invalid'])
-      expect(result.success).toBe(false)
-      expect(result.stderr).toBe('Error: invalid argument')
-      expect(result.exitCode).toBe(1)
-    })
-
-    it('returns failure result when spawnSync throws or returns error', () => {
-      const error = new Error('Spawn failed')
-      vi.mocked(child_process.spawnSync).mockReturnValue({
-        error,
-        status: 1,
+        error: new Error('Timeout'),
+        status: null,
         stdout: '',
         stderr: '',
-        output: [],
-        pid: 0,
-        signal: null,
-      } as unknown as child_process.SpawnSyncReturns<string>)
-
-      const result = execGodotSync('/usr/bin/godot', ['--version'])
-      expect(result.success).toBe(false)
-      expect(result.stderr).toBe('Spawn failed')
-      expect(result.exitCode).toBe(1)
-    })
-
-    it('should handle error without status (fallback to 1)', () => {
-      const error = new Error('Timeout')
-      vi.mocked(child_process.spawnSync).mockReturnValue({
-        error,
-        status: null as unknown as number,
-        stdout: null as unknown as string,
-        stderr: null as unknown as string,
         output: [],
         pid: 0,
         signal: null,
@@ -255,6 +249,22 @@ describe('headless', () => {
         stdio: 'ignore',
       })
       expect(mockChild.unref).toHaveBeenCalled()
+    })
+
+    it('should include scenePath in arguments when provided', () => {
+      const mockChild = { unref: vi.fn(), pid: 43 }
+      vi.mocked(child_process.spawn).mockReturnValue(mockChild as never)
+
+      const result = runGodotProject('/usr/bin/godot', '/tmp/project', 'res://main.tscn')
+      expect(result.pid).toBe(43)
+      expect(child_process.spawn).toHaveBeenCalledWith(
+        '/usr/bin/godot',
+        ['--path', '/tmp/project', 'res://main.tscn'],
+        {
+          detached: true,
+          stdio: 'ignore',
+        },
+      )
     })
 
     it('should return undefined pid when spawn fails to assign pid', () => {
@@ -408,6 +418,34 @@ describe('headless', () => {
       expect(result.stdout).toBe('')
       expect(result.stderr).toBe('')
       expect(result.exitCode).toBe(0)
+    })
+
+    it('should fall back to error.message when stderr is whitespace only', async () => {
+      const error = Object.assign(new Error('fail message'), { stderr: '   ' })
+      execFileAsyncMock.mockRejectedValue(error)
+
+      const result = await execGodotAsync('/usr/bin/godot', ['--version'])
+      expect(result.success).toBe(false)
+      expect(result.stderr).toBe('fail message')
+    })
+
+    it('should handle non-Error catch values', async () => {
+      execFileAsyncMock.mockRejectedValue('string error')
+
+      const result = await execGodotAsync('/usr/bin/godot', ['--version'])
+      expect(result.success).toBe(false)
+      expect(result.stderr).toBe('Unknown error')
+      expect(result.exitCode).toBe(1)
+    })
+
+    it('should fall back to exitCode 1 when error has no code', async () => {
+      const error = new Error('fail')
+      delete (error as { code?: number }).code
+      execFileAsyncMock.mockRejectedValue(error)
+
+      const result = await execGodotAsync('/usr/bin/godot', ['--version'])
+      expect(result.success).toBe(false)
+      expect(result.exitCode).toBe(1)
     })
   })
 })

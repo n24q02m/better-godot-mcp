@@ -6,7 +6,7 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
-import { safeResolve } from '../helpers/paths.js'
+import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
 import { parseSceneContent } from '../helpers/scene-parser.js'
 
 function validateParameters(...params: unknown[]) {
@@ -26,11 +26,11 @@ function validateParameters(...params: unknown[]) {
 }
 
 export async function handleSignals(action: string, args: Record<string, unknown>, config: GodotConfig) {
-  const projectPath = (args.project_path as string) || config.projectPath
+  const projectPath = resolveProjectRoot(args.project_path, config.projectPath)
   const scenePath = args.scene_path as string
 
   if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
-  const fullPath = safeResolve(projectPath || process.cwd(), scenePath)
+  const fullPath = safeResolve(projectPath, scenePath)
 
   async function readScene() {
     try {

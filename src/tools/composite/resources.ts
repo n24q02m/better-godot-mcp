@@ -7,7 +7,7 @@ import { readdir, readFile, stat, unlink } from 'node:fs/promises'
 import { extname, join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
-import { pathExists, safeResolve } from '../helpers/paths.js'
+import { pathExists, resolveProjectRoot, safeResolve } from '../helpers/paths.js'
 
 const RESOURCE_EXTENSIONS = new Set([
   '.tres',
@@ -79,6 +79,9 @@ async function findResourceFiles(
 export async function handleResources(action: string, args: Record<string, unknown>, config: GodotConfig) {
   const projectPath = (args.project_path as string) || config.projectPath
   const baseDir = config.projectPath || process.cwd()
+  // Confined trusted project root for per-file actions (info/delete/import_config):
+  // the caller-supplied project_path must stay within baseDir (path-traversal guard).
+  const projectRoot = resolveProjectRoot(args.project_path, config.projectPath)
 
   switch (action) {
     case 'list': {
@@ -120,7 +123,7 @@ export async function handleResources(action: string, args: Record<string, unkno
     case 'info': {
       const resPath = args.resource_path as string
       if (!resPath) throw new GodotMCPError('No resource_path specified', 'INVALID_ARGS', 'Provide resource_path.')
-      const fullPath = safeResolve(projectPath || process.cwd(), resPath)
+      const fullPath = safeResolve(projectRoot, resPath)
       if (!(await pathExists(fullPath)))
         throw new GodotMCPError(`Resource not found: ${resPath}`, 'RESOURCE_ERROR', 'Check the file path.')
 
@@ -148,7 +151,7 @@ export async function handleResources(action: string, args: Record<string, unkno
     case 'delete': {
       const resPath = args.resource_path as string
       if (!resPath) throw new GodotMCPError('No resource_path specified', 'INVALID_ARGS', 'Provide resource_path.')
-      const fullPath = safeResolve(projectPath || process.cwd(), resPath)
+      const fullPath = safeResolve(projectRoot, resPath)
       if (!(await pathExists(fullPath)))
         throw new GodotMCPError(`Resource not found: ${resPath}`, 'RESOURCE_ERROR', 'Check the file path.')
 
@@ -164,7 +167,7 @@ export async function handleResources(action: string, args: Record<string, unkno
       const resPath = args.resource_path as string
       if (!resPath) throw new GodotMCPError('No resource_path specified', 'INVALID_ARGS', 'Provide resource_path.')
 
-      const importPath = safeResolve(projectPath || process.cwd(), `${resPath}.import`)
+      const importPath = safeResolve(projectRoot, `${resPath}.import`)
 
       if (!(await pathExists(importPath))) {
         return formatJSON({ path: resPath, imported: false, message: 'No .import file found.' })

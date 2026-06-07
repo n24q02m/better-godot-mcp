@@ -7,7 +7,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
-import { pathExists, safeResolve } from '../helpers/paths.js'
+import { pathExists, resolveProjectRoot, safeResolve } from '../helpers/paths.js'
 
 /**
  * Helper to resolve the default bus layout path.
@@ -217,7 +217,8 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
         )
       }
 
-      const fullPath = safeResolve(projectPath || process.cwd(), scenePath)
+      // Confine caller project_path to the trusted base before resolving the scene.
+      const fullPath = safeResolve(resolveProjectRoot(args.project_path, config.projectPath), scenePath)
       if (!(await pathExists(fullPath)))
         throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check file path.')
 

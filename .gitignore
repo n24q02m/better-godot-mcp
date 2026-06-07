@@ -46,3 +46,11 @@ htmlcov/
 
 # E2E test result artifacts
 tests/e2e_mcp_*report.json
+
+# Bot/merge junk artifacts (prevent accidental commits) — 2026-06-07
+*.orig
+*.rej
+*.cover
+*.bak
+/*.patch
+/*.diff

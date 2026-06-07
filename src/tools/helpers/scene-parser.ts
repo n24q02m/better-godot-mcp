@@ -91,7 +91,15 @@ export interface ParsedScene {
   subResources: SubResource[]
   nodes: SceneNodeInfo[]
   connections: SignalConnection[]
+  connectionKeys: Set<string>
   raw: string
+}
+
+/**
+ * Get a unique key for a signal connection for fast lookups
+ */
+export function getConnectionKey(conn: { signal: string; from: string; to: string; method: string }): string {
+  return `${conn.signal}\0${conn.from}\0${conn.to}\0${conn.method}`
 }
 
 /**
@@ -111,6 +119,7 @@ export function parseSceneContent(content: string): ParsedScene {
   const subResources: SubResource[] = []
   const nodes: SceneNodeInfo[] = []
   const connections: SignalConnection[] = []
+  const connectionKeys = new Set<string>()
 
   let currentSection: 'header' | 'ext_resource' | 'sub_resource' | 'node' | 'connection' | null = null
   let currentNode: SceneNodeInfo | null = null
@@ -171,7 +180,10 @@ export function parseSceneContent(content: string): ParsedScene {
             // 'c' -> [connection
             currentSection = 'connection'
             const conn = parseConnection(line)
-            if (conn) connections.push(conn)
+            if (conn) {
+              connections.push(conn)
+              connectionKeys.add(getConnectionKey(conn))
+            }
           }
         } else if (currentSection === 'node' || currentSection === 'sub_resource') {
           const target = currentSection === 'node' ? currentNode?.properties : currentSubResource?.properties
@@ -189,7 +201,7 @@ export function parseSceneContent(content: string): ParsedScene {
   if (currentNode) nodes.push(currentNode)
   if (currentSubResource) subResources.push(currentSubResource)
 
-  return { header, extResources, subResources, nodes, connections, raw: content }
+  return { header, extResources, subResources, nodes, connections, connectionKeys, raw: content }
 }
 
 /**

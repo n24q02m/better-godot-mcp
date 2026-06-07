@@ -9,7 +9,6 @@ import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { serializeGodotObject } from '../helpers/godot-types.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
-import { escapeRegExp } from '../helpers/scene-parser.js'
 
 /**
  * Godot 4.x Key enum numeric values (@GlobalScope.Key)
@@ -239,6 +238,93 @@ function parseInputActions(content: string): Map<string, string[]> {
   return actions
 }
 
+/**
+ * Safely transform the [input] section of project.godot
+ * @param content Full content of project.godot
+ * @param targetAction Action name to find and transform
+ * @param transform Callback that receives the action block and returns the replacement (or null to remove)
+ */
+function transformInputMap(content: string, targetAction: string, transform: (block: string) => string | null): string {
+  const lines = content.split('\n')
+  const result: string[] = []
+  let inInputSection = false
+  let currentActionName: string | null = null
+  let currentActionLines: string[] = []
+  let found = false
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    const trimmed = line.trim()
+
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      if (currentActionName !== null) {
+        result.push(...currentActionLines)
+        currentActionName = null
+        currentActionLines = []
+      }
+      inInputSection = trimmed === '[input]'
+      result.push(line)
+      continue
+    }
+
+    if (!inInputSection) {
+      result.push(line)
+      continue
+    }
+
+    if (currentActionName !== null) {
+      currentActionLines.push(line)
+      if (trimmed.endsWith('}')) {
+        if (currentActionName === targetAction) {
+          const updated = transform(currentActionLines.join('\n'))
+          if (updated !== null) {
+            result.push(updated)
+          }
+          found = true
+        } else {
+          result.push(...currentActionLines)
+        }
+        currentActionName = null
+        currentActionLines = []
+      }
+    } else {
+      const eqIdx = line.indexOf('=')
+      if (eqIdx !== -1) {
+        const name = line.slice(0, eqIdx).trim()
+        const rest = line.slice(eqIdx + 1).trim()
+        if (rest.startsWith('{')) {
+          currentActionName = name
+          currentActionLines.push(line)
+          if (rest.endsWith('}')) {
+            if (currentActionName === targetAction) {
+              const updated = transform(currentActionLines.join('\n'))
+              if (updated !== null) {
+                result.push(updated)
+              }
+              found = true
+            } else {
+              result.push(...currentActionLines)
+            }
+            currentActionName = null
+            currentActionLines = []
+          }
+        } else {
+          result.push(line)
+        }
+      } else {
+        result.push(line)
+      }
+    }
+  }
+
+  if (currentActionName !== null) {
+    result.push(...currentActionLines)
+  }
+
+  if (!found) return content
+  return result.join('\n')
+}
+
 export async function handleInputMap(action: string, args: Record<string, unknown>, config: GodotConfig) {
   const baseDir = config.projectPath || process.cwd()
   const projectPath = (args.project_path as string) || config.projectPath
@@ -309,8 +395,7 @@ export async function handleInputMap(action: string, args: Record<string, unknow
 
       const content = await readFile(configPath, 'utf-8')
       // Remove the action line(s) - handles multi-line format
-      const pattern = new RegExp(`${escapeRegExp(actionName)}=\\{[^}]*\\}\\n?`, 'g')
-      const updated = content.replace(pattern, '')
+      const updated = transformInputMap(content, actionName, () => null)
 
       if (updated === content) {
         throw new GodotMCPError(`Action "${actionName}" not found`, 'INPUT_ERROR', 'Check action name with list.')
@@ -410,19 +495,22 @@ export async function handleInputMap(action: string, args: Record<string, unknow
       }
 
       // Find existing events array and append
-      const actionRegex = new RegExp(`(${escapeRegExp(actionName)}=\\{[^}]*"events":\\s*\\[)([^\\]]*)\\]`)
-      const match = content.match(actionRegex)
-      if (!match) {
+      const updated = transformInputMap(content, actionName, (block) => {
+        const eventsMatch = block.match(/"events":\s*\[([^\]]*)\]/)
+        if (!eventsMatch) return block // Should not happen with valid Godot files
+
+        const existingEvents = eventsMatch[1].trim()
+        const newEvents = existingEvents ? `${existingEvents}, ${eventObj}` : eventObj
+        return block.replace(eventsMatch[0], `"events": [${newEvents}]`)
+      })
+
+      if (updated === content) {
         throw new GodotMCPError(
           `Action "${actionName}" not found`,
           'INPUT_ERROR',
           'Add the action first with add_action.',
         )
       }
-
-      const existingEvents = match[2].trim()
-      const newEvents = existingEvents ? `${existingEvents}, ${eventObj}` : eventObj
-      const updated = content.replace(actionRegex, (_match, p1) => `${p1}${newEvents}]`)
 
       await writeFile(configPath, updated, 'utf-8')
       return formatSuccess(`Added ${eventType} event to action: ${actionName}`)

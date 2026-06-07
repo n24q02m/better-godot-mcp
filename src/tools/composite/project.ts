@@ -152,6 +152,11 @@ export async function handleProject(action: string, args: Record<string, unknown
 
       let stoppedCount = 0
       for (const pid of config.activePids) {
+        // Security: strictly validate pid is a positive safe integer before using in shell commands or process.kill
+        if (typeof pid !== 'number' || !Number.isSafeInteger(pid) || pid <= 0) {
+          continue
+        }
+
         try {
           if (process.platform === 'win32') {
             // Check if process exists before attempting to kill

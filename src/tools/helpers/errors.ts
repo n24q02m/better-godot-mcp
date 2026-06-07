@@ -75,7 +75,10 @@ export function formatJSON(data: unknown): { content: Array<{ type: 'text'; text
 
 /**
  * Find the closest matching string from a list of valid options.
- * Uses bigram similarity for fuzzy matching.
+ * Uses prioritized matching:
+ * 1. Case-insensitive exact match
+ * 2. Best prefix/containment match (closest length)
+ * 3. Fuzzy bigram similarity (threshold > 0.4)
  */
 export function findClosestMatch(input: string, validOptions: string[]): string | null {
   if (!input || validOptions.length === 0) return null
@@ -83,6 +86,29 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
   // Truncate to prevent CPU exhaustion from excessively long inputs
   const safeInput = input.length > 100 ? input.slice(0, 100) : input
   const lower = safeInput.toLowerCase()
+
+  let bestPrefixMatch: string | null = null
+  let minLengthDiff = Number.POSITIVE_INFINITY
+
+  for (const option of validOptions) {
+    const optionLower = option.toLowerCase()
+
+    // 1. Exact match (highest priority)
+    if (optionLower === lower) return option
+
+    // 2. Prefix/containment match (second priority)
+    if (optionLower.startsWith(lower) || lower.startsWith(optionLower)) {
+      const diff = Math.abs(optionLower.length - lower.length)
+      if (diff < minLengthDiff) {
+        minLengthDiff = diff
+        bestPrefixMatch = option
+      }
+    }
+  }
+
+  if (bestPrefixMatch !== null) return bestPrefixMatch
+
+  // 3. Fall back to fuzzy bigram similarity
   let bestMatch: string | null = null
   let bestScore = 0
 
@@ -91,13 +117,11 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
     inputBigrams.add(lower.slice(i, i + 2))
   }
 
+  // If no bigrams (single char input), and we didn't find a prefix match above, we're done
+  if (inputBigrams.size === 0) return null
+
   for (const option of validOptions) {
     const optionLower = option.toLowerCase()
-    // Quick prefix/containment match
-    if (optionLower.startsWith(lower) || lower.startsWith(optionLower)) {
-      return option
-    }
-
     const optionBigrams = new Set<string>()
     for (let i = 0; i < optionLower.length - 1; i++) {
       optionBigrams.add(optionLower.slice(i, i + 2))

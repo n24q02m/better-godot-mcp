@@ -33,3 +33,31 @@ export function parseCommaSeparatedList(str: string): string[] {
 
   return result
 }
+
+/**
+ * Counts occurrences of a substring in a string without array allocations.
+ */
+export function countString(str: string, search: string): number {
+  if (!search) return 0
+  let count = 0
+  let pos = 0
+  while (true) {
+    pos = str.indexOf(search, pos)
+    if (pos === -1) break
+    count++
+    pos += search.length
+  }
+  return count
+}
+
+/**
+ * Counts occurrences of a global regex in a string without array allocations.
+ * Note: regex must have the 'g' flag.
+ */
+export function countMatches(str: string, regex: RegExp): number {
+  let count = 0
+  while (regex.exec(str) !== null) {
+    count++
+  }
+  return count
+}

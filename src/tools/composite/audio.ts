@@ -8,6 +8,7 @@ import { join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
+import { countMatches } from '../helpers/strings.js'
 
 /**
  * Helper to resolve the default bus layout path.
@@ -36,9 +37,23 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       const buses: { name: string; volume?: string; solo?: boolean; mute?: boolean }[] = []
 
       // Parse bus entries
-      const busRegex = /bus\/(\d+)\/name\s*=\s*"([^"]*)"/g
-      for (const match of content.matchAll(busRegex)) {
-        buses.push({ name: match[2] })
+      let pos = 0
+      while (true) {
+        pos = content.indexOf('name = "', pos)
+        if (pos === -1) break
+
+        const start = pos + 8
+        const end = content.indexOf('"', start)
+        if (end === -1) break
+
+        const lineStart = content.lastIndexOf('\n', pos)
+        const busPrefix = 'bus/'
+        const prefixPos = content.indexOf(busPrefix, lineStart === -1 ? 0 : lineStart)
+
+        if (prefixPos !== -1 && prefixPos < pos) {
+          buses.push({ name: content.slice(start, end) })
+        }
+        pos = end + 1
       }
 
       if (buses.length === 0) buses.push({ name: 'Master' })
@@ -85,7 +100,7 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       }
 
       // Count existing buses
-      const busCount = (content.match(/bus\/\d+\/name/g) || []).length
+      const busCount = countMatches(content, /bus\/\d+\/name/g)
 
       const newBus = [
         `bus/${busCount}/name = "${busName}"`,
@@ -151,13 +166,27 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       }
 
       // Find the target bus index
-      const busRegex = /bus\/(\d+)\/name\s*=\s*"([^"]*)"/g
       let busIndex = -1
-      for (const match of content.matchAll(busRegex)) {
-        if (match[2] === busName) {
-          busIndex = Number.parseInt(match[1], 10)
-          break
+      let searchPos = 0
+      while (true) {
+        searchPos = content.indexOf('name = "', searchPos)
+        if (searchPos === -1) break
+
+        const start = searchPos + 8
+        const end = content.indexOf('"', start)
+        if (end === -1) break
+
+        if (content.slice(start, end) === busName) {
+          const lineStart = content.lastIndexOf('\n', searchPos)
+          const busPrefix = 'bus/'
+          const prefixPos = content.indexOf(busPrefix, lineStart === -1 ? 0 : lineStart)
+          if (prefixPos !== -1 && prefixPos < searchPos) {
+            const indexStr = content.slice(prefixPos + 4, content.indexOf('/', prefixPos + 4))
+            busIndex = Number.parseInt(indexStr, 10)
+            break
+          }
         }
+        searchPos = end + 1
       }
       if (busIndex === -1) {
         throw new GodotMCPError(`Bus "${busName}" not found`, 'AUDIO_ERROR', 'Add the bus first with add_bus.')
@@ -165,8 +194,7 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
 
       // Count existing effects on this bus
       const effectCountRegex = new RegExp(`bus/${busIndex}/effect/\\d+/effect`, 'g')
-      const existingEffects = content.match(effectCountRegex) || []
-      const effectIndex = existingEffects.length
+      const effectIndex = countMatches(content, effectCountRegex)
 
       // Generate unique sub_resource id
       const subResId = `${fullEffectType}_${Date.now()}`

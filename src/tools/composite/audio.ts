@@ -28,11 +28,15 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
     case 'list_buses': {
       const busLayoutPath = resolveBusLayoutPath(projectPath, baseDir)
 
-      if (!(await pathExists(busLayoutPath))) {
-        return formatJSON({ buses: [{ name: 'Master', volume: 0, effects: [] }], note: 'Using default bus layout.' })
+      let content: string
+      try {
+        content = await readFile(busLayoutPath, 'utf-8')
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+          return formatJSON({ buses: [{ name: 'Master', volume: 0, effects: [] }], note: 'Using default bus layout.' })
+        }
+        throw error
       }
-
-      const content = await readFile(busLayoutPath, 'utf-8')
       const buses: { name: string; volume?: string; solo?: boolean; mute?: boolean }[] = []
 
       // Parse bus entries
@@ -68,9 +72,10 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
 
       let content: string
 
-      if (await pathExists(busLayoutPath)) {
+      try {
         content = await readFile(busLayoutPath, 'utf-8')
-      } else {
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
         content = [
           '[gd_resource type="AudioBusLayout" format=3]',
           '',
@@ -83,8 +88,6 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
           '',
         ].join('\n')
       }
-
-      // Count existing buses
       const busCount = (content.match(/bus\/\d+\/name/g) || []).length
 
       const newBus = [
@@ -134,9 +137,10 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
 
       let content: string
 
-      if (await pathExists(busLayoutPath)) {
+      try {
         content = await readFile(busLayoutPath, 'utf-8')
-      } else {
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
         content = [
           '[gd_resource type="AudioBusLayout" format=3]',
           '',

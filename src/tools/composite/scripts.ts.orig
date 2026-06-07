@@ -10,6 +10,7 @@ import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '..
 import { pathExists, safeResolve } from '../helpers/paths.js'
 import { updateNodeInScene } from '../helpers/scene-parser.js'
 
+
 const SCRIPT_TEMPLATES: Record<string, string> = {
   Node: `extends Node
 
@@ -207,35 +208,19 @@ async function attachScript(args: Record<string, unknown>, resolvePath: (path: s
   // ⚡ Bolt: Using replaceAll('\\', '/') avoids RegExp allocation overhead
   const resPath = `res://${scriptPath.replaceAll('\\', '/')}`
 
-  let targetNode = nodeName
-  if (!targetNode) {
-    const nodeStart = content.indexOf('[node name="')
-    if (nodeStart !== -1) {
-      const nameStart = nodeStart + '[node name="'.length
-      const nameEnd = content.indexOf('"', nameStart)
-      if (nameEnd !== -1) {
-        targetNode = content.slice(nameStart, nameEnd)
-      }
-    }
+  if (nodeName) {
+    const nodePattern = new RegExp(`(\\[node name="${escapeRegExp(nodeName)}"[^\\]]*\\])`)
+    const match = content.match(nodePattern)
+    if (!match)
+      throw new GodotMCPError(
+        `Node "${nodeName}" not found in scene`,
+        'NODE_ERROR',
+        'Check node name with nodes.list action.',
+      )
+    content = content.replace(nodePattern, (_match, p1) => `${p1}\nscript = ExtResource("${resPath}")`)
+  } else {
+    content = content.replace(NODE_SECTION_RE, (_match, p1) => `${p1}\nscript = ExtResource("${resPath}")`)
   }
-
-  if (!targetNode) {
-    throw new GodotMCPError('No nodes found in scene', 'NODE_ERROR', 'Create a node first.')
-  }
-
-  const { content: updatedContent, updated } = updateNodeInScene(content, targetNode, {
-    script: `ExtResource("${resPath}")`,
-  })
-
-  if (!updated) {
-    throw new GodotMCPError(
-      `Node "${targetNode}" not found in scene`,
-      'NODE_ERROR',
-      'Check node name with nodes.list action.',
-    )
-  }
-
-  content = updatedContent
 
   await writeFile(sceneFullPath, content, 'utf-8')
   return formatSuccess(`Attached script ${scriptPath} to ${nodeName || 'root node'} in ${scenePath}`)

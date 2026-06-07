@@ -33,3 +33,42 @@ export function parseCommaSeparatedList(str: string): string[] {
 
   return result
 }
+
+/**
+ * Counts non-overlapping occurrences of a substring using an optimized indexOf loop.
+ * Avoids Array allocations associated with .match() or .split().
+ * ⚡ Bolt: Replaces (str.match(new RegExp(search, 'g')) || []).length
+ */
+export function countString(str: string, search: string): number {
+  if (!search) return 0
+  let count = 0
+  let pos = 0
+  while (true) {
+    pos = str.indexOf(search, pos)
+    if (pos === -1) break
+    count++
+    pos += search.length
+  }
+  return count
+}
+
+/**
+ * Counts occurrences of a regular expression match using an optimized exec loop.
+ * Avoids Array allocations associated with string.match().
+ * Note: The regular expression MUST have the 'g' (global) flag set.
+ * ⚡ Bolt: Replaces (str.match(/.../g) || []).length
+ */
+export function countMatches(str: string, regex: RegExp): number {
+  if (!regex.global) {
+    // If global flag is missing, exec would loop infinitely on the same match
+    throw new Error('countMatches requires a global RegExp')
+  }
+
+  // Reset regex state before using
+  regex.lastIndex = 0
+  let count = 0
+  while (regex.exec(str) !== null) {
+    count++
+  }
+  return count
+}

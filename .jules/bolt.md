@@ -26,3 +26,6 @@
 2. Best prefix/containment match, defined as the one with the smallest absolute length difference relative to the input.
 3. Fuzzy bigram similarity (Dice coefficient) with a threshold > 0.4.
 This ensures that "create" matches "create" even if "create_node" appears earlier in the options list, and "cre" matches "create" over "create_node".
+## 2025-05-30 - [Optimize countString and countMatches usage]
+**Learning:** Replacing `(string.match(/regex/g) || []).length` with `countMatches` and `countString` avoids intermediate array allocations and GC overhead when parsing strings.
+**Action:** Use the new `countMatches` and `countString` string counting functions located in `src/tools/helpers/strings.ts`.

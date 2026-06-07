@@ -9,23 +9,31 @@ import { join } from 'node:path'
 import { execGodotAsync, runGodotProject } from '../../godot/headless.js'
 import type { GodotConfig, ProjectInfo } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
-import { pathExists, safeResolve } from '../helpers/paths.js'
-import { getSetting, parseProjectSettingsAsync, setSettingInContent } from '../helpers/project-settings.js'
+import { safeResolve } from '../helpers/paths.js'
+import {
+  getSetting,
+  type ProjectSettings,
+  parseProjectSettingsAsync,
+  setSettingInContent,
+} from '../helpers/project-settings.js'
 import { parseCommaSeparatedList } from '../helpers/strings.js'
 
 async function parseProjectGodot(projectPath: string): Promise<ProjectInfo> {
   const configPath = join(projectPath, 'project.godot')
-  // Performance optimization: using async pathExists instead of existsSync
-  // to avoid blocking the Node.js event loop during I/O operations
-  if (!(await pathExists(configPath))) {
-    throw new GodotMCPError(
-      `No project.godot found at ${projectPath}`,
-      'PROJECT_NOT_FOUND',
-      'Verify the project path contains a valid Godot project.',
-    )
-  }
 
-  const content = await readFile(configPath, 'utf-8')
+  let content: string
+  try {
+    content = await readFile(configPath, 'utf-8')
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new GodotMCPError(
+        `No project.godot found at ${projectPath}`,
+        'PROJECT_NOT_FOUND',
+        'Verify the project path contains a valid Godot project.',
+      )
+    }
+    throw err
+  }
   const info: ProjectInfo = { name: 'Unknown', configVersion: 5, mainScene: null, features: [], settings: {} }
   let currentSection = ''
 
@@ -186,12 +194,16 @@ export async function handleProject(action: string, args: Record<string, unknown
         throw new GodotMCPError('No key specified', 'INVALID_ARGS', 'Provide key (e.g., "application/config/name").')
 
       const configPath = join(safeResolve(config.projectPath || process.cwd(), projectPath), 'project.godot')
-      // Performance optimization: using async pathExists instead of existsSync
-      // to avoid blocking the Node.js event loop during I/O operations
-      if (!(await pathExists(configPath)))
-        throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
 
-      const settings = await parseProjectSettingsAsync(configPath)
+      let settings: ProjectSettings
+      try {
+        settings = await parseProjectSettingsAsync(configPath)
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+          throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
+        }
+        throw err
+      }
       const value = getSetting(settings, key)
 
       return formatJSON({ key, value: value ?? null })
@@ -217,10 +229,16 @@ export async function handleProject(action: string, args: Record<string, unknown
       }
 
       const configPath = join(safeResolve(config.projectPath || process.cwd(), projectPath), 'project.godot')
-      if (!(await pathExists(configPath)))
-        throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
 
-      const content = await readFile(configPath, 'utf-8')
+      let content: string
+      try {
+        content = await readFile(configPath, 'utf-8')
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+          throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
+        }
+        throw err
+      }
       const updated = setSettingInContent(content, key, value)
       await writeFile(configPath, updated, 'utf-8')
 

@@ -1,0 +1,17 @@
+<<<<<<< SEARCH
+import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
+import { safeResolve } from '../helpers/paths.js'
+=======
+import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
+import { safeResolve } from '../helpers/paths.js'
+import { countString } from '../helpers/strings.js'
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+      // Count existing sources to get next ID
+      const sourceCount = (content.match(/\[ext_resource/g) || []).length
+      const sourceId = `source_${sourceCount}`
+=======
+      // Count existing sources to get next ID
+      const sourceCount = countString(content, '[ext_resource')
+      const sourceId = `source_${sourceCount}`
+>>>>>>> REPLACE

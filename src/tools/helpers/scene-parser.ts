@@ -91,6 +91,8 @@ export interface ParsedScene {
   subResources: SubResource[]
   nodes: SceneNodeInfo[]
   connections: SignalConnection[]
+  nodeMap: Map<string, SceneNodeInfo>
+  nodePathMap: Map<string, SceneNodeInfo>
   raw: string
 }
 
@@ -111,6 +113,8 @@ export function parseSceneContent(content: string): ParsedScene {
   const subResources: SubResource[] = []
   const nodes: SceneNodeInfo[] = []
   const connections: SignalConnection[] = []
+  const nodeMap = new Map<string, SceneNodeInfo>()
+  const nodePathMap = new Map<string, SceneNodeInfo>()
 
   let currentSection: 'header' | 'ext_resource' | 'sub_resource' | 'node' | 'connection' | null = null
   let currentNode: SceneNodeInfo | null = null
@@ -142,7 +146,11 @@ export function parseSceneContent(content: string): ParsedScene {
         if (firstChar === 91) {
           // '[' character indicates a new section
           // Save previous node/sub_resource
-          if (currentNode) nodes.push(currentNode)
+          if (currentNode) {
+            nodes.push(currentNode)
+            if (!nodeMap.has(currentNode.name)) nodeMap.set(currentNode.name, currentNode)
+            nodePathMap.set(`${currentNode.parent || '.'}:${currentNode.name}`, currentNode)
+          }
           if (currentSubResource) subResources.push(currentSubResource)
           currentNode = null
           currentSubResource = null
@@ -186,10 +194,14 @@ export function parseSceneContent(content: string): ParsedScene {
   }
 
   // Save last pending section
-  if (currentNode) nodes.push(currentNode)
+  if (currentNode) {
+    nodes.push(currentNode)
+    if (!nodeMap.has(currentNode.name)) nodeMap.set(currentNode.name, currentNode)
+    nodePathMap.set(`${currentNode.parent || '.'}:${currentNode.name}`, currentNode)
+  }
   if (currentSubResource) subResources.push(currentSubResource)
 
-  return { header, extResources, subResources, nodes, connections, raw: content }
+  return { header, extResources, subResources, nodes, connections, nodeMap, nodePathMap, raw: content }
 }
 
 /**
@@ -420,7 +432,7 @@ export function updateNodeInScene(
 }
 
 export function findNode(scene: ParsedScene, name: string): SceneNodeInfo | undefined {
-  return scene.nodes.find((n) => n.name === name)
+  return scene.nodeMap.get(name)
 }
 
 /**

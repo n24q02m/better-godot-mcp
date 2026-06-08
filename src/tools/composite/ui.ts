@@ -8,6 +8,7 @@ import { dirname } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
+import type { ParsedScene } from '../helpers/scene-parser.js'
 import { escapeRegExp, parseScene } from '../helpers/scene-parser.js'
 
 const CONTROL_TEMPLATES: Record<string, Record<string, string>> = {
@@ -234,7 +235,7 @@ async function handleListControls(projectPath: string, args: Record<string, unkn
   if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
 
   const fullPath = safeResolve(projectPath, scenePath)
-  let scene: any
+  let scene: ParsedScene
   try {
     scene = await parseScene(fullPath)
   } catch (err) {

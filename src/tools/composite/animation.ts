@@ -236,7 +236,10 @@ async function handleListAnimations(projectPath: string, args: Record<string, un
   return formatJSON({ scene: scenePath, players, animations })
 }
 
-const ANIMATION_ACTIONS: Record<string, (projectPath: string, args: Record<string, unknown>) => Promise<string>> = {
+const ANIMATION_ACTIONS: Record<
+  string,
+  (projectPath: string, args: Record<string, unknown>) => Promise<{ content: Array<{ type: 'text'; text: string }> }>
+> = {
   create_player: handleCreatePlayer,
   add_animation: handleAddAnimation,
   add_track: handleAddTrack,
@@ -249,7 +252,11 @@ const ANIMATION_ACTIONS: Record<string, (projectPath: string, args: Record<strin
   list: handleListAnimations,
 }
 
-export async function handleAnimation(action: string, args: Record<string, unknown>, config: GodotConfig) {
+export async function handleAnimation(
+  action: string,
+  args: Record<string, unknown>,
+  config: GodotConfig,
+): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
   const projectPath = resolveProjectRoot(args.project_path, config.projectPath)
   const handler = ANIMATION_ACTIONS[action]
   if (!handler) {

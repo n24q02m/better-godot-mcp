@@ -50,8 +50,9 @@ describe('handleHelp', () => {
 
   it('should return fallback message if documentation file is missing', async () => {
     // Mock file not found via readFile throwing ENOENT
-    const error = new Error('File not found') as any
-    error.code = 'ENOENT'
+    const error = new Error('File not found')
+    // biome-ignore lint/suspicious/noExplicitAny: mocking NodeJS.ErrnoException
+    ;(error as any).code = 'ENOENT'
     vi.mocked(readFile).mockRejectedValue(error)
     vi.mocked(pathExists).mockResolvedValue(true) // getDocsDir needs to pass
 

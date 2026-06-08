@@ -223,24 +223,25 @@ async function handleGetNodeProperty(projectPath: string, args: Record<string, u
   return formatJSON({ node: nodeName, property, value: val ?? null })
 }
 
+const NODE_ACTIONS: Record<
+  string,
+  (projectPath: string, args: Record<string, unknown>) => Promise<{ content: Array<{ type: 'text'; text: string }> }>
+> = {
+  add: handleAddNode,
+  remove: handleRemoveNode,
+  rename: handleRenameNode,
+  list: handleListNodes,
+  set_property: handleSetNodeProperty,
+  get_property: handleGetNodeProperty,
+}
+
 export async function handleNodes(action: string, args: Record<string, unknown>, config: GodotConfig) {
   const baseProjectPath = config.projectPath || process.cwd()
   const projectPath = args.project_path ? safeResolve(baseProjectPath, args.project_path as string) : baseProjectPath
 
-  switch (action) {
-    case 'add':
-      return handleAddNode(projectPath, args)
-    case 'remove':
-      return handleRemoveNode(projectPath, args)
-    case 'rename':
-      return handleRenameNode(projectPath, args)
-    case 'list':
-      return handleListNodes(projectPath, args)
-    case 'set_property':
-      return handleSetNodeProperty(projectPath, args)
-    case 'get_property':
-      return handleGetNodeProperty(projectPath, args)
-    default:
-      throwUnknownAction(action, ['add', 'remove', 'rename', 'list', 'set_property', 'get_property'])
+  const handler = NODE_ACTIONS[action]
+  if (handler) {
+    return handler(projectPath, args)
   }
+  throwUnknownAction(action, Object.keys(NODE_ACTIONS))
 }

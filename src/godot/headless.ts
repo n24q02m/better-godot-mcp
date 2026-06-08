@@ -68,11 +68,12 @@ export async function execGodotAsync(
       exitCode: 0,
     }
   } catch (err: unknown) {
+    const error = err && typeof err === 'object' ? (err as Record<string, unknown>) : null
     return {
       success: false,
-      stdout: (err as { stdout?: string }).stdout?.trim() || '',
-      stderr: (err as { stderr?: string }).stderr?.trim() || (err as Error).message || 'Unknown error',
-      exitCode: (err as { code?: number }).code ?? 1,
+      stdout: (error?.stdout as string | undefined)?.trim() || '',
+      stderr: (error?.stderr as string | undefined)?.trim() || (err as Error)?.message || 'Unknown error',
+      exitCode: (error?.code as number | undefined) ?? 1,
     }
   }
 }

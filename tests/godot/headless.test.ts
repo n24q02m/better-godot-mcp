@@ -447,5 +447,21 @@ describe('headless', () => {
       expect(result.success).toBe(false)
       expect(result.exitCode).toBe(1)
     })
+    it('should handle null catch value', async () => {
+      execFileAsyncMock.mockRejectedValue(null)
+
+      const result = await execGodotAsync('/usr/bin/godot', ['--version'])
+      expect(result.success).toBe(false)
+      expect(result.stderr).toBe('Unknown error')
+      expect(result.exitCode).toBe(1)
+    })
+    it('should handle undefined catch value', async () => {
+      execFileAsyncMock.mockRejectedValue(undefined)
+
+      const result = await execGodotAsync('/usr/bin/godot', ['--version'])
+      expect(result.success).toBe(false)
+      expect(result.stderr).toBe('Unknown error')
+      expect(result.exitCode).toBe(1)
+    })
   })
 })

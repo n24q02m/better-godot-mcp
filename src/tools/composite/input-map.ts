@@ -99,13 +99,13 @@ const GODOT_MOUSE_BUTTONS: Record<string, number> = {
 }
 
 function resolveKeyCode(value: string): number {
-  const code = GODOT_KEY_CODES[value]
+  const code = GODOT_KEY_CODES[value] ?? (/^\d+$/.test(value) ? Number.parseInt(value, 10) : undefined)
   if (code === undefined) throw new GodotMCPError(`Unknown key: ${value}`, 'INVALID_ARGS', 'Use KEY_ names.')
   return code
 }
 
 function resolveMouseCode(value: string): number {
-  const code = GODOT_MOUSE_BUTTONS[value]
+  const code = GODOT_MOUSE_BUTTONS[value] ?? (/^\d+$/.test(value) ? Number.parseInt(value, 10) : undefined)
   if (code === undefined)
     throw new GodotMCPError(`Unknown mouse button: ${value}`, 'INVALID_ARGS', 'Use MOUSE_BUTTON_ names.')
   return code

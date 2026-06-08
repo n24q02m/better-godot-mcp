@@ -87,34 +87,49 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
   const safeInput = input.length > 100 ? input.slice(0, 100) : input
   const lower = safeInput.toLowerCase()
 
-  // 1. Priority: Exact match (case-insensitive)
-  for (const option of validOptions) {
-    if (option.toLowerCase() === lower) {
-      return option
-    }
-  }
-
-  // 2. Priority: Prefix/containment match
-  // We want the one with the smallest absolute length difference
+  // Pass 1: Exact, Prefix, and Containment matches
+  // Priority hierarchy:
+  // 1. Exact match (case-insensitive)
+  // 2. Best prefix match (one starts with the other, closest in length)
+  // 3. Best containment match (one contains the other, closest in length)
   let bestPrefixMatch: string | null = null
-  let minLenDiff = Number.POSITIVE_INFINITY
+  let minPrefixLenDiff = Number.POSITIVE_INFINITY
+
+  let bestContainmentMatch: string | null = null
+  let minContainmentLenDiff = Number.POSITIVE_INFINITY
 
   for (const option of validOptions) {
     const optionLower = option.toLowerCase()
+
+    // 1. Exact match (returns immediately)
+    if (optionLower === lower) {
+      return option
+    }
+
+    const lenDiff = Math.abs(optionLower.length - lower.length)
+
+    // 2. Prefix match
     if (optionLower.startsWith(lower) || lower.startsWith(optionLower)) {
-      const lenDiff = Math.abs(optionLower.length - lower.length)
-      if (lenDiff < minLenDiff) {
-        minLenDiff = lenDiff
+      if (lenDiff < minPrefixLenDiff) {
+        minPrefixLenDiff = lenDiff
         bestPrefixMatch = option
+      }
+      continue
+    }
+
+    // 3. Containment match (substring)
+    if (optionLower.includes(lower) || lower.includes(optionLower)) {
+      if (lenDiff < minContainmentLenDiff) {
+        minContainmentLenDiff = lenDiff
+        bestContainmentMatch = option
       }
     }
   }
 
-  if (bestPrefixMatch !== null) {
-    return bestPrefixMatch
-  }
+  if (bestPrefixMatch !== null) return bestPrefixMatch
+  if (bestContainmentMatch !== null) return bestContainmentMatch
 
-  // 3. Fallback: Fuzzy matching using bigram similarity
+  // Fallback: Fuzzy matching using bigram similarity (Dice coefficient)
   let bestFuzzyMatch: string | null = null
   let bestScore = 0
 

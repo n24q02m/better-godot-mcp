@@ -190,6 +190,20 @@ describe('errors', () => {
     it('should return the closest prefix match by length', () => {
       expect(findClosestMatch('cre', ['create_node', 'create'])).toBe('create')
     })
+
+    it('should prefer prefix match over containment match', () => {
+      // 'create' is a prefix of 'create_node'
+      // 'create' is contained in 'recreate_node' (but not a prefix)
+      expect(findClosestMatch('create', ['recreate_node', 'create_node'])).toBe('create_node')
+    })
+
+    it('should return containment match if no prefix match exists', () => {
+      expect(findClosestMatch('node', ['create_node', 'delete_node'])).toBe('create_node')
+    })
+
+    it('should return the closest containment match by length', () => {
+      expect(findClosestMatch('node', ['create_new_node', 'create_node'])).toBe('create_node')
+    })
   })
 
   // ==========================================

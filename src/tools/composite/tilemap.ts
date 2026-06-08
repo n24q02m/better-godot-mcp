@@ -3,24 +3,11 @@
  * Actions: create_tileset | add_source | set_tile | paint | list
  */
 
-import { constants } from 'node:fs'
-import { access, mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
-
-/**
- * Async helper to check file existence without blocking the event loop
- */
-async function pathExists(path: string): Promise<boolean> {
-  try {
-    await access(path, constants.F_OK)
-    return true
-  } catch {
-    return false
-  }
-}
 
 export async function handleTilemap(action: string, args: Record<string, unknown>, config: GodotConfig) {
   const projectPath = resolveProjectRoot(args.project_path, config.projectPath)
@@ -38,12 +25,6 @@ export async function handleTilemap(action: string, args: Record<string, unknown
 
       const fullPath = safeResolve(projectPath, tilesetPath)
 
-      // Performance optimization: using async pathExists instead of existsSync
-      // to avoid blocking the Node.js event loop during I/O operations
-      if (await pathExists(fullPath)) {
-        throw new GodotMCPError(`TileSet already exists: ${tilesetPath}`, 'TILEMAP_ERROR', 'Use a different path.')
-      }
-
       const content = [
         `[gd_resource type="TileSet" format=3]`,
         '',
@@ -53,10 +34,15 @@ export async function handleTilemap(action: string, args: Record<string, unknown
         '',
       ].join('\n')
 
-      // Performance optimization: using async file writing instead of sync
-      // to avoid blocking the Node.js event loop during I/O operations
       await mkdir(dirname(fullPath), { recursive: true })
-      await writeFile(fullPath, content, 'utf-8')
+      try {
+        await writeFile(fullPath, content, { encoding: 'utf-8', flag: 'wx' })
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'EEXIST') {
+          throw new GodotMCPError(`TileSet already exists: ${tilesetPath}`, 'TILEMAP_ERROR', 'Use a different path.')
+        }
+        throw err
+      }
       return formatSuccess(`Created TileSet: ${tilesetPath} (tile size: ${tileSize}x${tileSize})`)
     }
 
@@ -77,12 +63,15 @@ export async function handleTilemap(action: string, args: Record<string, unknown
 
       const fullPath = safeResolve(projectPath, tilesetPath)
 
-      // Performance optimization: using async pathExists instead of existsSync
-      if (!(await pathExists(fullPath)))
-        throw new GodotMCPError(`TileSet not found: ${tilesetPath}`, 'TILEMAP_ERROR', 'Create the tileset first.')
-
-      // Performance optimization: using async file reading instead of sync
-      let content = await readFile(fullPath, 'utf-8')
+      let content: string
+      try {
+        content = await readFile(fullPath, 'utf-8')
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+          throw new GodotMCPError(`TileSet not found: ${tilesetPath}`, 'TILEMAP_ERROR', 'Create the tileset first.')
+        }
+        throw err
+      }
       // ⚡ Bolt: Using replaceAll('\\', '/') avoids RegExp allocation overhead
       const resPath = `res://${texturePath.replaceAll('\\', '/')}`
 
@@ -94,7 +83,6 @@ export async function handleTilemap(action: string, args: Record<string, unknown
       const extRes = `[ext_resource type="Texture2D" path="${resPath}" id="${sourceId}"]`
       content = content.replace('[resource]', () => `${extRes}\n\n[resource]`)
 
-      // Performance optimization: using async file writing instead of sync
       await writeFile(fullPath, content, 'utf-8')
       return formatSuccess(`Added texture source: ${texturePath} (id: ${sourceId})`)
     }
@@ -125,12 +113,15 @@ export async function handleTilemap(action: string, args: Record<string, unknown
 
       const fullPath = safeResolve(projectPath, scenePath)
 
-      // Performance optimization: using async pathExists instead of existsSync
-      if (!(await pathExists(fullPath)))
-        throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
-
-      // Performance optimization: using async file reading instead of sync
-      const content = await readFile(fullPath, 'utf-8')
+      let content: string
+      try {
+        content = await readFile(fullPath, 'utf-8')
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+          throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
+        }
+        throw err
+      }
       const tilemaps: string[] = []
       const tmRegex = /\[node name="([^"]+)" type="TileMapLayer"/g
       for (const match of content.matchAll(tmRegex)) {

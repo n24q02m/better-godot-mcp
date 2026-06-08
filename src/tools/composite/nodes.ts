@@ -6,7 +6,7 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
-import { pathExists, safeResolve } from '../helpers/paths.js'
+import { safeResolve } from '../helpers/paths.js'
 import {
   getNodeProperty,
   parseSceneContent,
@@ -59,10 +59,15 @@ async function handleAddNode(projectPath: string, args: Record<string, unknown>)
   }
 
   const fullPath = resolveScenePath(projectPath, scenePath)
-  if (!(await pathExists(fullPath)))
-    throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Create the scene first.')
-
-  const content = await readFile(fullPath, 'utf-8')
+  let content: string
+  try {
+    content = await readFile(fullPath, 'utf-8')
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Create the scene first.')
+    }
+    throw err
+  }
   const scene = parseSceneContent(content)
   const duplicate = scene.nodesByPath.get(`${parent}:${nodeName}`)
   if (duplicate) {
@@ -113,10 +118,15 @@ async function handleRemoveNode(projectPath: string, args: Record<string, unknow
   const { path: nodeName } = normalizeNodePath(rawName)
 
   const fullPath = resolveScenePath(projectPath, scenePath)
-  if (!(await pathExists(fullPath)))
-    throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
-
-  const content = await readFile(fullPath, 'utf-8')
+  let content: string
+  try {
+    content = await readFile(fullPath, 'utf-8')
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
+    }
+    throw err
+  }
   const updated = removeNodeFromContent(content, nodeName)
   await writeFile(fullPath, updated, 'utf-8')
 
@@ -136,10 +146,15 @@ async function handleRenameNode(projectPath: string, args: Record<string, unknow
   }
 
   const fullPath = resolveScenePath(projectPath, scenePath)
-  if (!(await pathExists(fullPath)))
-    throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
-
-  const content = await readFile(fullPath, 'utf-8')
+  let content: string
+  try {
+    content = await readFile(fullPath, 'utf-8')
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
+    }
+    throw err
+  }
   const updated = renameNodeInContent(content, nodeName, newName)
   await writeFile(fullPath, updated, 'utf-8')
 
@@ -151,10 +166,15 @@ async function handleListNodes(projectPath: string, args: Record<string, unknown
   if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
 
   const fullPath = resolveScenePath(projectPath, scenePath)
-  if (!(await pathExists(fullPath)))
-    throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
-
-  const content = await readFile(fullPath, 'utf-8')
+  let content: string
+  try {
+    content = await readFile(fullPath, 'utf-8')
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
+    }
+    throw err
+  }
   const scene = parseSceneContent(content)
   // ⚡ Bolt: Removed double .map() passes and expensive object spread (...node.properties) in mapToSceneNode.
   // Iterating scene.nodes directly in a single pass reduces O(N) allocation overhead for scenes with many nodes.
@@ -193,10 +213,15 @@ async function handleSetNodeProperty(projectPath: string, args: Record<string, u
   }
 
   const fullPath = resolveScenePath(projectPath, scenePath)
-  if (!(await pathExists(fullPath)))
-    throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
-
-  const content = await readFile(fullPath, 'utf-8')
+  let content: string
+  try {
+    content = await readFile(fullPath, 'utf-8')
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
+    }
+    throw err
+  }
   const updated = setNodePropertyInContent(content, nodeName, property, value)
   await writeFile(fullPath, updated, 'utf-8')
 
@@ -213,10 +238,15 @@ async function handleGetNodeProperty(projectPath: string, args: Record<string, u
   }
 
   const fullPath = resolveScenePath(projectPath, scenePath)
-  if (!(await pathExists(fullPath)))
-    throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
-
-  const content = await readFile(fullPath, 'utf-8')
+  let content: string
+  try {
+    content = await readFile(fullPath, 'utf-8')
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
+    }
+    throw err
+  }
   const scene = parseSceneContent(content)
   const val = getNodeProperty(scene, nodeName, property)
 

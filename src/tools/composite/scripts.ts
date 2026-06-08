@@ -1,5 +1,5 @@
 /**
- * Scripts tool - GDScript file management
+ * Scripts tool - GDScript management
  * Actions: create | read | write | attach | list | delete
  */
 
@@ -7,10 +7,10 @@ import { mkdir, readdir, readFile, unlink, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
-import { pathExists, safeResolve } from '../helpers/paths.js'
+import { safeResolve } from '../helpers/paths.js'
 import { escapeRegExp } from '../helpers/scene-parser.js'
 
-const NODE_SECTION_RE = /(\[node [^\]]+\])/
+const NODE_SECTION_RE = /(\[node name="[^"]+" type="[^"]+"[^\]]*\])/
 
 const SCRIPT_TEMPLATES: Record<string, string> = {
   Node: `extends Node
@@ -18,44 +18,31 @@ const SCRIPT_TEMPLATES: Record<string, string> = {
 
 func _ready() -> void:
 	pass
-
-
-func _process(delta: float) -> void:
-	pass
 `,
   Node2D: `extends Node2D
 
 
 func _ready() -> void:
 	pass
-
-
-func _process(delta: float) -> void:
-	pass
-`,
-  Node3D: `extends Node3D
-
-
-func _ready() -> void:
-	pass
-
-
-func _process(delta: float) -> void:
-	pass
 `,
   CharacterBody2D: `extends CharacterBody2D
+
 
 const SPEED = 300.0
 const JUMP_VELOCITY = -400.0
 
 
 func _physics_process(delta: float) -> void:
+	# Add the gravity.
 	if not is_on_floor():
 		velocity += get_gravity() * delta
 
+	# Handle jump.
 	if Input.is_action_just_pressed("ui_accept") and is_on_floor():
 		velocity.y = JUMP_VELOCITY
 
+	# Get the input direction and handle the movement/deceleration.
+	# As good practice, you should replace UI actions with custom gameplay actions.
 	var direction := Input.get_axis("ui_left", "ui_right")
 	if direction:
 		velocity.x = direction * SPEED
@@ -66,17 +53,22 @@ func _physics_process(delta: float) -> void:
 `,
   CharacterBody3D: `extends CharacterBody3D
 
+
 const SPEED = 5.0
 const JUMP_VELOCITY = 4.5
 
 
 func _physics_process(delta: float) -> void:
+	# Add the gravity.
 	if not is_on_floor():
 		velocity += get_gravity() * delta
 
+	# Handle jump.
 	if Input.is_action_just_pressed("ui_accept") and is_on_floor():
 		velocity.y = JUMP_VELOCITY
 
+	# Get the input direction and handle the movement/deceleration.
+	# As good practice, you should replace UI actions with custom gameplay actions.
 	var input_dir := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
 	var direction := (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
 	if direction:
@@ -136,16 +128,19 @@ async function createScript(args: Record<string, unknown>, resolvePath: (path: s
   const content = (args.content as string) || getTemplate(extendsType)
 
   const fullPath = resolvePath(scriptPath)
-  if (await pathExists(fullPath)) {
-    throw new GodotMCPError(
-      `Script already exists: ${scriptPath}`,
-      'SCRIPT_ERROR',
-      'Use write action to modify existing scripts.',
-    )
-  }
-
   await mkdir(dirname(fullPath), { recursive: true })
-  await writeFile(fullPath, content, 'utf-8')
+  try {
+    await writeFile(fullPath, content, { encoding: 'utf-8', flag: 'wx' })
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'EEXIST') {
+      throw new GodotMCPError(
+        `Script already exists: ${scriptPath}`,
+        'SCRIPT_ERROR',
+        'Use write action to modify existing scripts.',
+      )
+    }
+    throw err
+  }
   return formatSuccess(`Created script: ${scriptPath}\nExtends: ${extendsType}`)
 }
 
@@ -154,10 +149,15 @@ async function readScript(args: Record<string, unknown>, resolvePath: (path: str
   if (!scriptPath) throw new GodotMCPError('No script_path specified', 'INVALID_ARGS', 'Provide script_path.')
 
   const fullPath = resolvePath(scriptPath)
-  if (!(await pathExists(fullPath)))
-    throw new GodotMCPError(`Script not found: ${scriptPath}`, 'SCRIPT_ERROR', 'Check the file path.')
-
-  const content = await readFile(fullPath, 'utf-8')
+  let content: string
+  try {
+    content = await readFile(fullPath, 'utf-8')
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new GodotMCPError(`Script not found: ${scriptPath}`, 'SCRIPT_ERROR', 'Check the file path.')
+    }
+    throw err
+  }
   return formatSuccess(`File: ${scriptPath}\n\n${content}`)
 }
 
@@ -202,10 +202,15 @@ async function attachScript(args: Record<string, unknown>, resolvePath: (path: s
   }
 
   const sceneFullPath = resolvePath(scenePath)
-  if (!(await pathExists(sceneFullPath)))
-    throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Create the scene first.')
-
-  let content = await readFile(sceneFullPath, 'utf-8')
+  let content: string
+  try {
+    content = await readFile(sceneFullPath, 'utf-8')
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Create the scene first.')
+    }
+    throw err
+  }
   // ⚡ Bolt: Using replaceAll('\\', '/') avoids RegExp allocation overhead
   const resPath = `res://${scriptPath.replaceAll('\\', '/')}`
 
@@ -251,10 +256,14 @@ async function deleteScript(args: Record<string, unknown>, resolvePath: (path: s
   if (!scriptPath) throw new GodotMCPError('No script_path specified', 'INVALID_ARGS', 'Provide script_path to delete.')
 
   const fullPath = resolvePath(scriptPath)
-  if (!(await pathExists(fullPath)))
-    throw new GodotMCPError(`Script not found: ${scriptPath}`, 'SCRIPT_ERROR', 'Check the file path.')
-
-  await unlink(fullPath)
+  try {
+    await unlink(fullPath)
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new GodotMCPError(`Script not found: ${scriptPath}`, 'SCRIPT_ERROR', 'Check the file path.')
+    }
+    throw err
+  }
   return formatSuccess(`Deleted script: ${scriptPath}`)
 }
 
@@ -262,12 +271,6 @@ export async function handleScripts(action: string, args: Record<string, unknown
   const baseDir = config.projectPath || process.cwd()
   // Validate args.project_path against the trusted baseDir to prevent path traversal vulnerabilities
   const projectPath = args.project_path ? safeResolve(baseDir, args.project_path as string) : config.projectPath
-
-  if (!projectPath && action !== 'list') {
-    // List handles missing projectPath internally, but others need it for safeResolve base
-    // Though list also throws if missing. Let's rely on standard checks inside but ensure projectPath is available for resolution.
-    // Actually, all actions check projectPath. We can resolve it early.
-  }
 
   // Helper to resolve path securely
   const resolvePath = (path: string) => {

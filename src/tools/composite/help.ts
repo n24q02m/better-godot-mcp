@@ -69,13 +69,14 @@ async function loadDoc(topic: string): Promise<string> {
   const docsDir = await getDocsDir()
   const docPath = join(docsDir, `${topic}.md`)
 
-  // Performance optimization: using async file reading instead of sync
-  // to avoid blocking the Node.js event loop during I/O operations
-  if (await pathExists(docPath)) {
+  try {
     return await readFile(docPath, 'utf-8')
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      return `No documentation available for: ${topic}. This tool may not be implemented yet.`
+    }
+    throw err
   }
-
-  return `No documentation available for: ${topic}. This tool may not be implemented yet.`
 }
 
 export async function handleHelp(action: string, args: Record<string, unknown>) {

@@ -8,7 +8,7 @@ import { join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { serializeGodotObject } from '../helpers/godot-types.js'
-import { pathExists, safeResolve } from '../helpers/paths.js'
+import { safeResolve } from '../helpers/paths.js'
 import { escapeRegExp } from '../helpers/scene-parser.js'
 
 /**
@@ -107,7 +107,7 @@ const GODOT_MOUSE_CODES: Record<string, number> = {
 
 /**
  * Resolve a key name to its numeric Godot code.
- * Accepts both "KEY_SPACE" and raw numeric strings like "32".
+ * Accepts both \"KEY_SPACE\" and raw numeric strings like "32".
  */
 function resolveKeyCode(value: string): number {
   const upper = value.toUpperCase()
@@ -162,8 +162,6 @@ function parseEventsList(str: string): string[] {
 async function getProjectGodotPath(projectPath: string | null | undefined, baseDir: string): Promise<string> {
   if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
   const configPath = join(safeResolve(baseDir, projectPath), 'project.godot')
-  if (!(await pathExists(configPath)))
-    throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
   return configPath
 }
 
@@ -246,7 +244,15 @@ export async function handleInputMap(action: string, args: Record<string, unknow
   switch (action) {
     case 'list': {
       const configPath = await getProjectGodotPath(projectPath, baseDir)
-      const content = await readFile(configPath, 'utf-8')
+      let content: string
+      try {
+        content = await readFile(configPath, 'utf-8')
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+          throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
+        }
+        throw err
+      }
       const actions = parseInputActions(content)
 
       // ⚡ Bolt: Use a pre-allocated array and for...of loop to prevent Array.from() + .map() allocation overhead
@@ -275,7 +281,15 @@ export async function handleInputMap(action: string, args: Record<string, unknow
       }
       const deadzone = (args.deadzone as number) || 0.5
 
-      let content = await readFile(configPath, 'utf-8')
+      let content: string
+      try {
+        content = await readFile(configPath, 'utf-8')
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+          throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
+        }
+        throw err
+      }
 
       // Check if [input] section exists
       if (!content.includes('[input]')) {
@@ -307,7 +321,15 @@ export async function handleInputMap(action: string, args: Record<string, unknow
         )
       }
 
-      const content = await readFile(configPath, 'utf-8')
+      let content: string
+      try {
+        content = await readFile(configPath, 'utf-8')
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+          throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
+        }
+        throw err
+      }
       // Remove the action line(s) - handles multi-line format
       const pattern = new RegExp(`${escapeRegExp(actionName)}=\\{[^}]*\\}\\n?`, 'g')
       const updated = content.replace(pattern, '')
@@ -340,7 +362,15 @@ export async function handleInputMap(action: string, args: Record<string, unknow
         )
       }
 
-      const content = await readFile(configPath, 'utf-8')
+      let content: string
+      try {
+        content = await readFile(configPath, 'utf-8')
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+          throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
+        }
+        throw err
+      }
 
       // Build event object based on type
       let eventObj: string

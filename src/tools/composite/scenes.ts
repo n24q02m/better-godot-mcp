@@ -3,11 +3,12 @@
  * Actions: create | list | info | delete | duplicate | set_main
  */
 
+import { constants } from 'node:fs'
 import { copyFile, mkdir, readdir, readFile, unlink, writeFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import type { GodotConfig, SceneInfo, SceneNode } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
-import { pathExists, safeResolve } from '../helpers/paths.js'
+import { safeResolve } from '../helpers/paths.js'
 import { setSettingInContent } from '../helpers/project-settings.js'
 
 // Pre-compiled regex for parsing scene metadata without splitting lines
@@ -195,17 +196,20 @@ export async function handleScenes(action: string, args: Record<string, unknown>
       }
 
       const fullPath = safeResolve(projectPath as string, scenePath)
-      if (await pathExists(fullPath)) {
-        throw new GodotMCPError(
-          `Scene already exists: ${scenePath}`,
-          'SCENE_ERROR',
-          'Use a different path or delete the existing scene first.',
-        )
-      }
-
       const content = generateTscnContent(rootName, rootType)
       await mkdir(dirname(fullPath), { recursive: true })
-      await writeFile(fullPath, content, 'utf-8')
+      try {
+        await writeFile(fullPath, content, { encoding: 'utf-8', flag: 'wx' })
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'EEXIST') {
+          throw new GodotMCPError(
+            `Scene already exists: ${scenePath}`,
+            'SCENE_ERROR',
+            'Use a different path or delete the existing scene first.',
+          )
+        }
+        throw err
+      }
 
       return formatSuccess(`Created scene: ${scenePath}\nRoot: ${rootName} (${rootType})`)
     }
@@ -257,19 +261,19 @@ export async function handleScenes(action: string, args: Record<string, unknown>
       const srcFull = resolvePath(projectPath, scenePath)
       const dstFull = resolvePath(projectPath, newPath as string)
 
-      if (await pathExists(dstFull)) {
-        throw new GodotMCPError(
-          `Destination already exists: ${newPath}`,
-          'SCENE_ERROR',
-          'Choose a different destination.',
-        )
-      }
-
       await mkdir(dirname(dstFull), { recursive: true })
       try {
-        await copyFile(srcFull, dstFull)
+        await copyFile(srcFull, dstFull, constants.COPYFILE_EXCL)
       } catch (error) {
-        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        const err = error as NodeJS.ErrnoException
+        if (err.code === 'EEXIST') {
+          throw new GodotMCPError(
+            `Destination already exists: ${newPath}`,
+            'SCENE_ERROR',
+            'Choose a different destination.',
+          )
+        }
+        if (err.code === 'ENOENT') {
           throw new GodotMCPError(`Source scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the source path.')
         }
         throw error

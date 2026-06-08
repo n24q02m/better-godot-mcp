@@ -6,14 +6,7 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
-import { pathExists, resolveProjectRoot, safeResolve } from '../helpers/paths.js'
-
-async function resolveScene(projectRoot: string, scenePath: string): Promise<string> {
-  const fullPath = safeResolve(projectRoot, scenePath)
-  if (!(await pathExists(fullPath)))
-    throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
-  return fullPath
-}
+import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
 
 function appendNode(content: string, name: string, type: string, parent: string, extraProps?: string): string {
   const parentAttr = parent === '.' ? '' : ` parent="${parent}"`
@@ -22,124 +15,80 @@ function appendNode(content: string, name: string, type: string, parent: string,
   return `${content.trimEnd()}\n${nodeDecl}`
 }
 
+async function handleAction(
+  _action: string,
+  projectPath: string,
+  args: Record<string, unknown>,
+  nodeTypeBase: string,
+  extraPropsResolver?: (args: Record<string, unknown>) => string,
+) {
+  const scenePath = args.scene_path as string
+  if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
+  const name = (args.name as string) || nodeTypeBase
+  const parent = (args.parent as string) || '.'
+  const dimension = (args.dimension as string) || '3D'
+
+  if (
+    name.includes('\n') ||
+    name.includes('\r') ||
+    name.includes('"') ||
+    parent.includes('\n') ||
+    parent.includes('\r') ||
+    parent.includes('"') ||
+    dimension.includes('\n') ||
+    dimension.includes('\r') ||
+    dimension.includes('"')
+  ) {
+    throw new GodotMCPError(
+      'Invalid characters in parameters',
+      'INVALID_ARGS',
+      'Parameters must not contain quotes or newlines.',
+    )
+  }
+
+  const fullPath = safeResolve(projectPath, scenePath)
+  let content: string
+  try {
+    content = await readFile(fullPath, 'utf-8')
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
+    }
+    throw err
+  }
+
+  const nodeType = dimension === '2D' ? `${nodeTypeBase}2D` : `${nodeTypeBase}3D`
+  const extraProps = extraPropsResolver ? extraPropsResolver(args) : undefined
+  content = appendNode(content, name, nodeType, parent, extraProps)
+
+  await writeFile(fullPath, content, 'utf-8')
+  return formatSuccess(`Added ${nodeTypeBase}: ${name} (${nodeType})`)
+}
+
 export async function handleNavigation(action: string, args: Record<string, unknown>, config: GodotConfig) {
   const projectPath = resolveProjectRoot(args.project_path, config.projectPath)
 
   switch (action) {
-    case 'create_region': {
-      const scenePath = args.scene_path as string
-      if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
-      const regionName = (args.name as string) || 'NavigationRegion3D'
-      const parent = (args.parent as string) || '.'
-      const dimension = (args.dimension as string) || '3D'
+    case 'create_region':
+      return handleAction(action, projectPath, args, 'NavigationRegion')
 
-      if (
-        regionName.includes('\n') ||
-        regionName.includes('\r') ||
-        regionName.includes('"') ||
-        parent.includes('\n') ||
-        parent.includes('\r') ||
-        parent.includes('"') ||
-        dimension.includes('\n') ||
-        dimension.includes('\r') ||
-        dimension.includes('"')
-      ) {
-        throw new GodotMCPError(
-          'Invalid characters in parameters',
-          'INVALID_ARGS',
-          'Parameters must not contain quotes or newlines.',
-        )
-      }
+    case 'add_agent':
+      return handleAction(action, projectPath, args, 'NavigationAgent', (a) => {
+        let props = ''
+        if (a.radius) props += `radius = ${a.radius}\n`
+        if (a.max_speed) props += `max_speed = ${a.max_speed}\n`
+        if (a.path_desired_distance) props += `path_desired_distance = ${a.path_desired_distance}\n`
+        if (a.target_desired_distance) props += `target_desired_distance = ${a.target_desired_distance}\n`
+        return props
+      })
 
-      const fullPath = await resolveScene(projectPath, scenePath)
-      let content = await readFile(fullPath, 'utf-8')
-
-      const nodeType = dimension === '2D' ? 'NavigationRegion2D' : 'NavigationRegion3D'
-      content = appendNode(content, regionName, nodeType, parent)
-
-      await writeFile(fullPath, content, 'utf-8')
-      return formatSuccess(`Created navigation region: ${regionName} (${nodeType})`)
-    }
-
-    case 'add_agent': {
-      const scenePath = args.scene_path as string
-      if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
-      const agentName = (args.name as string) || 'NavigationAgent3D'
-      const parent = (args.parent as string) || '.'
-      const dimension = (args.dimension as string) || '3D'
-
-      if (
-        agentName.includes('\n') ||
-        agentName.includes('\r') ||
-        agentName.includes('"') ||
-        parent.includes('\n') ||
-        parent.includes('\r') ||
-        parent.includes('"') ||
-        dimension.includes('\n') ||
-        dimension.includes('\r') ||
-        dimension.includes('"')
-      ) {
-        throw new GodotMCPError(
-          'Invalid characters in parameters',
-          'INVALID_ARGS',
-          'Parameters must not contain quotes or newlines.',
-        )
-      }
-
-      const fullPath = await resolveScene(projectPath, scenePath)
-      let content = await readFile(fullPath, 'utf-8')
-
-      const nodeType = dimension === '2D' ? 'NavigationAgent2D' : 'NavigationAgent3D'
-      let extraProps = ''
-      if (args.radius) extraProps += `radius = ${args.radius}\n`
-      if (args.max_speed) extraProps += `max_speed = ${args.max_speed}\n`
-      if (args.path_desired_distance) extraProps += `path_desired_distance = ${args.path_desired_distance}\n`
-      if (args.target_desired_distance) extraProps += `target_desired_distance = ${args.target_desired_distance}\n`
-
-      content = appendNode(content, agentName, nodeType, parent, extraProps || undefined)
-
-      await writeFile(fullPath, content, 'utf-8')
-      return formatSuccess(`Added navigation agent: ${agentName} (${nodeType})`)
-    }
-
-    case 'add_obstacle': {
-      const scenePath = args.scene_path as string
-      if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
-      const obstacleName = (args.name as string) || 'NavigationObstacle3D'
-      const parent = (args.parent as string) || '.'
-      const dimension = (args.dimension as string) || '3D'
-
-      if (
-        obstacleName.includes('\n') ||
-        obstacleName.includes('\r') ||
-        obstacleName.includes('"') ||
-        parent.includes('\n') ||
-        parent.includes('\r') ||
-        parent.includes('"') ||
-        dimension.includes('\n') ||
-        dimension.includes('\r') ||
-        dimension.includes('"')
-      ) {
-        throw new GodotMCPError(
-          'Invalid characters in parameters',
-          'INVALID_ARGS',
-          'Parameters must not contain quotes or newlines.',
-        )
-      }
-
-      const fullPath = await resolveScene(projectPath, scenePath)
-      let content = await readFile(fullPath, 'utf-8')
-
-      const nodeType = dimension === '2D' ? 'NavigationObstacle2D' : 'NavigationObstacle3D'
-      let extraProps = ''
-      if (args.radius) extraProps += `radius = ${args.radius}\n`
-      if (args.avoidance_enabled !== undefined) extraProps += `avoidance_enabled = ${args.avoidance_enabled}\n`
-
-      content = appendNode(content, obstacleName, nodeType, parent, extraProps || undefined)
-
-      await writeFile(fullPath, content, 'utf-8')
-      return formatSuccess(`Added navigation obstacle: ${obstacleName} (${nodeType})`)
-    }
+    case 'add_obstacle':
+      return handleAction(action, projectPath, args, 'NavigationObstacle', (a) => {
+        let props = ''
+        if (a.radius) props += `radius = ${a.radius}\n`
+        if (a.avoidance_enabled !== undefined) props += `avoidance_enabled = ${a.avoidance_enabled}\n`
+        return props
+      })
 
     default:
       throwUnknownAction(action, ['create_region', 'add_agent', 'add_obstacle'])

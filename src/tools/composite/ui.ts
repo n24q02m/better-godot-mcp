@@ -7,37 +7,25 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
-import { pathExists, resolveProjectRoot, safeResolve } from '../helpers/paths.js'
+import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
 import { escapeRegExp, parseScene } from '../helpers/scene-parser.js'
 
 const CONTROL_TEMPLATES: Record<string, Record<string, string>> = {
+  Label: { text: '"Label Text"' },
   Button: { text: '"Click"' },
-  Label: { text: '"Label"' },
   LineEdit: { placeholder_text: '"Enter text..."' },
-  TextEdit: {},
-  ProgressBar: { value: '50.0', max_value: '100.0' },
-  HSlider: { value: '0.0', max_value: '100.0' },
-  CheckBox: { text: '"Check"' },
-  OptionButton: {},
-  SpinBox: { value: '0.0', max_value: '100.0' },
-  ColorPickerButton: {},
-  TextureRect: {},
-  Panel: {},
-  TabContainer: {},
-  ScrollContainer: {},
-  MarginContainer: {},
-  HBoxContainer: {},
-  VBoxContainer: {},
-  GridContainer: { columns: '2' },
+  RichTextLabel: { bbcode_enabled: 'true', text: '"Rich Text"' },
 }
 
 const CONTROL_TYPES = new Set([
   'Control',
-  'Button',
   'Label',
+  'Button',
   'LineEdit',
   'TextEdit',
+  'CodeEdit',
   'RichTextLabel',
+  'TextureProgressBar',
   'ProgressBar',
   'HSlider',
   'VSlider',
@@ -66,13 +54,6 @@ const CONTROL_TYPES = new Set([
   'NinePatchRect',
 ])
 
-async function resolveScene(projectRoot: string, scenePath: string): Promise<string> {
-  const fullPath = safeResolve(projectRoot, scenePath)
-  if (!(await pathExists(fullPath)))
-    throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
-  return fullPath
-}
-
 async function handleCreateControl(projectPath: string, args: Record<string, unknown>) {
   const scenePath = args.scene_path as string
   if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
@@ -100,8 +81,16 @@ async function handleCreateControl(projectPath: string, args: Record<string, unk
     )
   }
 
-  const fullPath = await resolveScene(projectPath, scenePath)
-  let content = await readFile(fullPath, 'utf-8')
+  const fullPath = safeResolve(projectPath, scenePath)
+  let content: string
+  try {
+    content = await readFile(fullPath, 'utf-8')
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
+    }
+    throw err
+  }
 
   const parentAttr = parent === '.' ? '' : ` parent="${parent}"`
   let nodeDecl = `\n[node name="${controlName}" type="${controlType}"${parentAttr}]\n`
@@ -184,8 +173,16 @@ async function handleLayout(projectPath: string, args: Record<string, unknown>) 
     )
   }
 
-  const fullPath = await resolveScene(projectPath, scenePath)
-  let content = await readFile(fullPath, 'utf-8')
+  const fullPath = safeResolve(projectPath, scenePath)
+  let content: string
+  try {
+    content = await readFile(fullPath, 'utf-8')
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
+    }
+    throw err
+  }
 
   const nodeRegex = new RegExp(`(\\[node name="${escapeRegExp(nodeName)}"[^\\]]*\\])`)
   const match = content.match(nodeRegex)
@@ -236,8 +233,16 @@ async function handleListControls(projectPath: string, args: Record<string, unkn
   const scenePath = args.scene_path as string
   if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
 
-  const fullPath = await resolveScene(projectPath, scenePath)
-  const scene = await parseScene(fullPath)
+  const fullPath = safeResolve(projectPath, scenePath)
+  let scene: any
+  try {
+    scene = await parseScene(fullPath)
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
+    }
+    throw err
+  }
 
   const controls: { name: string; type: string; parent: string }[] = []
 

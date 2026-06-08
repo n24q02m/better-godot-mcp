@@ -1,9 +1,9 @@
-import { describe, expect, it, beforeEach, afterEach } from 'vitest'
-import { handleInputMap } from '../../src/tools/composite/input-map.js'
-import { createTmpProject, makeConfig } from '../fixtures.js'
-import type { GodotConfig } from '../../src/godot/types.js'
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import type { GodotConfig } from '../../src/godot/types.js'
+import { handleInputMap } from '../../src/tools/composite/input-map.js'
+import { createTmpProject, makeConfig } from '../fixtures.js'
 
 describe('Input Map ReDoS Security', () => {
   let projectPath: string
@@ -33,7 +33,7 @@ describe('Input Map ReDoS Security', () => {
           action_name: longActionName,
         },
         config,
-      )
+      ),
     ).rejects.toThrow('not found')
     const duration = Date.now() - start
 
@@ -56,7 +56,7 @@ describe('Input Map ReDoS Security', () => {
           event_value: 'KEY_SPACE',
         },
         config,
-      )
+      ),
     ).rejects.toThrow('not found')
     const duration = Date.now() - start
 

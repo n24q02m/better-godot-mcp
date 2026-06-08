@@ -96,8 +96,8 @@ export interface ParsedScene {
   nodesByPath: Map<string, SceneNodeInfo>
   /** ⚡ Bolt: Fast lookup for the first node matching a given name */
   nodesByName: Map<string, SceneNodeInfo>
-  /** ⚡ Bolt: Fast lookup for signal connections by key (signal:from:to:method) */
-  connectionsKeyed: Map<string, SignalConnection>
+  /** ⚡ Bolt: Fast lookup for signal connections by unique key */
+  connectionKeys: Set<string>
 }
 
 /**
@@ -106,6 +106,13 @@ export interface ParsedScene {
 export async function parseScene(filePath: string): Promise<ParsedScene> {
   const raw = await readFile(filePath, 'utf-8')
   return parseSceneContent(raw)
+}
+
+/**
+ * Generates a unique key for a signal connection using a null-character separator
+ */
+export function getConnectionKey(signal: string, from: string, to: string, method: string): string {
+  return `${signal}\0${from}\0${to}\0${method}`
 }
 
 /**
@@ -119,7 +126,7 @@ export function parseSceneContent(content: string): ParsedScene {
   const connections: SignalConnection[] = []
   const nodesByPath = new Map<string, SceneNodeInfo>()
   const nodesByName = new Map<string, SceneNodeInfo>()
-  const connectionsKeyed = new Map<string, SignalConnection>()
+  const connectionKeys = new Set<string>()
 
   let currentSection: 'header' | 'ext_resource' | 'sub_resource' | 'node' | 'connection' | null = null
   let currentNode: SceneNodeInfo | null = null
@@ -194,9 +201,8 @@ export function parseSceneContent(content: string): ParsedScene {
             const conn = parseConnection(line)
             if (conn) {
               connections.push(conn)
-              // Populate connections map
-              const connKey = `${conn.signal}:${conn.from}:${conn.to}:${conn.method}`
-              connectionsKeyed.set(connKey, conn)
+              // Populate connections set
+              connectionKeys.add(getConnectionKey(conn.signal, conn.from, conn.to, conn.method))
             }
           }
         } else if (currentSection === 'node' || currentSection === 'sub_resource') {
@@ -224,7 +230,7 @@ export function parseSceneContent(content: string): ParsedScene {
     raw: content,
     nodesByPath,
     nodesByName,
-    connectionsKeyed,
+    connectionKeys,
   }
 }
 

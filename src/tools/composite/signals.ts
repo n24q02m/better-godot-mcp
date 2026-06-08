@@ -7,7 +7,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
-import { parseSceneContent } from '../helpers/scene-parser.js'
+import { getConnectionKey, parseSceneContent } from '../helpers/scene-parser.js'
 
 function validateParameters(...params: unknown[]) {
   for (const param of params) {
@@ -80,7 +80,7 @@ export async function handleSignals(action: string, args: Record<string, unknown
 
       // Check for duplicate
       const scene = parseSceneContent(content)
-      const existing = scene.connectionsKeyed.get(`${signal}:${from}:${to}:${method}`)
+      const existing = scene.connectionKeys.has(getConnectionKey(signal, from, to, method))
       if (existing) {
         throw new GodotMCPError(
           'Connection already exists',

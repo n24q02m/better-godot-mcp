@@ -7,7 +7,22 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
-import { pathExists, resolveProjectRoot, safeResolve } from '../helpers/paths.js'
+import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
+
+/**
+ * Default audio bus layout content.
+ */
+const DEFAULT_BUS_LAYOUT = [
+  '[gd_resource type="AudioBusLayout" format=3]',
+  '',
+  '[resource]',
+  'bus/0/name = "Master"',
+  'bus/0/solo = false',
+  'bus/0/mute = false',
+  'bus/0/bypass_fx = false',
+  'bus/0/volume_db = 0.0',
+  '',
+].join('\n')
 
 /**
  * Helper to resolve the default bus layout path.
@@ -28,11 +43,16 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
     case 'list_buses': {
       const busLayoutPath = resolveBusLayoutPath(projectPath, baseDir)
 
-      if (!(await pathExists(busLayoutPath))) {
-        return formatJSON({ buses: [{ name: 'Master', volume: 0, effects: [] }], note: 'Using default bus layout.' })
+      let content: string
+      try {
+        content = await readFile(busLayoutPath, 'utf-8')
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+          return formatJSON({ buses: [{ name: 'Master', volume: 0, effects: [] }], note: 'Using default bus layout.' })
+        }
+        throw err
       }
 
-      const content = await readFile(busLayoutPath, 'utf-8')
       const buses: { name: string; volume?: string; solo?: boolean; mute?: boolean }[] = []
 
       // Parse bus entries
@@ -67,21 +87,14 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       }
 
       let content: string
-
-      if (await pathExists(busLayoutPath)) {
+      try {
         content = await readFile(busLayoutPath, 'utf-8')
-      } else {
-        content = [
-          '[gd_resource type="AudioBusLayout" format=3]',
-          '',
-          '[resource]',
-          'bus/0/name = "Master"',
-          'bus/0/solo = false',
-          'bus/0/mute = false',
-          'bus/0/bypass_fx = false',
-          'bus/0/volume_db = 0.0',
-          '',
-        ].join('\n')
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+          content = DEFAULT_BUS_LAYOUT
+        } else {
+          throw err
+        }
       }
 
       // Count existing buses
@@ -133,21 +146,14 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       const fullEffectType = effectType.startsWith('AudioEffect') ? effectType : `AudioEffect${effectType}`
 
       let content: string
-
-      if (await pathExists(busLayoutPath)) {
+      try {
         content = await readFile(busLayoutPath, 'utf-8')
-      } else {
-        content = [
-          '[gd_resource type="AudioBusLayout" format=3]',
-          '',
-          '[resource]',
-          'bus/0/name = "Master"',
-          'bus/0/solo = false',
-          'bus/0/mute = false',
-          'bus/0/bypass_fx = false',
-          'bus/0/volume_db = 0.0',
-          '',
-        ].join('\n')
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+          content = DEFAULT_BUS_LAYOUT
+        } else {
+          throw err
+        }
       }
 
       // Find the target bus index
@@ -219,10 +225,17 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
 
       // Confine caller project_path to the trusted base before resolving the scene.
       const fullPath = safeResolve(resolveProjectRoot(args.project_path, config.projectPath), scenePath)
-      if (!(await pathExists(fullPath)))
-        throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check file path.')
 
-      let content = await readFile(fullPath, 'utf-8')
+      let content: string
+      try {
+        content = await readFile(fullPath, 'utf-8')
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+          throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check file path.')
+        }
+        throw err
+      }
+
       const nodeType =
         streamType === '3D' ? 'AudioStreamPlayer3D' : streamType === '2D' ? 'AudioStreamPlayer2D' : 'AudioStreamPlayer'
       const parentAttr = parent === '.' ? '' : ` parent="${parent}"`

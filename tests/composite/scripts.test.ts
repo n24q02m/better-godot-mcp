@@ -288,6 +288,31 @@ describe('scripts', () => {
       const content = readFileSync(join(projectPath, 'level.tscn'), 'utf-8')
       expect(content).toContain('res://player.gd')
     })
+    it('should attach script to the first node if node_name is not provided', async () => {
+      const scene = `[gd_scene format=3]\n\n[node name="FirstNode" type="Node2D"]\n\n[node name="SecondNode" type="Node2D" parent="."]\n`
+      createTmpScene(projectPath, 'no_node.tscn', scene)
+      createTmpScript(projectPath, 'test.gd')
+
+      await handleScripts(
+        'attach',
+        {
+          project_path: projectPath,
+          scene_path: 'no_node.tscn',
+          script_path: 'test.gd',
+        },
+        config,
+      )
+
+      const updated = readFileSync(join(projectPath, 'no_node.tscn'), 'utf-8')
+      expect(updated).toContain('[node name="FirstNode"')
+      // Check that script is attached to FirstNode, not just present in file
+      const sections = updated.split('[node ')
+      const firstNodeSection = sections.find((s) => s.startsWith('name="FirstNode"'))
+      expect(firstNodeSection).toContain('script = ExtResource("res://test.gd")')
+
+      const secondNodeSection = sections.find((s) => s.startsWith('name="SecondNode"'))
+      expect(secondNodeSection).not.toContain('script = ExtResource("res://test.gd")')
+    })
 
     it('should throw if node_name not found in scene', async () => {
       createTmpScene(projectPath, 'test.tscn', MINIMAL_TSCN)

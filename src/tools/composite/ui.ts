@@ -109,8 +109,11 @@ async function handleCreateControl(projectPath: string, args: Record<string, unk
   // Add default properties for known control types
   const defaults = CONTROL_TEMPLATES[controlType]
   if (defaults) {
-    for (const [key, value] of Object.entries(defaults)) {
-      nodeDecl += `${key} = ${value}\n`
+    for (const key in defaults) {
+      if (Object.hasOwn(defaults, key)) {
+        const value = defaults[key]
+        nodeDecl += `${key} = ${value}\n`
+      }
     }
   }
 
@@ -123,17 +126,29 @@ async function handleCreateControl(projectPath: string, args: Record<string, unk
         'properties must be an object with string keys and values.',
       )
     }
-    for (const [key, value] of Object.entries(args.properties)) {
-      if (typeof key !== 'string' || typeof value !== 'string') {
-        throw new GodotMCPError('Invalid property value', 'INVALID_ARGS', 'Property keys and values must be strings.')
+    const props = args.properties as Record<string, unknown>
+    for (const key in props) {
+      if (Object.hasOwn(props, key)) {
+        const value = props[key]
+        if (typeof key !== 'string' || typeof value !== 'string') {
+          throw new GodotMCPError('Invalid property value', 'INVALID_ARGS', 'Property keys and values must be strings.')
+        }
+        if (key.includes('=') || key.includes('\n') || key.includes('\r')) {
+          throw new GodotMCPError(
+            'Invalid property key',
+            'INVALID_ARGS',
+            'Property keys must not contain "=", newlines.',
+          )
+        }
+        if (value.includes('\n') || value.includes('\r')) {
+          throw new GodotMCPError(
+            'Invalid property value',
+            'INVALID_ARGS',
+            'Property values must not contain newlines.',
+          )
+        }
+        nodeDecl += `${key} = ${value}\n`
       }
-      if (key.includes('=') || key.includes('\n') || key.includes('\r')) {
-        throw new GodotMCPError('Invalid property key', 'INVALID_ARGS', 'Property keys must not contain "=", newlines.')
-      }
-      if (value.includes('\n') || value.includes('\r')) {
-        throw new GodotMCPError('Invalid property value', 'INVALID_ARGS', 'Property values must not contain newlines.')
-      }
-      nodeDecl += `${key} = ${value}\n`
     }
   }
 

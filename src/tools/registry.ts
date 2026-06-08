@@ -101,7 +101,8 @@ const P0_TOOLS = [
       '- duplicate (scene_path, new_path -> project_path)',
       '- set_main (scene_path -> project_path)',
       '',
-      'scene_path: relative to project root (e.g., "scenes/main.tscn"), NOT res:// prefix. Use nodes tool to edit nodes within a scene.',
+      'scene_path: relative to project root (e.g., "scenes/main.tscn"), NOT res:// prefix.',
+      'Use nodes tool to edit nodes within a scene.',
     ].join('\n'),
     annotations: createAnnotations('Scenes', { destructive: true }),
     inputSchema: {
@@ -155,7 +156,8 @@ const P0_TOOLS = [
         parent: {
           type: 'string',
           description:
-            'Parent node path relative to scene root (for add, default: "." = root). Use "/" separator, e.g., "Player/Sprite2D"',
+            'Parent node path relative to scene root (for add, default: "." = root).' +
+            ' Use "/" separator, e.g., "Player/Sprite2D"',
         },
         new_name: { type: 'string', description: 'New name (for rename)' },
         property: { type: 'string', description: 'Property name (for get/set_property)' },
@@ -375,8 +377,11 @@ const P1_TOOLS = [
 const P2_TOOLS = [
   {
     name: 'animation',
-    description:
-      'Animation management. Actions: create_player|add_animation|add_track|add_keyframe|list. Use help tool for full docs.',
+    description: [
+      'Animation management.',
+      'Actions: create_player|add_animation|add_track|add_keyframe|list.',
+      'Use help tool for full docs.',
+    ].join('\n'),
     annotations: createAnnotations('Animation'),
     inputSchema: {
       type: 'object' as const,
@@ -402,8 +407,11 @@ const P2_TOOLS = [
   },
   {
     name: 'tilemap',
-    description:
-      'TileSet and TileMap management. Actions: create_tileset|add_source|set_tile|paint|list. Use help tool for full docs.',
+    description: [
+      'TileSet and TileMap management.',
+      'Actions: create_tileset|add_source|set_tile|paint|list.',
+      'Use help tool for full docs.',
+    ].join('\n'),
     annotations: createAnnotations('TileMap'),
     inputSchema: {
       type: 'object' as const,
@@ -424,7 +432,11 @@ const P2_TOOLS = [
   },
   {
     name: 'shader',
-    description: 'Godot shader management. Actions: create|read|write|get_params|list. Use help tool for full docs.',
+    description: [
+      'Godot shader management.',
+      'Actions: create|read|write|get_params|list.',
+      'Use help tool for full docs.',
+    ].join('\n'),
     annotations: createAnnotations('Shader'),
     inputSchema: {
       type: 'object' as const,
@@ -447,8 +459,11 @@ const P2_TOOLS = [
   },
   {
     name: 'physics',
-    description:
-      'Physics config. Actions: layers|collision_setup|body_config|set_layer_name. Use help tool for full docs.',
+    description: [
+      'Physics config.',
+      'Actions: layers|collision_setup|body_config|set_layer_name.',
+      'Use help tool for full docs.',
+    ].join('\n'),
     annotations: createAnnotations('Physics'),
     inputSchema: {
       type: 'object' as const,
@@ -480,8 +495,11 @@ const P2_TOOLS = [
 const P3_TOOLS = [
   {
     name: 'audio',
-    description:
-      'Audio bus and stream management. Actions: list_buses|add_bus|add_effect|create_stream. Use help tool for full docs.',
+    description: [
+      'Audio bus and stream management.',
+      'Actions: list_buses|add_bus|add_effect|create_stream.',
+      'Use help tool for full docs.',
+    ].join('\n'),
     annotations: createAnnotations('Audio'),
     inputSchema: {
       type: 'object' as const,
@@ -506,8 +524,11 @@ const P3_TOOLS = [
   },
   {
     name: 'navigation',
-    description:
-      'Navigation regions, agents, obstacles. Actions: create_region|add_agent|add_obstacle. Use help tool for full docs.',
+    description: [
+      'Navigation regions, agents, obstacles.',
+      'Actions: create_region|add_agent|add_obstacle.',
+      'Use help tool for full docs.',
+    ].join('\n'),
     annotations: createAnnotations('Navigation'),
     inputSchema: {
       type: 'object' as const,
@@ -530,8 +551,11 @@ const P3_TOOLS = [
   },
   {
     name: 'ui',
-    description:
-      'UI Control nodes and themes. Actions: create_control|set_theme|layout|list_controls. Use help tool for full docs.',
+    description: [
+      'UI Control nodes and themes.',
+      'Actions: create_control|set_theme|layout|list_controls.',
+      'Use help tool for full docs.',
+    ].join('\n'),
     annotations: createAnnotations('UI'),
     inputSchema: {
       type: 'object' as const,

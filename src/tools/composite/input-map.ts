@@ -9,7 +9,6 @@ import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { serializeGodotObject } from '../helpers/godot-types.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
-import { escapeRegExp } from '../helpers/scene-parser.js'
 
 /**
  * Godot 4.x Key enum numeric values (@GlobalScope.Key)
@@ -107,13 +106,14 @@ function resolveKeyCode(value: string): number {
 
 function resolveMouseCode(value: string): number {
   const code = GODOT_MOUSE_BUTTONS[value]
-  if (code === undefined) throw new GodotMCPError(`Unknown mouse button: ${value}`, 'INVALID_ARGS', 'Use MOUSE_BUTTON_ names.')
+  if (code === undefined)
+    throw new GodotMCPError(`Unknown mouse button: ${value}`, 'INVALID_ARGS', 'Use MOUSE_BUTTON_ names.')
   return code
 }
 
 function parseEventsList(str: string): string[] {
   const results: string[] = []
-  let pos = 0
+
   const len = str.length
 
   let start = 0
@@ -220,7 +220,7 @@ function transformInputMap(
   content: string,
   targetAction: string,
   operation: 'add_event' | 'remove_action',
-  eventObj?: string
+  eventObj?: string,
 ): string {
   const lines = content.split('\n')
   const result: string[] = []

@@ -422,17 +422,18 @@ export function updateNodeInScene(
   }
 
   const updatedProperties = new Set<string>()
-  const keys = Object.keys(updates)
 
   const newContent = transformSceneContent(content, nodeName, {
     processLine: (line, inTargetNode, isSectionHeader) => {
       if (inTargetNode && !isSectionHeader) {
         // Find if this line is one of our target properties
         const trimmed = line.trimStart()
-        for (const key of keys) {
-          if (trimmed.startsWith(`${key} `) || trimmed.startsWith(`${key}=`)) {
-            updatedProperties.add(key)
-            return `${key} = ${updates[key]}`
+        for (const key in updates) {
+          if (Object.hasOwn(updates, key)) {
+            if (trimmed.startsWith(`${key} `) || trimmed.startsWith(`${key}=`)) {
+              updatedProperties.add(key)
+              return `${key} = ${updates[key]}`
+            }
           }
         }
       }
@@ -440,9 +441,11 @@ export function updateNodeInScene(
     },
     onTargetNodeEnd: () => {
       const added: string[] = []
-      for (const key of keys) {
-        if (!updatedProperties.has(key)) {
-          added.push(`${key} = ${updates[key]}`)
+      for (const key in updates) {
+        if (Object.hasOwn(updates, key)) {
+          if (!updatedProperties.has(key)) {
+            added.push(`${key} = ${updates[key]}`)
+          }
         }
       }
       return added

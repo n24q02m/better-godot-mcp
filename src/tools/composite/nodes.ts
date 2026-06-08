@@ -25,16 +25,37 @@ function resolveScenePath(projectPath: string, scenePath: string): string {
  */
 function normalizeNodePath(path: string): { path: string; corrected: boolean } {
   if (!path || path === '.') return { path, corrected: false }
-  // Strip /root/ or /root/SceneName/ prefix that LLMs commonly generate
-  const rootMatch = path.match(/^\/root\/(?:[^/]+\/)?(.+)$/)
-  if (rootMatch) {
-    return { path: rootMatch[1], corrected: true }
+
+  // ⚡ Bolt: Normalize backslashes and handle case-insensitive /root/ or root/ prefixes.
+  // This robustly handles common LLM hallucinations and platform-specific path formats.
+  let normalized = path.replaceAll('\\', '/')
+  let corrected = false
+
+  const rootPrefixMatch = normalized.match(/^\/?root\//i)
+  if (rootPrefixMatch) {
+    normalized = normalized.slice(rootPrefixMatch[0].length)
+    corrected = true
+
+    // Strip the Scene Root name if followed by more components (e.g., "Main/Player" -> "Player")
+    if (normalized.includes('/')) {
+      normalized = normalized.slice(normalized.indexOf('/') + 1)
+    }
   }
-  // Strip leading slash
-  if (path.startsWith('/')) {
-    return { path: path.slice(1), corrected: false }
+
+  if (normalized.startsWith('/')) {
+    normalized = normalized.slice(1)
   }
-  return { path, corrected: false }
+
+  // If path was explicitly /root/ or root/, treat empty remainder as the scene root "."
+  if (corrected && normalized === '') {
+    return { path: '.', corrected: true }
+  }
+  // If path was "/root" (no trailing slash), treat as "."
+  if (normalized.toLowerCase() === 'root' && path.startsWith('/')) {
+    return { path: '.', corrected: true }
+  }
+
+  return { path: normalized, corrected: corrected || normalized !== path }
 }
 
 async function handleAddNode(projectPath: string, args: Record<string, unknown>) {

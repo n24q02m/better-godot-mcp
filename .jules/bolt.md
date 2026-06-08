@@ -26,3 +26,7 @@
 2. Best prefix/containment match, defined as the one with the smallest absolute length difference relative to the input.
 3. Fuzzy bigram similarity (Dice coefficient) with a threshold > 0.4.
 This ensures that "create" matches "create" even if "create_node" appears earlier in the options list, and "cre" matches "create" over "create_node".
+
+## 2026-06-05 - [PERF] Use pre-allocated array instead of match().length
+**Learning:** Using `(str.match(/regex/g) || []).length` to count occurrences creates an unnecessary intermediate array and fallbacks to an empty array allocation if no matches are found, causing garbage collection pressure.
+**Action:** Implemented `countString` (using `indexOf`) and `countMatches` (using `RegExp.exec`) utility functions in `src/tools/helpers/strings.ts` to count occurrences without allocating arrays. Updated `tilemap.ts` and `audio.ts` to use these utilities for a significant reduction in allocations in hot paths.

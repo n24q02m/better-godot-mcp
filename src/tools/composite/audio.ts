@@ -8,6 +8,7 @@ import { join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists, resolveProjectRoot, safeResolve } from '../helpers/paths.js'
+import { countMatches } from '../helpers/strings.js'
 
 /**
  * Helper to resolve the default bus layout path.
@@ -85,7 +86,7 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       }
 
       // Count existing buses
-      const busCount = (content.match(/bus\/\d+\/name/g) || []).length
+      const busCount = countMatches(content, /bus\/\d+\/name/g)
 
       const newBus = [
         `bus/${busCount}/name = "${busName}"`,
@@ -165,8 +166,7 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
 
       // Count existing effects on this bus
       const effectCountRegex = new RegExp(`bus/${busIndex}/effect/\\d+/effect`, 'g')
-      const existingEffects = content.match(effectCountRegex) || []
-      const effectIndex = existingEffects.length
+      const effectIndex = countMatches(content, effectCountRegex)
 
       // Generate unique sub_resource id
       const subResId = `${fullEffectType}_${Date.now()}`

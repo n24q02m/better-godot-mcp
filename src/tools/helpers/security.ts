@@ -68,3 +68,23 @@ export function validateNoNewlines(
     }
   }
 }
+
+/**
+ * Validates that a PID is a positive safe integer.
+ * @param pid The PID to validate.
+ * @returns True if the PID is valid.
+ */
+export function isValidPid(pid: unknown): pid is number {
+  return typeof pid === 'number' && Number.isSafeInteger(pid) && pid > 0
+}
+
+/**
+ * Validates that a PID is a positive safe integer and throws if not.
+ * @param pid The PID to validate.
+ * @param customMessage Custom error message.
+ */
+export function validatePid(pid: unknown, customMessage?: string): void {
+  if (!isValidPid(pid)) {
+    throw new GodotMCPError(customMessage || `Invalid PID: ${pid}`, 'INVALID_ARGS')
+  }
+}

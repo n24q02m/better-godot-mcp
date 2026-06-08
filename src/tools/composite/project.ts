@@ -16,6 +16,7 @@ import {
   parseProjectSettingsAsync,
   setSettingInContent,
 } from '../helpers/project-settings.js'
+import { isValidPid, validatePid } from '../helpers/security.js'
 import { parseCommaSeparatedList } from '../helpers/strings.js'
 
 async function parseProjectGodot(projectPath: string): Promise<ProjectInfo> {
@@ -148,6 +149,7 @@ export async function handleProject(action: string, args: Record<string, unknown
         scenePath,
       )
       if (pid) {
+        validatePid(pid)
         config.activePids.push(pid)
       }
       return formatSuccess(`Godot project started (PID: ${pid})${scenePath ? ` for scene ${scenePath}` : ''}`)
@@ -161,7 +163,7 @@ export async function handleProject(action: string, args: Record<string, unknown
       let stoppedCount = 0
       for (const pid of config.activePids) {
         // Security: strictly validate pid is a positive safe integer before using in shell commands or process.kill
-        if (typeof pid !== 'number' || !Number.isSafeInteger(pid) || pid <= 0) {
+        if (!isValidPid(pid)) {
           continue
         }
 

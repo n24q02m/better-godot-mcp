@@ -7,6 +7,7 @@ import { launchGodotEditor } from '../../godot/headless.js'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
+import { isValidPid, validatePid } from '../helpers/security.js'
 
 /**
  * Check if tracked Godot processes are running
@@ -16,7 +17,7 @@ function getGodotProcesses(config: GodotConfig): Array<{ pid: string; name: stri
 
   for (const pid of config.activePids) {
     // Security: strictly validate pid is a positive safe integer before using in process.kill
-    if (typeof pid !== 'number' || !Number.isSafeInteger(pid) || pid <= 0) {
+    if (!isValidPid(pid)) {
       continue
     }
 
@@ -48,6 +49,7 @@ export async function handleEditor(action: string, args: Record<string, unknown>
 
       const { pid } = launchGodotEditor(config.godotPath, safeResolve(config.projectPath || process.cwd(), projectPath))
       if (pid) {
+        validatePid(pid)
         config.activePids.push(pid)
       }
       return formatSuccess(`Godot editor launched (PID: ${pid})`)

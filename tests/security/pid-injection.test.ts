@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { GodotConfig } from '../../src/godot/types.js'
 import { handleEditor } from '../../src/tools/composite/editor.js'
 import { handleProject } from '../../src/tools/composite/project.js'
+import { isValidPid, validatePid } from '../../src/tools/helpers/security.js'
 import { makeConfig } from '../fixtures.js'
 
 // Need to mock node:child_process properly to avoid breaking promisify(execFile) in headless.ts
@@ -95,6 +96,29 @@ describe('PID Injection Security', () => {
       expect(processKillSpy).not.toHaveBeenCalledWith(maliciousPid, expect.anything())
 
       processKillSpy.mockRestore()
+    })
+  })
+
+  describe('helper functions', () => {
+    it('isValidPid should correctly identify valid and invalid PIDs', () => {
+      expect(isValidPid(123)).toBe(true)
+      expect(isValidPid(1)).toBe(true)
+      expect(isValidPid(Number.MAX_SAFE_INTEGER)).toBe(true)
+
+      expect(isValidPid(0)).toBe(false)
+      expect(isValidPid(-1)).toBe(false)
+      expect(isValidPid(1.5)).toBe(false)
+      expect(isValidPid('123')).toBe(false)
+      expect(isValidPid(null)).toBe(false)
+      expect(isValidPid(undefined)).toBe(false)
+      expect(isValidPid(NaN)).toBe(false)
+      expect(isValidPid(Infinity)).toBe(false)
+    })
+
+    it('validatePid should throw on invalid PIDs', () => {
+      expect(() => validatePid(123)).not.toThrow()
+      expect(() => validatePid('malicious')).toThrow(/Invalid PID/)
+      expect(() => validatePid(-1, 'Custom error')).toThrow('Custom error')
     })
   })
 })

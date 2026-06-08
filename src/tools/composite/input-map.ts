@@ -54,29 +54,6 @@ const GODOT_KEY_CODES: Record<string, number> = {
   KEY_7: 55,
   KEY_8: 56,
   KEY_9: 57,
-  // Common keys
-  KEY_SPACE: 32,
-  KEY_ESCAPE: 4194305,
-  KEY_TAB: 4194306,
-  KEY_BACKSPACE: 4194308,
-  KEY_ENTER: 4194309,
-  KEY_INSERT: 4194311,
-  KEY_DELETE: 4194312,
-  KEY_PAUSE: 4194313,
-  KEY_HOME: 4194315,
-  KEY_END: 4194316,
-  KEY_PAGEUP: 4194323,
-  KEY_PAGEDOWN: 4194324,
-  // Arrow keys
-  KEY_LEFT: 4194319,
-  KEY_UP: 4194320,
-  KEY_RIGHT: 4194321,
-  KEY_DOWN: 4194322,
-  // Modifiers
-  KEY_SHIFT: 4194325,
-  KEY_CTRL: 4194326,
-  KEY_ALT: 4194328,
-  KEY_META: 4194329,
   // Function keys
   KEY_F1: 4194332,
   KEY_F2: 4194333,
@@ -90,12 +67,27 @@ const GODOT_KEY_CODES: Record<string, number> = {
   KEY_F10: 4194341,
   KEY_F11: 4194342,
   KEY_F12: 4194343,
+  // Control keys
+  KEY_ESCAPE: 4194305,
+  KEY_TAB: 4194306,
+  KEY_BACKSPACE: 4194308,
+  KEY_ENTER: 4194309,
+  KEY_INSERT: 4194312,
+  KEY_DELETE: 4194313,
+  KEY_PAUSE: 4194314,
+  KEY_PRINT: 4194315,
+  KEY_HOME: 4194317,
+  KEY_END: 4194318,
+  KEY_LEFT: 4194319,
+  KEY_UP: 4194320,
+  KEY_RIGHT: 4194321,
+  KEY_DOWN: 4194322,
+  KEY_PAGEUP: 4194323,
+  KEY_PAGEDOWN: 4194324,
+  KEY_SPACE: 32,
 }
 
-/**
- * Godot 4.x MouseButton enum numeric values
- */
-const GODOT_MOUSE_CODES: Record<string, number> = {
+const GODOT_MOUSE_BUTTONS: Record<string, number> = {
   MOUSE_BUTTON_LEFT: 1,
   MOUSE_BUTTON_RIGHT: 2,
   MOUSE_BUTTON_MIDDLE: 3,
@@ -103,47 +95,28 @@ const GODOT_MOUSE_CODES: Record<string, number> = {
   MOUSE_BUTTON_WHEEL_DOWN: 5,
   MOUSE_BUTTON_WHEEL_LEFT: 6,
   MOUSE_BUTTON_WHEEL_RIGHT: 7,
+  MOUSE_BUTTON_XBUTTON1: 8,
+  MOUSE_BUTTON_XBUTTON2: 9,
 }
 
-/**
- * Resolve a key name to its numeric Godot code.
- * Accepts both "KEY_SPACE" and raw numeric strings like "32".
- */
 function resolveKeyCode(value: string): number {
-  const upper = value.toUpperCase()
-  if (upper in GODOT_KEY_CODES) return GODOT_KEY_CODES[upper]
-  const parsed = Number.parseInt(value, 10)
-  if (!Number.isNaN(parsed)) return parsed
-  throw new GodotMCPError(
-    `Unknown key: ${value}`,
-    'INVALID_ARGS',
-    `Valid keys: ${Object.keys(GODOT_KEY_CODES).join(', ')}`,
-  )
+  const code = GODOT_KEY_CODES[value]
+  if (code === undefined) throw new GodotMCPError(`Unknown key: ${value}`, 'INVALID_ARGS', 'Use KEY_ names.')
+  return code
 }
 
-/**
- * Resolve a mouse button name to its numeric Godot code.
- */
 function resolveMouseCode(value: string): number {
-  const upper = value.toUpperCase()
-  if (upper in GODOT_MOUSE_CODES) return GODOT_MOUSE_CODES[upper]
-  const parsed = Number.parseInt(value, 10)
-  if (!Number.isNaN(parsed)) return parsed
-  throw new GodotMCPError(
-    `Unknown mouse button: ${value}`,
-    'INVALID_ARGS',
-    `Valid buttons: ${Object.keys(GODOT_MOUSE_CODES).join(', ')}`,
-  )
+  const code = GODOT_MOUSE_BUTTONS[value]
+  if (code === undefined) throw new GodotMCPError(`Unknown mouse button: ${value}`, 'INVALID_ARGS', 'Use MOUSE_BUTTON_ names.')
+  return code
 }
 
-/**
- * Fast-path parser for comma-separated lists, avoiding split/map/filter allocations.
- */
 function parseEventsList(str: string): string[] {
-  if (!str) return []
   const results: string[] = []
-  let start = 0
+  let pos = 0
   const len = str.length
+
+  let start = 0
   while (start < len) {
     let end = str.indexOf(',', start)
     if (end === -1) end = len
@@ -239,6 +212,125 @@ function parseInputActions(content: string): Map<string, string[]> {
   return actions
 }
 
+/**
+ * Transforms the [input] section of project.godot to add/remove actions or events
+ * Replaces unsafe dynamic RegExps with a line-by-line scanner.
+ */
+function transformInputMap(
+  content: string,
+  targetAction: string,
+  operation: 'add_event' | 'remove_action',
+  eventObj?: string
+): string {
+  const lines = content.split('\n')
+  const result: string[] = []
+  let inInputSection = false
+  let actionFound = false
+  let i = 0
+
+  while (i < lines.length) {
+    const line = lines[i]
+    const trimmed = line.trim()
+
+    if (trimmed === '[input]') {
+      inInputSection = true
+      result.push(line)
+      i++
+      continue
+    }
+
+    if (inInputSection && trimmed.startsWith('[')) {
+      inInputSection = false
+    }
+
+    if (inInputSection && !actionFound) {
+      // Check for action start
+      // format: action_name={
+      const actionStartMatch = trimmed.match(/^([^=]+)=\{/)
+      if (actionStartMatch && actionStartMatch[1].trim() === targetAction) {
+        actionFound = true
+        if (operation === 'remove_action') {
+          // Skip this action block
+          let blockEndFound = trimmed.endsWith('}')
+          while (!blockEndFound && i < lines.length) {
+            i++
+            if (i < lines.length && lines[i].trim().endsWith('}')) {
+              blockEndFound = true
+            }
+          }
+          i++ // Skip the last line of the block
+          continue
+        }
+
+        if (operation === 'add_event' && eventObj) {
+          // Process this action block to find "events": [
+          const blockLines: string[] = []
+          let blockEndFound = false
+          let eventsFound = false
+
+          while (i < lines.length && !blockEndFound) {
+            let currentLine = lines[i]
+            const currentTrimmed = currentLine.trim()
+
+            if (!eventsFound && currentTrimmed.includes('"events":')) {
+              eventsFound = true
+              if (currentTrimmed.includes('[') && currentTrimmed.includes(']')) {
+                // Single line events array
+                const openBracket = currentLine.indexOf('[')
+                const closeBracket = currentLine.lastIndexOf(']')
+                const before = currentLine.slice(0, closeBracket).trimEnd()
+                const after = currentLine.slice(closeBracket)
+                const existing = currentLine.slice(openBracket + 1, closeBracket).trim()
+                const separator = existing ? ', ' : ''
+                currentLine = `${before}${separator}${eventObj}${after}`
+              } else if (currentTrimmed.includes('[')) {
+                // Multi-line events array starts
+                blockLines.push(currentLine)
+                i++
+                while (i < lines.length) {
+                  const nextLine = lines[i]
+                  if (nextLine.trim().includes(']')) {
+                    const closeBracket = nextLine.lastIndexOf(']')
+                    const before = nextLine.slice(0, closeBracket).trimEnd()
+                    const after = nextLine.slice(closeBracket)
+                    const existing = before.trim()
+                    const separator = existing && !existing.endsWith('[') ? ', ' : ''
+                    blockLines.push(`${before}${separator}${eventObj}${after}`)
+                    break
+                  }
+                  blockLines.push(nextLine)
+                  i++
+                }
+                if (i < lines.length) {
+                  if (lines[i].trim().endsWith('}')) blockEndFound = true
+                  i++
+                }
+                continue
+              }
+            }
+
+            blockLines.push(currentLine)
+            if (currentTrimmed.endsWith('}')) blockEndFound = true
+            i++
+          }
+
+          result.push(...blockLines)
+          continue
+        }
+      }
+    }
+
+    result.push(line)
+    i++
+  }
+
+  if (!actionFound) {
+    throw new GodotMCPError(`Action "${targetAction}" not found`, 'INPUT_ERROR', 'Check action name with list.')
+  }
+
+  return result.join('\n')
+}
+
 export async function handleInputMap(action: string, args: Record<string, unknown>, config: GodotConfig) {
   const baseDir = config.projectPath || process.cwd()
   const projectPath = (args.project_path as string) || config.projectPath
@@ -308,13 +400,7 @@ export async function handleInputMap(action: string, args: Record<string, unknow
       }
 
       const content = await readFile(configPath, 'utf-8')
-      // Remove the action line(s) - handles multi-line format
-      const pattern = new RegExp(`${escapeRegExp(actionName)}=\\{[^}]*\\}\\n?`, 'g')
-      const updated = content.replace(pattern, '')
-
-      if (updated === content) {
-        throw new GodotMCPError(`Action "${actionName}" not found`, 'INPUT_ERROR', 'Check action name with list.')
-      }
+      const updated = transformInputMap(content, actionName, 'remove_action')
 
       await writeFile(configPath, updated, 'utf-8')
       return formatSuccess(`Removed input action: ${actionName}`)
@@ -410,19 +496,7 @@ export async function handleInputMap(action: string, args: Record<string, unknow
       }
 
       // Find existing events array and append
-      const actionRegex = new RegExp(`(${escapeRegExp(actionName)}=\\{[^}]*"events":\\s*\\[)([^\\]]*)\\]`)
-      const match = content.match(actionRegex)
-      if (!match) {
-        throw new GodotMCPError(
-          `Action "${actionName}" not found`,
-          'INPUT_ERROR',
-          'Add the action first with add_action.',
-        )
-      }
-
-      const existingEvents = match[2].trim()
-      const newEvents = existingEvents ? `${existingEvents}, ${eventObj}` : eventObj
-      const updated = content.replace(actionRegex, (_match, p1) => `${p1}${newEvents}]`)
+      const updated = transformInputMap(content, actionName, 'add_event', eventObj)
 
       await writeFile(configPath, updated, 'utf-8')
       return formatSuccess(`Added ${eventType} event to action: ${actionName}`)

@@ -8,6 +8,55 @@ import { join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists, resolveProjectRoot, safeResolve } from '../helpers/paths.js'
+import { countMatches } from '../helpers/strings.js'
+
+/**
+ * Manual scanner for bus names in .tres files to avoid regex allocations.
+ */
+function* scanBuses(content: string): Generator<{ index: number; name: string }> {
+  let pos = 0
+  const len = content.length
+
+  while (pos < len) {
+    pos = content.indexOf('bus/', pos)
+    if (pos === -1) break
+
+    const indexStart = pos + 4
+    let indexEnd = indexStart
+    while (indexEnd < len && content.charCodeAt(indexEnd) >= 48 && content.charCodeAt(indexEnd) <= 57) {
+      indexEnd++
+    }
+
+    if (indexEnd === indexStart) {
+      pos++
+      continue
+    }
+
+    if (content.startsWith('/name', indexEnd)) {
+      const eqIdx = content.indexOf('=', indexEnd + 5)
+      if (eqIdx !== -1) {
+        // Simple check for " after = (potentially with spaces)
+        let quoteStart = eqIdx + 1
+        while (quoteStart < len && content.charCodeAt(quoteStart) <= 32) quoteStart++
+
+        if (content[quoteStart] === '"') {
+          const quoteEnd = content.indexOf('"', quoteStart + 1)
+          if (quoteEnd !== -1) {
+            let index = 0
+            for (let i = indexStart; i < indexEnd; i++) {
+              index = index * 10 + (content.charCodeAt(i) - 48)
+            }
+            const name = content.slice(quoteStart + 1, quoteEnd)
+            yield { index, name }
+            pos = quoteEnd + 1
+            continue
+          }
+        }
+      }
+    }
+    pos = indexEnd
+  }
+}
 
 /**
  * Helper to resolve the default bus layout path.
@@ -36,9 +85,8 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       const buses: { name: string; volume?: string; solo?: boolean; mute?: boolean }[] = []
 
       // Parse bus entries
-      const busRegex = /bus\/(\d+)\/name\s*=\s*"([^"]*)"/g
-      for (const match of content.matchAll(busRegex)) {
-        buses.push({ name: match[2] })
+      for (const match of scanBuses(content)) {
+        buses.push({ name: match.name })
       }
 
       if (buses.length === 0) buses.push({ name: 'Master' })
@@ -85,7 +133,7 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       }
 
       // Count existing buses
-      const busCount = (content.match(/bus\/\d+\/name/g) || []).length
+      const busCount = countMatches(content, /bus\/\d+\/name/g)
 
       const newBus = [
         `bus/${busCount}/name = "${busName}"`,
@@ -151,11 +199,10 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       }
 
       // Find the target bus index
-      const busRegex = /bus\/(\d+)\/name\s*=\s*"([^"]*)"/g
       let busIndex = -1
-      for (const match of content.matchAll(busRegex)) {
-        if (match[2] === busName) {
-          busIndex = Number.parseInt(match[1], 10)
+      for (const match of scanBuses(content)) {
+        if (match.name === busName) {
+          busIndex = match.index
           break
         }
       }
@@ -165,8 +212,7 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
 
       // Count existing effects on this bus
       const effectCountRegex = new RegExp(`bus/${busIndex}/effect/\\d+/effect`, 'g')
-      const existingEffects = content.match(effectCountRegex) || []
-      const effectIndex = existingEffects.length
+      const effectIndex = countMatches(content, effectCountRegex)
 
       // Generate unique sub_resource id
       const subResId = `${fullEffectType}_${Date.now()}`

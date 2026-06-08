@@ -33,3 +33,33 @@ export function parseCommaSeparatedList(str: string): string[] {
 
   return result
 }
+
+/**
+ * Count occurrences of a substring within a string without allocations.
+ * Guarded against infinite loops with empty search strings.
+ */
+export function countString(str: string, search: string): number {
+  if (!search || !str) return 0
+  let count = 0
+  let pos = 0
+  while (true) {
+    pos = str.indexOf(search, pos)
+    if (pos === -1) break
+    count++
+    pos += search.length
+  }
+  return count
+}
+
+/**
+ * Count occurrences of a regex pattern within a string using a non-allocating loop.
+ * Requires the 'g' flag on the regex to avoid infinite loops.
+ */
+export function countMatches(str: string, regex: RegExp): number {
+  if (!str) return 0
+  let count = 0
+  while (regex.exec(str) !== null) {
+    count++
+  }
+  return count
+}

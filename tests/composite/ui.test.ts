@@ -269,6 +269,22 @@ describe('ui', () => {
         handleUI('layout', { scene_path: 'ghost.tscn', name: 'Root', preset: 'full_rect' }, config),
       ).rejects.toThrow('Scene not found')
     })
+
+    it('should update existing layout properties', async () => {
+      const PRE_LAYOUT_SCENE = `[gd_scene format=3]\n\n[node name="Root" type="Control"]\nanchors_preset = 0\ngrow_horizontal = 1\n`
+      createTmpScene(projectPath, 'pre_layout.tscn', PRE_LAYOUT_SCENE)
+
+      await handleUI('layout', { scene_path: 'pre_layout.tscn', name: 'Root', preset: 'full_rect' }, config)
+
+      const content = readFileSync(join(projectPath, 'pre_layout.tscn'), 'utf-8')
+      expect(content).toContain('anchors_preset = 15')
+      expect(content).toContain('grow_horizontal = 2')
+      expect(content).toContain('anchor_right = 1.0')
+      // Ensure we didn't duplicate keys
+      const lines = content.split('\n')
+      const anchorPresetLines = lines.filter((l) => l.startsWith('anchors_preset'))
+      expect(anchorPresetLines).toHaveLength(1)
+    })
   })
 
   // ==========================================

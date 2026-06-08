@@ -90,19 +90,6 @@ collision_mask = 1
 `
       createTmpScene(projectPath, 'test.tscn', sceneContent)
 
-      // Note: The current implementation appends properties, it might duplicate them if they exist
-      // or rely on Godot to take the last one.
-      // Let's verify what the code actually does.
-      // Looking at src/tools/composite/physics.ts:
-      // content = `${content.slice(0, insertPoint)}${props}${content.slice(insertPoint)}`
-      // It inserts properties after the node declaration.
-      // If properties already exist, they will be after the inserted ones if they were originally there?
-      // Wait, insertPoint is right after `[node ...]`
-      // So new props are inserted at the top of the node body.
-      // If the file already has properties, they appear later.
-      // This seems to be a potential issue in the implementation if Godot doesn't handle duplicates well,
-      // but for this test, we just check if our values are inserted.
-
       await handlePhysics(
         'collision_setup',
         {
@@ -116,6 +103,10 @@ collision_mask = 1
 
       const content = readFileSync(join(projectPath, 'test.tscn'), 'utf-8')
       expect(content).toContain('collision_layer = 4')
+      // With the new implementation using updateNodeInScene, it should NOT have duplicates.
+      const layerMatches = content.match(/collision_layer = 4/g)
+      expect(layerMatches).toHaveLength(1)
+      expect(content).not.toContain('collision_layer = 1')
     })
 
     it('should throw if scene not found', async () => {
@@ -173,6 +164,36 @@ collision_mask = 1
       expect(content).toContain('gravity_scale = 0.5')
       expect(content).toContain('mass = 10')
       expect(content).toContain('freeze = true')
+    })
+
+    it('should update existing physics properties without duplication', async () => {
+      const sceneContent = `[gd_scene format=3]
+
+[node name="Root" type="RigidBody2D"]
+mass = 1.0
+gravity_scale = 1.0
+`
+      createTmpScene(projectPath, 'test.tscn', sceneContent)
+
+      await handlePhysics(
+        'body_config',
+        {
+          project_path: projectPath,
+          scene_path: 'test.tscn',
+          name: 'Root',
+          mass: 5.0,
+          gravity_scale: 0.5,
+        },
+        config,
+      )
+
+      const content = readFileSync(join(projectPath, 'test.tscn'), 'utf-8')
+      expect(content).toContain('mass = 5')
+      expect(content).toContain('gravity_scale = 0.5')
+
+      const massMatches = content.match(/mass = 5/g)
+      expect(massMatches).toHaveLength(1)
+      expect(content).not.toContain('mass = 1.0')
     })
   })
 

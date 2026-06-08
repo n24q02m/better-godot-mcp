@@ -239,4 +239,29 @@ describe('pathExists', () => {
       mockedAccess.mockRestore()
     }
   })
+
+  it('returns false when access throws EACCES (Permission Denied)', async () => {
+    const mockedAccess = vi.mocked(access)
+    // biome-ignore lint/suspicious/noExplicitAny: needed for mocking error code
+    const error = new Error('Permission denied') as any
+    error.code = 'EACCES'
+    mockedAccess.mockRejectedValue(error)
+
+    try {
+      expect(await pathExists('/restricted/path')).toBe(false)
+    } finally {
+      mockedAccess.mockRestore()
+    }
+  })
+
+  it('returns false when access throws a non-Error value', async () => {
+    const mockedAccess = vi.mocked(access)
+    mockedAccess.mockRejectedValue('not an error object')
+
+    try {
+      expect(await pathExists('/any/path')).toBe(false)
+    } finally {
+      mockedAccess.mockRestore()
+    }
+  })
 })

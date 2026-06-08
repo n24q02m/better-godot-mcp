@@ -132,7 +132,7 @@ export function parseSceneContent(content: string): ParsedScene {
     if (currentNode) {
       nodes.push(currentNode)
       // Populate maps
-      const pathKey = `${currentNode.parent || '.'}:${currentNode.name}`
+      const pathKey = `${currentNode.parent ?? ''}:${currentNode.name}`
       nodesByPath.set(pathKey, currentNode)
       if (!nodesByName.has(currentNode.name)) {
         nodesByName.set(currentNode.name, currentNode)

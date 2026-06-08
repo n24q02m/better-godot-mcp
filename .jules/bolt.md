@@ -26,3 +26,16 @@
 2. Best prefix/containment match, defined as the one with the smallest absolute length difference relative to the input.
 3. Fuzzy bigram similarity (Dice coefficient) with a threshold > 0.4.
 This ensures that "create" matches "create" even if "create_node" appears earlier in the options list, and "cre" matches "create" over "create_node".
+
+# Project Update: Audio Effect Matching ReDoS Fix
+
+To address the potential ReDoS vulnerability in `src/tools/composite/audio.ts`, I've implemented a more secure and efficient way to count effects on an audio bus.
+
+## Changes:
+- **New Helper Functions**: Added `countMatches` and `countString` to `src/tools/helpers/strings.ts`. These functions allow counting occurrences of regexes or substrings without the overhead of creating large intermediate arrays via `match()`.
+- **RegExp Escaping**: Integrated `escapeRegExp` from `src/tools/helpers/scene-parser.ts` into `audio.ts` to ensure that `busIndex` (even if it's a number) is safely handled when constructing dynamic regular expressions.
+- **Input Validation**: Added explicit validation for `busIndex` to ensure it is a safe, non-negative integer before using it in regex construction.
+- **Consistency**: Updated `add_bus` to also use `countMatches` for counting existing buses, providing a small performance improvement and better consistency.
+- **Testing**: Added comprehensive unit tests for the new string helpers in `tests/helpers/strings.test.ts`. Verified that all existing audio tool tests and the full project test suite pass.
+
+This fix eliminates the possibility of ReDoS via the `effectCountRegex` and follows the project's preference for manual string scanning or optimized regex usage.

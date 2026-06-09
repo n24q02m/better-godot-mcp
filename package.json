@@ -35,17 +35,17 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "@n24q02m/mcp-core": "1.17.3",
+    "@n24q02m/mcp-core": "1.17.4",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.16",
-    "@types/node": "^25.9.1",
-    "@vitest/coverage-v8": "^4.1.7",
+    "@types/node": "^25.9.2",
+    "@vitest/coverage-v8": "^4.1.8",
     "esbuild": "^0.28.0",
-    "tsx": "^4.22.3",
+    "tsx": "^4.22.4",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.7"
+    "vitest": "^4.1.8"
   },
   "trustedDependencies": [
     "esbuild"

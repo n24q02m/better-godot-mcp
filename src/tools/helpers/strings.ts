@@ -33,3 +33,20 @@ export function parseCommaSeparatedList(str: string): string[] {
 
   return result
 }
+
+/**
+ * Fast-path substring counter to replace `.match(/.../g)?.length`
+ * Avoids Array allocation and RegExp compilation overhead.
+ */
+export function countSubstring(str: string, search: string): number {
+  if (!str || !search) return 0
+  let count = 0
+  let idx = 0
+  while (true) {
+    idx = str.indexOf(search, idx)
+    if (idx === -1) break
+    count++
+    idx += search.length
+  }
+  return count
+}

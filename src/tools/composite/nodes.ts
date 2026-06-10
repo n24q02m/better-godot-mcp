@@ -21,20 +21,44 @@ function resolveScenePath(projectPath: string, scenePath: string): string {
 
 /**
  * Normalize node path: strip common LLM mistakes like "/root/SceneName/" prefix.
+ * Handles backslashes, case-insensitivity, and absolute vs relative paths.
  * Returns the corrected path and whether it was auto-corrected.
  */
 function normalizeNodePath(path: string): { path: string; corrected: boolean } {
   if (!path || path === '.') return { path, corrected: false }
-  // Strip /root/ or /root/SceneName/ prefix that LLMs commonly generate
-  const rootMatch = path.match(/^\/root\/(?:[^/]+\/)?(.+)$/)
+
+  // Normalize backslashes to forward slashes
+  const normalized = path.replace(/\\/g, '/')
+  const corrected = path.includes('\\')
+
+  // Case-insensitive check for /root/ or root/ prefix
+  // These are common LLM mistakes when they try to use absolute paths.
+  const rootMatch = normalized.match(/^\/?root\/(.+)$/i)
   if (rootMatch) {
-    return { path: rootMatch[1], corrected: true }
+    const afterRoot = rootMatch[1]
+    const segments = afterRoot.split('/').filter(Boolean)
+    if (segments.length <= 1) {
+      return { path: '.', corrected: true }
+    }
+    const remaining = segments.slice(1).join('/')
+    return { path: remaining, corrected: true }
   }
+
+  // Handle /root or root (exact match)
+  // We only treat it as the scene root if it's explicitly "/root" or "root" (case-insensitive)
+  // But wait, if someone has a node named "Root" that is NOT the scene root?
+  // In Godot, the root of the scene being edited is often named after the scene or "Root".
+  // LLMs often use "/root/SceneName/..."
+  if (normalized.toLowerCase() === '/root') {
+    return { path: '.', corrected: true }
+  }
+
   // Strip leading slash
-  if (path.startsWith('/')) {
-    return { path: path.slice(1), corrected: false }
+  if (normalized.startsWith('/')) {
+    return { path: normalized.slice(1), corrected: true }
   }
-  return { path, corrected: false }
+
+  return { path: normalized, corrected }
 }
 
 async function handleAddNode(projectPath: string, args: Record<string, unknown>) {

@@ -194,6 +194,27 @@ describe('ui', () => {
     })
   })
 
+  it('should update existing properties instead of duplicating them', async () => {
+    createTmpScene(projectPath, 'ctrl.tscn', CONTROL_SCENE)
+
+    // First apply full_rect
+    await handleUI('layout', { scene_path: 'ctrl.tscn', name: 'Root', preset: 'full_rect' }, config)
+
+    // Then apply center
+    await handleUI('layout', { scene_path: 'ctrl.tscn', name: 'Root', preset: 'center' }, config)
+
+    const content = readFileSync(join(projectPath, 'ctrl.tscn'), 'utf-8')
+
+    // Check for 'anchors_preset = 8' (from center)
+    expect(content).toContain('anchors_preset = 8')
+    // Ensure 'anchors_preset = 15' (from full_rect) is no longer there
+    expect(content).not.toContain('anchors_preset = 15')
+
+    // Count occurrences of 'anchors_preset ='
+    const matches = content.match(/anchors_preset =/g)
+    expect(matches).toHaveLength(1)
+  })
+
   // ==========================================
   // set_theme
   // ==========================================

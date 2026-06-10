@@ -33,3 +33,17 @@ export function parseCommaSeparatedList(str: string): string[] {
 
   return result
 }
+
+/**
+ * Efficiently count occurrences of a substring within a string without allocations.
+ */
+export function countSubstring(str: string, search: string): number {
+  if (!search) return 0
+  let count = 0
+  let pos = str.indexOf(search)
+  while (pos !== -1) {
+    count++
+    pos = str.indexOf(search, pos + search.length)
+  }
+  return count
+}

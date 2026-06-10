@@ -3,24 +3,12 @@
  * Actions: create_tileset | add_source | set_tile | paint | list
  */
 
-import { constants } from 'node:fs'
-import { access, mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
-import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
-
-/**
- * Async helper to check file existence without blocking the event loop
- */
-async function pathExists(path: string): Promise<boolean> {
-  try {
-    await access(path, constants.F_OK)
-    return true
-  } catch {
-    return false
-  }
-}
+import { pathExists, resolveProjectRoot, safeResolve } from '../helpers/paths.js'
+import { countSubstring } from '../helpers/strings.js'
 
 export async function handleTilemap(action: string, args: Record<string, unknown>, config: GodotConfig) {
   const projectPath = resolveProjectRoot(args.project_path, config.projectPath)
@@ -87,7 +75,7 @@ export async function handleTilemap(action: string, args: Record<string, unknown
       const resPath = `res://${texturePath.replaceAll('\\', '/')}`
 
       // Count existing sources to get next ID
-      const sourceCount = (content.match(/\[ext_resource/g) || []).length
+      const sourceCount = countSubstring(content, '[ext_resource')
       const sourceId = `source_${sourceCount}`
 
       // Add ext_resource reference
@@ -132,9 +120,24 @@ export async function handleTilemap(action: string, args: Record<string, unknown
       // Performance optimization: using async file reading instead of sync
       const content = await readFile(fullPath, 'utf-8')
       const tilemaps: string[] = []
-      const tmRegex = /\[node name="([^"]+)" type="TileMapLayer"/g
-      for (const match of content.matchAll(tmRegex)) {
-        tilemaps.push(match[1])
+      const tmSearch = '[node name="'
+      const tmType = '" type="TileMapLayer"'
+      let pos = 0
+      while (true) {
+        pos = content.indexOf(tmSearch, pos)
+        if (pos === -1) break
+        const nameStart = pos + tmSearch.length
+        const nameEnd = content.indexOf('"', nameStart)
+        if (nameEnd === -1) {
+          pos = nameStart
+          continue
+        }
+        if (content.startsWith(tmType, nameEnd)) {
+          tilemaps.push(content.slice(nameStart, nameEnd))
+          pos = nameEnd + tmType.length
+        } else {
+          pos = nameEnd
+        }
       }
 
       return formatJSON({ scene: scenePath, tilemapLayers: tilemaps })

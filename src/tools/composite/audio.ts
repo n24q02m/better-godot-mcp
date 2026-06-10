@@ -20,6 +20,60 @@ function resolveBusLayoutPath(projectPath: string | null | undefined, baseDir: s
   return join(safeResolve(baseDir, projectPath), 'default_bus_layout.tres')
 }
 
+/**
+ * Efficiently scan for bus entries in an AudioBusLayout (.tres) file.
+ * Format: bus/INDEX/name = "NAME"
+ */
+function* scanBuses(content: string): Generator<{ index: number; name: string }> {
+  const search = 'bus/'
+  let pos = 0
+  while (true) {
+    pos = content.indexOf(search, pos)
+    if (pos === -1) break
+
+    const indexStart = pos + search.length
+    const slashIdx = content.indexOf('/', indexStart)
+    if (slashIdx === -1) {
+      pos = indexStart
+      continue
+    }
+
+    const indexStr = content.slice(indexStart, slashIdx)
+    const index = Number.parseInt(indexStr, 10)
+    if (Number.isNaN(index)) {
+      pos = indexStart
+      continue
+    }
+
+    const nameKey = '/name'
+    if (!content.startsWith(nameKey, slashIdx)) {
+      pos = indexStart
+      continue
+    }
+
+    const eqIdx = content.indexOf('=', slashIdx + nameKey.length)
+    if (eqIdx === -1) {
+      pos = indexStart
+      continue
+    }
+
+    const quoteStart = content.indexOf('"', eqIdx)
+    if (quoteStart === -1) {
+      pos = indexStart
+      continue
+    }
+
+    const quoteEnd = content.indexOf('"', quoteStart + 1)
+    if (quoteEnd === -1) {
+      pos = indexStart
+      continue
+    }
+
+    yield { index, name: content.slice(quoteStart + 1, quoteEnd) }
+    pos = quoteEnd + 1
+  }
+}
+
 export async function handleAudio(action: string, args: Record<string, unknown>, config: GodotConfig) {
   const projectPath = (args.project_path as string) || config.projectPath
   const baseDir = config.projectPath || process.cwd()
@@ -36,9 +90,8 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       const buses: { name: string; volume?: string; solo?: boolean; mute?: boolean }[] = []
 
       // Parse bus entries
-      const busRegex = /bus\/(\d+)\/name\s*=\s*"([^"]*)"/g
-      for (const match of content.matchAll(busRegex)) {
-        buses.push({ name: match[2] })
+      for (const { name } of scanBuses(content)) {
+        buses.push({ name })
       }
 
       if (buses.length === 0) buses.push({ name: 'Master' })
@@ -85,7 +138,10 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       }
 
       // Count existing buses
-      const busCount = (content.match(/bus\/\d+\/name/g) || []).length
+      let busCount = 0
+      for (const _ of scanBuses(content)) {
+        busCount++
+      }
 
       const newBus = [
         `bus/${busCount}/name = "${busName}"`,
@@ -151,11 +207,10 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       }
 
       // Find the target bus index
-      const busRegex = /bus\/(\d+)\/name\s*=\s*"([^"]*)"/g
       let busIndex = -1
-      for (const match of content.matchAll(busRegex)) {
-        if (match[2] === busName) {
-          busIndex = Number.parseInt(match[1], 10)
+      for (const bus of scanBuses(content)) {
+        if (bus.name === busName) {
+          busIndex = bus.index
           break
         }
       }
@@ -164,9 +219,10 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       }
 
       // Count existing effects on this bus
-      const effectCountRegex = new RegExp(`bus/${busIndex}/effect/\\d+/effect`, 'g')
-      const existingEffects = content.match(effectCountRegex) || []
-      const effectIndex = existingEffects.length
+      let effectIndex = 0
+      while (content.includes(`bus/${busIndex}/effect/${effectIndex}/effect`)) {
+        effectIndex++
+      }
 
       // Generate unique sub_resource id
       const subResId = `${fullEffectType}_${Date.now()}`

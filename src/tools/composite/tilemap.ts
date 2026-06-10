@@ -3,24 +3,11 @@
  * Actions: create_tileset | add_source | set_tile | paint | list
  */
 
-import { constants } from 'node:fs'
-import { access, mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
-import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
-
-/**
- * Async helper to check file existence without blocking the event loop
- */
-async function pathExists(path: string): Promise<boolean> {
-  try {
-    await access(path, constants.F_OK)
-    return true
-  } catch {
-    return false
-  }
-}
+import { pathExists, resolveProjectRoot, safeResolve } from '../helpers/paths.js'
 
 export async function handleTilemap(action: string, args: Record<string, unknown>, config: GodotConfig) {
   const projectPath = resolveProjectRoot(args.project_path, config.projectPath)

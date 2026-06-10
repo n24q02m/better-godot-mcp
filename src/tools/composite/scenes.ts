@@ -5,7 +5,7 @@
 
 import { copyFile, mkdir, readdir, readFile, unlink, writeFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
-import type { GodotConfig, SceneInfo, SceneNode } from '../../godot/types.js'
+import type { GodotConfig, SceneInfo } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
 import { setSettingInContent } from '../helpers/project-settings.js'
@@ -167,9 +167,7 @@ export async function handleScenes(action: string, args: Record<string, unknown>
           properties: n.properties,
           script: n.properties.script || null,
         })),
-        resources: scene.extResources.map(
-          (r) => `[ext_resource type="${r.type}" path="${r.path}" id="${r.id}"]`,
-        ),
+        resources: scene.extResources.map((r) => `[ext_resource type="${r.type}" path="${r.path}" id="${r.id}"]`),
       }
       return formatJSON(info)
     }

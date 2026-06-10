@@ -8,7 +8,7 @@ import { dirname } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists, resolveProjectRoot, safeResolve } from '../helpers/paths.js'
-import { updateNodeInScene, parseScene } from '../helpers/scene-parser.js'
+import { parseScene, updateNodeInScene } from '../helpers/scene-parser.js'
 
 const CONTROL_TEMPLATES: Record<string, Record<string, string>> = {
   Button: { text: '"Click"' },
@@ -185,9 +185,9 @@ async function handleLayout(projectPath: string, args: Record<string, unknown>) 
   }
 
   const fullPath = await resolveScene(projectPath, scenePath)
-  let content = await readFile(fullPath, 'utf-8')
+  const content = await readFile(fullPath, 'utf-8')
 
-    let updates: Record<string, string> = {}
+  let updates: Record<string, string> = {}
   switch (preset) {
     case 'full_rect':
       updates = {

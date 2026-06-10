@@ -223,7 +223,13 @@ async function handleGetNodeProperty(projectPath: string, args: Record<string, u
   return formatJSON({ node: nodeName, property, value: val ?? null })
 }
 
-const NODE_ACTIONS: Record<string, (projectPath: string, args: Record<string, unknown>) => Promise<string>> = {
+const NODE_ACTIONS: Record<
+  string,
+  (
+    projectPath: string,
+    args: Record<string, unknown>,
+  ) => Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }>
+> = {
   add: handleAddNode,
   remove: handleRemoveNode,
   rename: handleRenameNode,

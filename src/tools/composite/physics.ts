@@ -67,7 +67,7 @@ export async function handlePhysics(action: string, args: Record<string, unknown
         }
         throw err
       }
-            const updates: Record<string, string> = {}
+      const updates: Record<string, string> = {}
       if (collisionLayer !== undefined) {
         const val = toGodotValue(collisionLayer)
         validateNoNewlines('Invalid collision_layer: newlines not allowed', val)
@@ -108,7 +108,7 @@ export async function handlePhysics(action: string, args: Record<string, unknown
         }
         throw err
       }
-            const updates: Record<string, string> = {}
+      const updates: Record<string, string> = {}
       const physicsProps = ['gravity_scale', 'mass', 'linear_damp', 'angular_damp', 'freeze']
       for (const prop of physicsProps) {
         if (args[prop] !== undefined) {

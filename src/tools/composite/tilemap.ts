@@ -6,6 +6,7 @@
 import { constants } from 'node:fs'
 import { access, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
+import { countMatches } from '../helpers/strings.js'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
@@ -87,7 +88,7 @@ export async function handleTilemap(action: string, args: Record<string, unknown
       const resPath = `res://${texturePath.replaceAll('\\', '/')}`
 
       // Count existing sources to get next ID
-      const sourceCount = (content.match(/\[ext_resource/g) || []).length
+      const sourceCount = countMatches(content, /\[ext_resource/g)
       const sourceId = `source_${sourceCount}`
 
       // Add ext_resource reference

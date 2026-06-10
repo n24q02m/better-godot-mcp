@@ -33,3 +33,38 @@ export function parseCommaSeparatedList(str: string): string[] {
 
   return result
 }
+
+/**
+ * Efficiently counts occurrences of a substring or global RegExp in a string.
+ * Uses matchAll for RegExp to avoid intermediate array allocations,
+ * and a simple indexOf loop for strings.
+ */
+export function countMatches(str: string, search: string | RegExp): number {
+  if (!str) return 0
+  if (typeof search === 'string') {
+    if (search.length === 0) return 0
+    let count = 0
+    let pos = str.indexOf(search)
+    while (pos !== -1) {
+      count++
+      pos = str.indexOf(search, pos + search.length)
+    }
+    return count
+  }
+
+  if (!search.global) {
+    // Re-create the RegExp with global flag if missing
+    const globalSearch = new RegExp(search.source, search.flags + 'g')
+    let count = 0
+    for (const _ of str.matchAll(globalSearch)) {
+      count++
+    }
+    return count
+  }
+
+  let count = 0
+  for (const _ of str.matchAll(search)) {
+    count++
+  }
+  return count
+}

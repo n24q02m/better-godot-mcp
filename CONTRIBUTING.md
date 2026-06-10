@@ -72,23 +72,16 @@ We use [Conventional Commits](https://www.conventionalcommits.org/):
 
 ### Types
 
+Only `feat` and `fix` are accepted (enforced by the commit-message hook):
+
 - `feat`: New feature
-- `fix`: Bug fix
-- `docs`: Documentation changes
-- `style`: Code style changes
-- `refactor`: Code refactoring
-- `perf`: Performance improvements
-- `test`: Adding or updating tests
-- `chore`: Maintenance tasks
-- `ci`: CI/CD changes
-- `build`: Build system changes
+- `fix`: Bug fix (also used for docs, tests, chores, and other maintenance changes)
 
 ### Examples
 
 ```text
 feat: add new tool action for shader compilation
 fix: correct scene parser regex for nested resources
-docs: update README examples
 ```
 
 ## Release Process

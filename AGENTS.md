@@ -110,7 +110,7 @@ tests/
 
 ### Commits
 
-Conventional Commits: `type(scope): message` (e.g., `feat:`, `fix:`, `docs:`, `chore:`)
+Conventional Commits: `type(scope): message`. Only `feat:` and `fix:` are accepted (enforced by the commit-message hook).
 
 ### Pre-commit Hooks
 

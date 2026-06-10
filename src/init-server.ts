@@ -2,7 +2,7 @@
  * Better Godot MCP Server - Initialization
  *
  * Enhanced MCP server for Godot Engine with:
- * - Composite mega-tools (8 tools, ~20 actions)
+ * - Composite mega-tools (17 tools, ~70 actions)
  * - Cross-platform Godot binary detection
  * - CLI headless operations
  * - EditorPlugin TCP support (Phase 2)

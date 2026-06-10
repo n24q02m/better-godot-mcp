@@ -89,7 +89,7 @@ mcp-name: io.github.n24q02m/better-godot-mcp
 
 ## Documentation
 
-Full docs at **[mcp.n24q02m.com/servers/better-godot-mcp/](https://mcp.n24q02m.com/servers/better-godot-mcp/)**:
+Full docs at **[mcp.n24q02m.com/servers/better-godot-mcp/setup/](https://mcp.n24q02m.com/servers/better-godot-mcp/setup/)**:
 
 - [Setup](https://mcp.n24q02m.com/servers/better-godot-mcp/setup/) -- install methods for Claude Code, Codex, Gemini CLI, Cursor, Windsurf, mcp.json
 - [Modes overview](https://mcp.n24q02m.com/get-started/modes-overview/) -- stdio / local-relay / remote-relay / remote-oauth
@@ -155,7 +155,7 @@ bun run dev
 
 ## Trust Model
 
-This plugin implements **TC-Local** (no auth required -- no credentials stored). See [mcp-core/docs/TRUST-MODEL.md](https://github.com/n24q02m/mcp-core/blob/main/docs/TRUST-MODEL.md) for full classification.
+This plugin implements **TC-Local** (no auth required -- no credentials stored). See [the trust model reference](https://mcp.n24q02m.com/servers/mcp-core/trust-model/) for full classification.
 
 | Mode | Storage | Encryption | Who can read your data? |
 |---|---|---|---|

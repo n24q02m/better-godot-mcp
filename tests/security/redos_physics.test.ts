@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import type { GodotConfig } from '../../src/godot/types.js'
 import { handlePhysics } from '../../src/tools/composite/physics.js'
 import { createTmpProject, createTmpScene, makeConfig } from '../fixtures.js'
-import type { GodotConfig } from '../../src/godot/types.js'
 
 describe('Physics ReDoS Security', () => {
   let projectPath: string
@@ -20,7 +20,7 @@ describe('Physics ReDoS Security', () => {
   it('should not be vulnerable to ReDoS in collision_setup via node name', async () => {
     // This node name is crafted to be slow on vulnerable regex: [node name="..."][^]*]
     // Although the specific vulnerability was name specific, we test long input.
-    const longNodeName = 'A' + 'B'.repeat(50000) + 'C'
+    const longNodeName = `A${'B'.repeat(50000)}C`
     const sceneContent = '[gd_scene format=3]\n\n[node name="Root" type="Node"]\n'
     createTmpScene(projectPath, 'test.tscn', sceneContent)
 
@@ -32,10 +32,10 @@ describe('Physics ReDoS Security', () => {
           project_path: projectPath,
           scene_path: 'test.tscn',
           name: longNodeName,
-          collision_layer: 1
+          collision_layer: 1,
         },
         config,
-      )
+      ),
     ).rejects.toThrow(/Node ".*" not found/)
     const duration = Date.now() - startTime
 
@@ -45,7 +45,7 @@ describe('Physics ReDoS Security', () => {
   })
 
   it('should not be vulnerable to ReDoS in body_config via node name', async () => {
-    const longNodeName = 'A' + 'B'.repeat(50000) + 'C'
+    const longNodeName = `A${'B'.repeat(50000)}C`
     const sceneContent = '[gd_scene format=3]\n\n[node name="Root" type="Node"]\n'
     createTmpScene(projectPath, 'test.tscn', sceneContent)
 
@@ -57,10 +57,10 @@ describe('Physics ReDoS Security', () => {
           project_path: projectPath,
           scene_path: 'test.tscn',
           name: longNodeName,
-          gravity_scale: 1.0
+          gravity_scale: 1.0,
         },
         config,
-      )
+      ),
     ).rejects.toThrow(/Node ".*" not found/)
     const duration = Date.now() - startTime
 

@@ -7,7 +7,7 @@ import { launchGodotEditor } from '../../godot/headless.js'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
-import { isValidPid, validatePid } from '../helpers/security.js'
+import { validatePid } from '../helpers/security.js'
 
 /**
  * Check if tracked Godot processes are running
@@ -17,9 +17,7 @@ function getGodotProcesses(config: GodotConfig): Array<{ pid: string; name: stri
 
   for (const pid of config.activePids) {
     // Security: strictly validate pid is a positive safe integer before using in process.kill
-    if (!isValidPid(pid)) {
-      continue
-    }
+    validatePid(pid)
 
     try {
       process.kill(pid, 0)

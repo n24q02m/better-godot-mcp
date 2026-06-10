@@ -463,5 +463,31 @@ describe('headless', () => {
       expect(result.stderr).toBe('Unknown error')
       expect(result.exitCode).toBe(1)
     })
+    it('should handle error with non-string stdout gracefully', async () => {
+      const error = Object.assign(new Error('fail'), { stdout: 123 })
+      execFileAsyncMock.mockRejectedValue(error)
+
+      const result = await execGodotAsync('/usr/bin/godot', ['--version'])
+      expect(result.success).toBe(false)
+      expect(result.stdout).toBe('')
+    })
+
+    it('should handle error with non-string stderr gracefully', async () => {
+      const error = Object.assign(new Error('fail message'), { stderr: { some: 'object' } })
+      execFileAsyncMock.mockRejectedValue(error)
+
+      const result = await execGodotAsync('/usr/bin/godot', ['--version'])
+      expect(result.success).toBe(false)
+      expect(result.stderr).toBe('fail message')
+    })
+
+    it('should handle error with non-number code gracefully', async () => {
+      const error = Object.assign(new Error('fail'), { code: 'EPERM' })
+      execFileAsyncMock.mockRejectedValue(error)
+
+      const result = await execGodotAsync('/usr/bin/godot', ['--version'])
+      expect(result.success).toBe(false)
+      expect(result.exitCode).toBe(1)
+    })
   })
 })

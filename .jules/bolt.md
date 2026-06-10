@@ -26,3 +26,7 @@
 2. Best prefix/containment match, defined as the one with the smallest absolute length difference relative to the input.
 3. Fuzzy bigram similarity (Dice coefficient) with a threshold > 0.4.
 This ensures that "create" matches "create" even if "create_node" appears earlier in the options list, and "cre" matches "create" over "create_node".
+
+## 2025-06-11 - [Optimize redundant pathExists checks in tilemap tool]
+**Learning:** Sequential `pathExists` followed by I/O operations like `readFile` or `writeFile` causes redundant filesystem calls, which can impact performance. Additionally, checking `pathExists` before creating a file is not thread-safe/atomic.
+**Action:** Replaced `pathExists` followed by `readFile` with direct `readFile` wrapped in a `try...catch` handling `ENOENT`. Replaced `pathExists` + `writeFile` with `writeFile` using `flag: 'wx'` to atomically check for existence and create the file, catching `EEXIST`. Applied in `src/tools/composite/tilemap.ts`.

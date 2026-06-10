@@ -4,6 +4,7 @@
  */
 
 import { initServer } from '../src/init-server.js'
+import { logger } from '../src/tools/helpers/logger.js'
 
 async function startServer() {
   try {
@@ -11,11 +12,11 @@ async function startServer() {
 
     // Keep process running
     process.on('SIGINT', () => {
-      console.error('\nShutting down Better Godot MCP Server')
+      logger.info('\nShutting down Better Godot MCP Server')
       process.exit(0)
     })
   } catch (error) {
-    console.error('Failed to start server:', error)
+    logger.error('Failed to start server:', error)
     process.exit(1)
   }
 }

@@ -15,6 +15,7 @@
 import { execSync } from 'node:child_process'
 import { existsSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
+import { logger } from '../src/tools/helpers/logger.js'
 
 const venvPath = join(process.cwd(), '.venv')
 
@@ -45,7 +46,7 @@ function tryRemoveVenv() {
     return true // Nothing to remove
   }
 
-  console.log('Attempting to remove existing .venv directory...')
+  logger.info('Attempting to remove existing .venv directory...')
   try {
     rmSync(venvPath, {
       recursive: true,
@@ -53,10 +54,10 @@ function tryRemoveVenv() {
       maxRetries: 3,
       retryDelay: 1000,
     })
-    console.log('Successfully removed .venv')
+    logger.info('Successfully removed .venv')
     return true
   } catch (error) {
-    console.warn(`Could not fully remove .venv: ${error.message}`)
+    logger.warn(`Could not fully remove .venv: ${error.message}`)
     return false
   }
 }
@@ -65,13 +66,13 @@ function tryRemoveVenv() {
  * Create a new venv using uv
  */
 function createVenv() {
-  console.log('Creating new virtual environment...')
+  logger.info('Creating new virtual environment...')
   try {
     execSync('uv venv', { stdio: 'inherit' })
-    console.log('Virtual environment created successfully')
+    logger.info('Virtual environment created successfully')
     return true
   } catch (error) {
-    console.error(`Failed to create venv: ${error.message}`)
+    logger.error(`Failed to create venv: ${error.message}`)
     return false
   }
 }
@@ -87,12 +88,12 @@ if (wasRemoved) {
 } else {
   // Couldn't remove .venv, check if it's still usable
   if (isVenvUsable()) {
-    console.log('Existing .venv is still usable, skipping recreation.')
-    console.log('Note: Some files may be locked by VSCode or other processes.')
-    console.log("If you experience issues, close VSCode and run 'mise run setup' again.")
+    logger.info('Existing .venv is still usable, skipping recreation.')
+    logger.info('Note: Some files may be locked by VSCode or other processes.')
+    logger.info("If you experience issues, close VSCode and run 'mise run setup' again.")
   } else {
-    console.warn('Warning: .venv exists but is not usable, and we cannot remove it.')
-    console.warn("Skipping venv setup. Please close VSCode and run 'mise run setup' again if needed.")
+    logger.warn('Warning: .venv exists but is not usable, and we cannot remove it.')
+    logger.warn("Skipping venv setup. Please close VSCode and run 'mise run setup' again if needed.")
     // Don't fail the entire setup, just warn and continue
   }
 }

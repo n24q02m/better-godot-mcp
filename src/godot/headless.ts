@@ -30,8 +30,8 @@ export function execGodotSync(
   if (result.error || result.status !== 0) {
     return {
       success: false,
-      stdout: result.stdout?.trim() || '',
-      stderr: result.stderr?.trim() || result.error?.message || 'Unknown error',
+      stdout: (result.stdout as string | undefined)?.trim() || '',
+      stderr: (result.stderr as string | undefined)?.trim() || result.error?.message || 'Unknown error',
       exitCode: result.status ?? 1,
     }
   }
@@ -69,11 +69,16 @@ export async function execGodotAsync(
     }
   } catch (err: unknown) {
     const error = err && typeof err === 'object' ? (err as Record<string, unknown>) : null
+    const stdout = typeof error?.stdout === 'string' ? error.stdout.trim() : ''
+    const stderr = typeof error?.stderr === 'string' ? error.stderr.trim() : ''
+    const message = (err as Error)?.message || 'Unknown error'
+    const exitCode = typeof error?.code === 'number' ? error.code : 1
+
     return {
       success: false,
-      stdout: (error?.stdout as string | undefined)?.trim() || '',
-      stderr: (error?.stderr as string | undefined)?.trim() || (err as Error)?.message || 'Unknown error',
-      exitCode: (error?.code as number | undefined) ?? 1,
+      stdout,
+      stderr: stderr || message,
+      exitCode,
     }
   }
 }

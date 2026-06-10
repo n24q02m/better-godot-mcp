@@ -21,20 +21,44 @@ function resolveScenePath(projectPath: string, scenePath: string): string {
 
 /**
  * Normalize node path: strip common LLM mistakes like "/root/SceneName/" prefix.
+ * Handles backslashes, case-insensitivity, and absolute vs relative paths.
  * Returns the corrected path and whether it was auto-corrected.
  */
 function normalizeNodePath(path: string): { path: string; corrected: boolean } {
   if (!path || path === '.') return { path, corrected: false }
-  // Strip /root/ or /root/SceneName/ prefix that LLMs commonly generate
-  const rootMatch = path.match(/^\/root\/(?:[^/]+\/)?(.+)$/)
+
+  // Normalize backslashes to forward slashes
+  const normalized = path.replace(/\\/g, '/')
+  const corrected = path.includes('\\')
+
+  // Case-insensitive check for /root/ or root/ prefix
+  // These are common LLM mistakes when they try to use absolute paths.
+  const rootMatch = normalized.match(/^\/?root\/(.+)$/i)
   if (rootMatch) {
-    return { path: rootMatch[1], corrected: true }
+    const afterRoot = rootMatch[1]
+    const segments = afterRoot.split('/').filter(Boolean)
+    if (segments.length <= 1) {
+      return { path: '.', corrected: true }
+    }
+    const remaining = segments.slice(1).join('/')
+    return { path: remaining, corrected: true }
   }
+
+  // Handle /root or root (exact match)
+  // We only treat it as the scene root if it's explicitly "/root" or "root" (case-insensitive)
+  // But wait, if someone has a node named "Root" that is NOT the scene root?
+  // In Godot, the root of the scene being edited is often named after the scene or "Root".
+  // LLMs often use "/root/SceneName/..."
+  if (normalized.toLowerCase() === '/root') {
+    return { path: '.', corrected: true }
+  }
+
   // Strip leading slash
-  if (path.startsWith('/')) {
-    return { path: path.slice(1), corrected: false }
+  if (normalized.startsWith('/')) {
+    return { path: normalized.slice(1), corrected: true }
   }
-  return { path, corrected: false }
+
+  return { path: normalized, corrected }
 }
 
 async function handleAddNode(projectPath: string, args: Record<string, unknown>) {
@@ -223,24 +247,29 @@ async function handleGetNodeProperty(projectPath: string, args: Record<string, u
   return formatJSON({ node: nodeName, property, value: val ?? null })
 }
 
+const NODE_ACTIONS: Record<
+  string,
+  (
+    projectPath: string,
+    args: Record<string, unknown>,
+  ) => Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }>
+> = {
+  add: handleAddNode,
+  remove: handleRemoveNode,
+  rename: handleRenameNode,
+  list: handleListNodes,
+  set_property: handleSetNodeProperty,
+  get_property: handleGetNodeProperty,
+}
+
 export async function handleNodes(action: string, args: Record<string, unknown>, config: GodotConfig) {
   const baseProjectPath = config.projectPath || process.cwd()
   const projectPath = args.project_path ? safeResolve(baseProjectPath, args.project_path as string) : baseProjectPath
 
-  switch (action) {
-    case 'add':
-      return handleAddNode(projectPath, args)
-    case 'remove':
-      return handleRemoveNode(projectPath, args)
-    case 'rename':
-      return handleRenameNode(projectPath, args)
-    case 'list':
-      return handleListNodes(projectPath, args)
-    case 'set_property':
-      return handleSetNodeProperty(projectPath, args)
-    case 'get_property':
-      return handleGetNodeProperty(projectPath, args)
-    default:
-      throwUnknownAction(action, ['add', 'remove', 'rename', 'list', 'set_property', 'get_property'])
+  const handler = NODE_ACTIONS[action]
+  if (handler) {
+    return handler(projectPath, args)
   }
+
+  throwUnknownAction(action, Object.keys(NODE_ACTIONS))
 }

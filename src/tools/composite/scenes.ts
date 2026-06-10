@@ -5,101 +5,12 @@
 
 import { copyFile, mkdir, readdir, readFile, unlink, writeFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
-import type { GodotConfig, SceneInfo, SceneNode } from '../../godot/types.js'
+import type { GodotConfig, SceneInfo } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
 import { setSettingInContent } from '../helpers/project-settings.js'
+import { parseSceneContent } from '../helpers/scene-parser.js'
 
-// Pre-compiled regex for parsing scene metadata without splitting lines
-const rxNode = /^\[node\s+name="([^"]+)"\s+type="([^"]+)"(?:\s+parent="([^"]*)")?/
-const rxScript = /^script\s*=\s*(.+)$/
-
-/**
- * Parse a .tscn file to extract scene information
- * Optimized to use direct string index traversal to avoid memory allocations from split('\n')
- * Parses .tscn files ~2x faster
- */
-async function parseTscnFile(filePath: string, scenePath?: string): Promise<SceneInfo> {
-  let content: string
-  try {
-    content = await readFile(filePath, 'utf-8')
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      throw new GodotMCPError(
-        `Scene not found: ${scenePath || filePath}`,
-        'SCENE_ERROR',
-        'Check the file path and try again.',
-      )
-    }
-    throw error
-  }
-
-  const nodes: SceneNode[] = []
-  const resources: string[] = []
-  let rootNode = ''
-  let rootType = ''
-
-  let pos = 0
-  const len = content.length
-
-  while (pos < len) {
-    let nextNewline = content.indexOf('\n', pos)
-    if (nextNewline === -1) nextNewline = len
-
-    // Trim line manually
-    let start = pos
-    let end = nextNewline
-    while (start < end && content.charCodeAt(start) <= 32) start++
-    while (end > start && content.charCodeAt(end - 1) <= 32) end--
-
-    if (start < end) {
-      const firstChar = content.charCodeAt(start)
-
-      if (firstChar === 91) {
-        // '[' character indicates a new section
-        const line = content.slice(start, end)
-        if (line.startsWith('[node ')) {
-          const nodeMatch = line.match(rxNode)
-          if (nodeMatch) {
-            const node: SceneNode = {
-              name: nodeMatch[1],
-              type: nodeMatch[2],
-              parent: nodeMatch[3] ?? null,
-              properties: {},
-              script: null,
-            }
-
-            if (!node.parent && nodes.length === 0) {
-              rootNode = node.name
-              rootType = node.type
-            }
-
-            nodes.push(node)
-          }
-        } else if (line.startsWith('[ext_resource') || line.startsWith('[sub_resource')) {
-          resources.push(line)
-        }
-      } else if (firstChar === 115 && nodes.length > 0) {
-        // 's' character, check for script
-        const line = content.slice(start, end)
-        if (line.startsWith('script')) {
-          const scriptMatch = line.match(rxScript)
-          if (scriptMatch) {
-            nodes[nodes.length - 1].script = scriptMatch[1]
-          }
-        }
-      }
-    }
-
-    pos = nextNewline + 1
-  }
-
-  return { path: filePath, rootNode, rootType, nodeCount: nodes.length, nodes, resources }
-}
-
-/**
- * Recursively find all .tscn files in a directory
- */
 async function findSceneFiles(dir: string, results: string[] = []): Promise<string[]> {
   try {
     const entries = await readdir(dir, { withFileTypes: true })
@@ -234,7 +145,30 @@ export async function handleScenes(action: string, args: Record<string, unknown>
     case 'info': {
       // scenePath is guaranteed
       const fullPath = resolvePath(projectPath, scenePath)
-      const info = await parseTscnFile(fullPath, scenePath)
+      let rawContent: string
+      try {
+        rawContent = await readFile(fullPath, 'utf-8')
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+          throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
+        }
+        throw error
+      }
+      const scene = parseSceneContent(rawContent)
+      const info: SceneInfo = {
+        path: scenePath,
+        rootNode: scene.nodes[0]?.name || '',
+        rootType: scene.nodes[0]?.type || '',
+        nodeCount: scene.nodes.length,
+        nodes: scene.nodes.map((n) => ({
+          name: n.name,
+          type: n.type || 'Node',
+          parent: n.parent || null,
+          properties: n.properties,
+          script: n.properties.script || null,
+        })),
+        resources: scene.extResources.map((r) => `[ext_resource type="${r.type}" path="${r.path}" id="${r.id}"]`),
+      }
       return formatJSON(info)
     }
 

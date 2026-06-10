@@ -10,7 +10,7 @@ import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '..
 import { toGodotValue } from '../helpers/godot-types.js'
 import { safeResolve } from '../helpers/paths.js'
 import { type ProjectSettings, parseProjectSettingsAsync, setSettingInContent } from '../helpers/project-settings.js'
-import { escapeRegExp } from '../helpers/scene-parser.js'
+import { updateNodeInScene } from '../helpers/scene-parser.js'
 import { validateNoNewlines } from '../helpers/security.js'
 
 export async function handlePhysics(action: string, args: Record<string, unknown>, config: GodotConfig) {
@@ -67,27 +67,22 @@ export async function handlePhysics(action: string, args: Record<string, unknown
         }
         throw err
       }
-      const nodeRegex = new RegExp(`(\\[node name="${escapeRegExp(nodeName)}"[^\\]]*\\])`)
-      const match = content.match(nodeRegex)
-      if (!match) throw new GodotMCPError(`Node "${nodeName}" not found`, 'NODE_ERROR', 'Check node name.')
-
-      if (match.index === undefined)
-        throw new GodotMCPError(`Node "${nodeName}" not found`, 'NODE_ERROR', 'Check node name.')
-      const insertPoint = match.index + match[0].length
-      let props = ''
+      const updates: Record<string, string> = {}
       if (collisionLayer !== undefined) {
         const val = toGodotValue(collisionLayer)
         validateNoNewlines('Invalid collision_layer: newlines not allowed', val)
-        props += `\ncollision_layer = ${val}`
+        updates.collision_layer = val
       }
       if (collisionMask !== undefined) {
         const val = toGodotValue(collisionMask)
         validateNoNewlines('Invalid collision_mask: newlines not allowed', val)
-        props += `\ncollision_mask = ${val}`
+        updates.collision_mask = val
       }
 
-      content = `${content.slice(0, insertPoint)}${props}${content.slice(insertPoint)}`
-      await writeFile(fullPath, content, 'utf-8')
+      const { content: updatedContent, updated } = updateNodeInScene(content, nodeName, updates)
+      if (!updated) throw new GodotMCPError(`Node "${nodeName}" not found`, 'NODE_ERROR', 'Check node name.')
+
+      await writeFile(fullPath, updatedContent, 'utf-8')
 
       return formatSuccess(
         `Set collision on ${nodeName}: layer=${collisionLayer ?? 'unchanged'}, mask=${collisionMask ?? 'unchanged'}`,
@@ -113,25 +108,20 @@ export async function handlePhysics(action: string, args: Record<string, unknown
         }
         throw err
       }
-      const nodeRegex = new RegExp(`(\\[node name="${escapeRegExp(nodeName)}"[^\\]]*\\])`)
-      const match = content.match(nodeRegex)
-      if (!match) throw new GodotMCPError(`Node "${nodeName}" not found`, 'NODE_ERROR', 'Check node name.')
-
-      let props = ''
+      const updates: Record<string, string> = {}
       const physicsProps = ['gravity_scale', 'mass', 'linear_damp', 'angular_damp', 'freeze']
       for (const prop of physicsProps) {
         if (args[prop] !== undefined) {
           const val = toGodotValue(args[prop])
           validateNoNewlines(`Invalid ${prop}: newlines not allowed`, val)
-          props += `\n${prop} = ${val}`
+          updates[prop] = val
         }
       }
 
-      if (match.index === undefined)
-        throw new GodotMCPError(`Node "${nodeName}" not found`, 'NODE_ERROR', 'Check node name.')
-      const insertPoint = match.index + match[0].length
-      content = `${content.slice(0, insertPoint)}${props}${content.slice(insertPoint)}`
-      await writeFile(fullPath, content, 'utf-8')
+      const { content: updatedContent, updated } = updateNodeInScene(content, nodeName, updates)
+      if (!updated) throw new GodotMCPError(`Node "${nodeName}" not found`, 'NODE_ERROR', 'Check node name.')
+
+      await writeFile(fullPath, updatedContent, 'utf-8')
 
       return formatSuccess(`Configured physics body: ${nodeName}`)
     }

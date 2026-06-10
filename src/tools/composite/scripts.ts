@@ -8,9 +8,7 @@ import { dirname, join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
-import { escapeRegExp } from '../helpers/scene-parser.js'
-
-const NODE_SECTION_RE = /(\[node [^\]]+\])/
+import { parseSceneContent, updateNodeInScene } from '../helpers/scene-parser.js'
 
 const SCRIPT_TEMPLATES: Record<string, string> = {
   Node: `extends Node
@@ -177,7 +175,7 @@ async function writeScript(args: Record<string, unknown>, resolvePath: (path: st
 async function attachScript(args: Record<string, unknown>, resolvePath: (path: string) => string) {
   const scenePath = args.scene_path as string
   const scriptPath = args.script_path as string
-  const nodeName = args.node_name as string
+  let nodeName = args.node_name as string
   if (!scenePath || !scriptPath) {
     throw new GodotMCPError(
       'Both scene_path and script_path required',
@@ -205,26 +203,32 @@ async function attachScript(args: Record<string, unknown>, resolvePath: (path: s
   if (!(await pathExists(sceneFullPath)))
     throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Create the scene first.')
 
-  let content = await readFile(sceneFullPath, 'utf-8')
+  const content = await readFile(sceneFullPath, 'utf-8')
   // ⚡ Bolt: Using replaceAll('\\', '/') avoids RegExp allocation overhead
   const resPath = `res://${scriptPath.replaceAll('\\', '/')}`
 
-  if (nodeName) {
-    const nodePattern = new RegExp(`(\\[node name="${escapeRegExp(nodeName)}"[^\\]]*\\])`)
-    const match = content.match(nodePattern)
-    if (!match)
-      throw new GodotMCPError(
-        `Node "${nodeName}" not found in scene`,
-        'NODE_ERROR',
-        'Check node name with nodes.list action.',
-      )
-    content = content.replace(nodePattern, (_match, p1) => `${p1}\nscript = ExtResource("${resPath}")`)
-  } else {
-    content = content.replace(NODE_SECTION_RE, (_match, p1) => `${p1}\nscript = ExtResource("${resPath}")`)
+  // Default to the scene's first (root) node when no node_name is provided.
+  if (!nodeName) {
+    const scene = parseSceneContent(content)
+    if (scene.nodes.length === 0) {
+      throw new GodotMCPError('Scene has no nodes', 'SCENE_ERROR', 'Create a node first.')
+    }
+    nodeName = scene.nodes[0].name
   }
 
-  await writeFile(sceneFullPath, content, 'utf-8')
-  return formatSuccess(`Attached script ${scriptPath} to ${nodeName || 'root node'} in ${scenePath}`)
+  const { content: updated, updated: success } = updateNodeInScene(content, nodeName, {
+    script: `ExtResource("${resPath}")`,
+  })
+  if (!success) {
+    throw new GodotMCPError(
+      `Node "${nodeName}" not found in scene`,
+      'NODE_ERROR',
+      'Check node name with nodes.list action.',
+    )
+  }
+
+  await writeFile(sceneFullPath, updated, 'utf-8')
+  return formatSuccess(`Attached script ${scriptPath} to ${nodeName} in ${scenePath}`)
 }
 
 async function listScripts(baseDir: string, projectPath: string | undefined) {

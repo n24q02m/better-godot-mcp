@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import type { GodotConfig } from '../src/godot/types.js'
 import { handleScenes } from '../src/tools/composite/scenes.js'
+import { logger } from '../src/tools/helpers/logger.js'
 
 async function runBench() {
   const tmpDir = join(process.cwd(), 'tmp-bench')
@@ -20,7 +21,7 @@ async function runBench() {
   }
   writeFileSync(scenePath, lines.join('\n'))
 
-  console.log('Starting sequential benchmark...')
+  logger.info('Starting sequential benchmark...')
   const start = performance.now()
 
   const iterations = 10
@@ -31,9 +32,9 @@ async function runBench() {
   const end = performance.now()
   const avg = (end - start) / iterations
 
-  console.log(`Average time to parse 10k nodes (${iterations} iterations): ${avg.toFixed(2)}ms`)
+  logger.info(`Average time to parse 10k nodes (${iterations} iterations): ${avg.toFixed(2)}ms`)
 
-  console.log('Starting concurrent benchmark...')
+  logger.info('Starting concurrent benchmark...')
   const startConcurrent = performance.now()
   const promises = []
   for (let i = 0; i < iterations; i++) {
@@ -41,7 +42,7 @@ async function runBench() {
   }
   await Promise.all(promises)
   const endConcurrent = performance.now()
-  console.log(
+  logger.info(
     `Time to parse 10k nodes concurrently (${iterations} ops): ${(endConcurrent - startConcurrent).toFixed(2)}ms`,
   )
 
@@ -49,4 +50,4 @@ async function runBench() {
   rmSync(tmpDir, { recursive: true, force: true })
 }
 
-runBench().catch(console.error)
+runBench().catch(logger.error)

@@ -4,6 +4,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { logger } from '../src/tools/helpers/logger.js'
 
 const mockServerConstructor = vi.fn()
 const mockConnect = vi.fn().mockResolvedValue(undefined)
@@ -73,8 +74,10 @@ describe('initServer', () => {
       close: vi.fn().mockResolvedValue(undefined),
     })
     vi.spyOn(process, 'exit').mockImplementation((() => {}) as unknown as (code?: number) => never)
-    // Suppress console.error output during tests
-    vi.spyOn(console, 'error').mockImplementation(() => {})
+    // Suppress logger output during tests
+    vi.spyOn(logger, 'info').mockImplementation(() => {})
+    vi.spyOn(logger, 'warn').mockImplementation(() => {})
+    vi.spyOn(logger, 'error').mockImplementation(() => {})
     process.env = { ...originalEnv }
     process.argv = [...originalArgv]
   })
@@ -118,9 +121,7 @@ describe('initServer', () => {
 
       expect(mockStartHttp).toHaveBeenCalledOnce()
       expect(mockStdioTransportConstructor).not.toHaveBeenCalled()
-      expect(console.error).toHaveBeenCalledWith(
-        expect.stringContaining('[better-godot-mcp] Server started in HTTP mode'),
-      )
+      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Server started in HTTP mode'))
     })
 
     it('should use HTTP mode when MCP_TRANSPORT=http', async () => {
@@ -176,7 +177,7 @@ describe('initServer', () => {
 
       const { registerTools } = await import('../src/tools/registry.js')
       expect(registerTools).toHaveBeenCalledOnce()
-      expect(console.error).toHaveBeenCalledWith(expect.stringContaining('[better-godot-mcp] Godot detected'))
+      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Godot detected'))
     })
 
     it('should initialize server when Godot is not found', async () => {
@@ -188,7 +189,7 @@ describe('initServer', () => {
 
       const { registerTools } = await import('../src/tools/registry.js')
       expect(registerTools).toHaveBeenCalledOnce()
-      expect(console.error).toHaveBeenCalledWith(expect.stringContaining('[better-godot-mcp] WARN: Godot not found'))
+      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Godot not found'))
     })
 
     it('should instantiate Server with correct name, version, and capabilities', async () => {
@@ -224,7 +225,7 @@ describe('initServer', () => {
       const { initServer } = await import('../src/init-server.js')
 
       await expect(initServer()).rejects.toThrow('Connect failed')
-      expect(console.error).toHaveBeenCalledWith('[better-godot-mcp] ERROR: Failed to initialize server:', testError)
+      expect(logger.error).toHaveBeenCalledWith('Failed to initialize server:', testError)
     })
 
     it('should handle errors during HTTP startup', async () => {
@@ -238,7 +239,7 @@ describe('initServer', () => {
       const { initServer } = await import('../src/init-server.js')
 
       await expect(initServer()).rejects.toThrow('Port in use')
-      expect(console.error).toHaveBeenCalledWith('[better-godot-mcp] ERROR: Failed to initialize server:', testError)
+      expect(logger.error).toHaveBeenCalledWith('Failed to initialize server:', testError)
     })
   })
 

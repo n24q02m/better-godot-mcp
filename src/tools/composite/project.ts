@@ -16,7 +16,7 @@ import {
   parseProjectSettingsAsync,
   setSettingInContent,
 } from '../helpers/project-settings.js'
-import { isValidPid, validatePid } from '../helpers/security.js'
+import { validatePid } from '../helpers/security.js'
 import { parseCommaSeparatedList } from '../helpers/strings.js'
 
 async function parseProjectGodot(projectPath: string): Promise<ProjectInfo> {
@@ -163,9 +163,7 @@ export async function handleProject(action: string, args: Record<string, unknown
       let stoppedCount = 0
       for (const pid of config.activePids) {
         // Security: strictly validate pid is a positive safe integer before using in shell commands or process.kill
-        if (!isValidPid(pid)) {
-          continue
-        }
+        validatePid(pid)
 
         try {
           if (process.platform === 'win32') {

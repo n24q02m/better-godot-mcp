@@ -75,7 +75,7 @@ export function validateNoNewlines(
  * @returns True if the PID is valid.
  */
 export function isValidPid(pid: unknown): pid is number {
-  return typeof pid === 'number' && Number.isSafeInteger(pid) && pid > 0
+  return typeof pid === 'number' && Number.isFinite(pid) && Number.isSafeInteger(pid) && pid > 0
 }
 
 /**

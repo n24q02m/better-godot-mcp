@@ -48,6 +48,7 @@ mcp-name: io.github.n24q02m/better-godot-mcp
 - [Status](#status)
 - [Documentation](#documentation)
 - [Tools](#tools)
+- [Comparison](#comparison)
 - [Configuration](#configuration)
 - [Security](#security)
 - [Build from Source](#build-from-source)
@@ -121,6 +122,31 @@ Full docs at **[mcp.n24q02m.com/servers/better-godot-mcp/setup/](https://mcp.n24
 | `navigation` | `create_region`, `add_agent`, `add_obstacle` | Navigation regions, agents, and obstacles |
 | `ui` | `create_control`, `set_theme`, `layout`, `list_controls` | UI control creation and theming |
 | `help` | - | Get full documentation for any tool |
+
+## Comparison
+
+How better-godot-mcp stacks up against direct competitors in each pillar:
+
+| Capability | better-godot-mcp | Coding-Solo/godot-mcp | bradypp/godot-mcp | tugcantopaloglu/godot-mcp |
+|---|---|---|---|---|
+| Scene file management | Yes (`scenes`: create/list/info/delete/duplicate/set_main) | Yes (create/save) | Yes (create/save) | Yes (create/read/modify) |
+| Node tree manipulation | Yes (`nodes`: add/remove/rename/list/get+set_property) | Partial (add only) | Yes (add/edit/remove) | Yes (add/remove/reparent) |
+| GDScript file CRUD | Yes (`scripts`: create/read/write/attach/list/delete) | No | No | Partial (create from template + runtime eval) |
+| Shader file CRUD | Yes (`shader`: create/read/write/get_params/list) | No | No | Partial (create/read .gdshader) |
+| Animation authoring | Yes (`animation`: player/track/keyframe) | No | No | Yes (player/tween/state machine) |
+| TileMap / TileSet | Yes (`tilemap`: tileset/source/set_tile/paint) | No | No | Yes (TileMapLayer cells) |
+| Physics layers / bodies | Yes (`physics`: layers/collision/body_config) | No | No | Yes (collision/joints/raycast) |
+| Audio bus management | Yes (`audio`: buses/effects/streams) | No | No | Yes (buses/routing/effects) |
+| Navigation setup | Yes (`navigation`: region/agent/obstacle) | No | No | Yes (navigation) |
+| UI control authoring | Yes (`ui`: control/theme/layout) | No | Partial (via add node) | Yes (controls/themes/menus) |
+| Input map editing | Yes (`input_map`: action/event) | No | No | Yes (actions/key bindings) |
+| Signal connections | Yes (`signals`: connect/disconnect/list) | No | No | Yes (connect/emit/await) |
+| Launch editor / run project | Yes (`editor`, `project` run/stop) | Yes | Yes | Yes |
+| Works without running editor | Yes (text-based `.tscn` parsing) | Yes (headless GDScript bridge) | Yes (headless GDScript bridge) | Partial (CLI headless or live TCP socket) |
+| No credentials stored (TC-Local) | Yes | Yes | Yes | Yes |
+| stdio + HTTP transports | Yes (stdio default + `--http`) | No (stdio only) | No (stdio only) | No (stdio only) |
+| Docker image (amd64 + arm64) | Yes | No | No | No |
+| Token-tiered tool descriptions | Yes (compact + on-demand `help`) | No | No | No |
 
 ## Configuration
 

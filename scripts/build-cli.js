@@ -1,7 +1,6 @@
 import { chmodSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { build } from 'esbuild'
-import { logger } from '../src/tools/helpers/logger.js'
 
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'))
 
@@ -55,10 +54,10 @@ async function buildCli() {
   // Copy documentation files for help tool
   copyDir('src/docs', 'build/src/docs')
 
-  logger.info(`Built CLI: bin/cli.mjs (${pkg.name} v${pkg.version})`)
+  console.log(`Built CLI: bin/cli.mjs (${pkg.name} v${pkg.version})`)
 }
 
 buildCli().catch((err) => {
-  logger.error('Build failed:', err)
+  console.error('Build failed:', err)
   process.exit(1)
 })

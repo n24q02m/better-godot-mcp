@@ -229,6 +229,63 @@ describe('pathExists', () => {
     expect(await pathExists(nonExistentPath)).toBe(false)
   })
 
+  it('returns false when access throws EACCES (permission denied)', async () => {
+    const mockedAccess = vi.mocked(access)
+    const error = new Error('Permission denied')
+    ;(error as NodeJS.ErrnoException).code = 'EACCES'
+    mockedAccess.mockRejectedValue(error)
+
+    try {
+      expect(await pathExists('/any/path')).toBe(false)
+    } finally {
+      mockedAccess.mockRestore()
+    }
+  })
+
+  it('returns false when access rejects with null', async () => {
+    const mockedAccess = vi.mocked(access)
+    mockedAccess.mockRejectedValue(null)
+
+    try {
+      expect(await pathExists('/any/path')).toBe(false)
+    } finally {
+      mockedAccess.mockRestore()
+    }
+  })
+
+  it('returns false when access rejects with undefined', async () => {
+    const mockedAccess = vi.mocked(access)
+    mockedAccess.mockRejectedValue(undefined)
+
+    try {
+      expect(await pathExists('/any/path')).toBe(false)
+    } finally {
+      mockedAccess.mockRestore()
+    }
+  })
+
+  it('returns false when access rejects with a string', async () => {
+    const mockedAccess = vi.mocked(access)
+    mockedAccess.mockRejectedValue('Error string')
+
+    try {
+      expect(await pathExists('/any/path')).toBe(false)
+    } finally {
+      mockedAccess.mockRestore()
+    }
+  })
+
+  it('returns false when access rejects with a number', async () => {
+    const mockedAccess = vi.mocked(access)
+    mockedAccess.mockRejectedValue(500)
+
+    try {
+      expect(await pathExists('/any/path')).toBe(false)
+    } finally {
+      mockedAccess.mockRestore()
+    }
+  })
+
   it('returns false when access throws an unexpected error', async () => {
     const mockedAccess = vi.mocked(access)
     mockedAccess.mockRejectedValue(new Error('Unexpected error'))

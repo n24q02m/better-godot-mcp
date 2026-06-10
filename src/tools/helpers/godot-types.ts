@@ -229,8 +229,10 @@ export function toGodotValue(value: unknown): string {
  */
 export function serializeGodotObject(className: string, properties: Record<string, unknown>): string {
   let result = `Object(${className}`
-  for (const [key, value] of Object.entries(properties)) {
-    result += `,"${key}":${toGodotValue(value)}`
+  for (const key in properties) {
+    if (Object.hasOwn(properties, key)) {
+      result += `,"${key}":${toGodotValue(properties[key])}`
+    }
   }
   return `${result})`
 }

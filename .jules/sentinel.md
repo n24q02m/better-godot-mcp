@@ -1,4 +1,4 @@
-## 2025-05-22 - [Correct Tool Suggestion]
-**Vulnerability:** Weak matching logic in error suggestions can mislead users or automated agents into calling unintended tools if they make a typo that partially matches multiple tool names.
-**Learning:** Prioritizing exact matches and closer prefix matches reduces the risk of incorrect "Did you mean...?" suggestions.
-**Prevention:** Implemented a length-difference based tie-breaker for prefix matches in `findClosestMatch` to ensure the most specific match is suggested.
+## 2025-05-22 - [Process Kill Silent Bypass]
+**Vulnerability:** In `project.ts` and `editor.ts`, an `if (!isValidPid(pid)) continue` pattern silently skipped over injected or non-numeric PIDs when iterating through active processes to kill them. This logic masked configurations containing malicious or corrupted PID entries, completely hiding the failure to kill the expected target.
+**Learning:** Returning or continuing early on invalid security-sensitive input is a bad practice when dealing with structured or internal state (like tracked processes). The failure should be loud so that malformed state is discovered and rejected rather than partially processed.
+**Prevention:** Instead of using an `isValid` check to silently skip items, use the `validatePid` helper that throws an explicit error when it encounters an invalid PID. This ensures that any attempt to inject string commands or corrupted data into PID lists results in an immediate operation abort (Fail Closed).

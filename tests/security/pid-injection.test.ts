@@ -30,7 +30,7 @@ describe('PID Injection Security', () => {
   })
 
   describe('handleProject stop action', () => {
-    it('should NOT call taskkill or process.kill with non-numeric PIDs', async () => {
+    it('should REJECT explicitly with non-numeric PIDs and NOT call taskkill or process.kill', async () => {
       const maliciousPid = '123; calc.exe'
       // biome-ignore lint/suspicious/noExplicitAny: explicitly testing injection
       config.activePids = [maliciousPid as any]
@@ -41,7 +41,7 @@ describe('PID Injection Security', () => {
       // Test Windows path
       Object.defineProperty(process, 'platform', { value: 'win32', configurable: true })
 
-      await handleProject('stop', {}, config)
+      await expect(handleProject('stop', {}, config)).rejects.toThrow(/Invalid PID/)
 
       expect(processKillSpy).not.toHaveBeenCalledWith(maliciousPid, expect.anything())
       expect(execFileSync).not.toHaveBeenCalledWith(
@@ -56,21 +56,21 @@ describe('PID Injection Security', () => {
       // biome-ignore lint/suspicious/noExplicitAny: explicitly testing injection
       config.activePids = [maliciousPid as any]
 
-      await handleProject('stop', {}, config)
+      await expect(handleProject('stop', {}, config)).rejects.toThrow(/Invalid PID/)
       expect(processKillSpy).not.toHaveBeenCalledWith(maliciousPid, expect.anything())
 
       processKillSpy.mockRestore()
       Object.defineProperty(process, 'platform', { value: originalPlatform })
     })
 
-    it('should NOT call taskkill or process.kill with non-integer PIDs', async () => {
+    it('should REJECT explicitly with non-integer PIDs and NOT call taskkill or process.kill', async () => {
       const maliciousPid = 123.456
       // biome-ignore lint/suspicious/noExplicitAny: explicitly testing injection
       config.activePids = [maliciousPid as any]
 
       const processKillSpy = vi.spyOn(process, 'kill').mockImplementation(() => true)
 
-      await handleProject('stop', {}, config)
+      await expect(handleProject('stop', {}, config)).rejects.toThrow(/Invalid PID/)
 
       expect(processKillSpy).not.toHaveBeenCalledWith(maliciousPid, expect.anything())
       expect(execFileSync).not.toHaveBeenCalledWith(
@@ -84,14 +84,14 @@ describe('PID Injection Security', () => {
   })
 
   describe('handleEditor status action', () => {
-    it('should NOT call process.kill with non-numeric PIDs', async () => {
+    it('should REJECT explicitly with non-numeric PIDs and NOT call process.kill', async () => {
       const maliciousPid = '123; calc.exe'
       // biome-ignore lint/suspicious/noExplicitAny: explicitly testing injection
       config.activePids = [maliciousPid as any]
 
       const processKillSpy = vi.spyOn(process, 'kill').mockImplementation(() => true)
 
-      await handleEditor('status', {}, config)
+      await expect(handleEditor('status', {}, config)).rejects.toThrow(/Invalid PID/)
 
       expect(processKillSpy).not.toHaveBeenCalledWith(maliciousPid, expect.anything())
 

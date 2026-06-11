@@ -26,3 +26,6 @@
 2. Best prefix/containment match, defined as the one with the smallest absolute length difference relative to the input.
 3. Fuzzy bigram similarity (Dice coefficient) with a threshold > 0.4.
 This ensures that "create" matches "create" even if "create_node" appears earlier in the options list, and "cre" matches "create" over "create_node".
+## 2026-06-11 - [Optimize parseGodotValue structural type matching]
+**Learning:** Checking regular expressions (like `V2_RE`, `V2I_RE`, etc.) directly on input strings can cause unnecessary overhead if the input doesn't match the expected structural type, especially if they share the same starting character.
+**Action:** Used `String.prototype.startsWith()` checks (e.g., `trimmed.startsWith('Vector2(')`) before executing the regular expressions in `parseGodotValue` to short-circuit parsing and prevent RegExp matching overhead entirely.

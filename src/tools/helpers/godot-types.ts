@@ -75,28 +75,30 @@ export function parseGodotValue(expr: string, _depth = 0): unknown {
   // ⚡ Bolt: Fast path for checking structural Godot types by checking first character
   // Vector2, Vector2i, Vector3 ('V' = 86)
   if (firstChar === 86) {
-    const v2Match = trimmed.match(V2_RE)
-    if (v2Match) {
-      return { x: Number.parseFloat(v2Match[1]), y: Number.parseFloat(v2Match[2]) } as Vector2
-    }
-
-    const v2iMatch = trimmed.match(V2I_RE)
-    if (v2iMatch) {
-      return { x: Number.parseInt(v2iMatch[1], 10), y: Number.parseInt(v2iMatch[2], 10) } as Vector2
-    }
-
-    const v3Match = trimmed.match(V3_RE)
-    if (v3Match) {
-      return {
-        x: Number.parseFloat(v3Match[1]),
-        y: Number.parseFloat(v3Match[2]),
-        z: Number.parseFloat(v3Match[3]),
-      } as Vector3
+    if (trimmed.startsWith('Vector2(')) {
+      const v2Match = trimmed.match(V2_RE)
+      if (v2Match) {
+        return { x: Number.parseFloat(v2Match[1]), y: Number.parseFloat(v2Match[2]) } as Vector2
+      }
+    } else if (trimmed.startsWith('Vector2i(')) {
+      const v2iMatch = trimmed.match(V2I_RE)
+      if (v2iMatch) {
+        return { x: Number.parseInt(v2iMatch[1], 10), y: Number.parseInt(v2iMatch[2], 10) } as Vector2
+      }
+    } else if (trimmed.startsWith('Vector3(')) {
+      const v3Match = trimmed.match(V3_RE)
+      if (v3Match) {
+        return {
+          x: Number.parseFloat(v3Match[1]),
+          y: Number.parseFloat(v3Match[2]),
+          z: Number.parseFloat(v3Match[3]),
+        } as Vector3
+      }
     }
   }
 
   // Color ('C' = 67)
-  if (firstChar === 67) {
+  if (firstChar === 67 && trimmed.startsWith('Color(')) {
     const colorMatch = trimmed.match(COLOR_RE)
     if (colorMatch) {
       return {
@@ -109,7 +111,7 @@ export function parseGodotValue(expr: string, _depth = 0): unknown {
   }
 
   // Rect2 ('R' = 82)
-  if (firstChar === 82) {
+  if (firstChar === 82 && trimmed.startsWith('Rect2(')) {
     const rectMatch = trimmed.match(RECT2_RE)
     if (rectMatch) {
       return {

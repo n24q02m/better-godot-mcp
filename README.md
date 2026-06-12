@@ -2,7 +2,7 @@
 
 mcp-name: io.github.n24q02m/better-godot-mcp
 
-**Composite MCP server for Godot Engine -- 17 mega-tools for AI-assisted game development**
+**Composite MCP server for Godot Engine -- 17 composite tools for AI-assisted game development.**
 
 <!-- Badge Row 1: Status -->
 [![CI](https://github.com/n24q02m/better-godot-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/n24q02m/better-godot-mcp/actions/workflows/ci.yml)

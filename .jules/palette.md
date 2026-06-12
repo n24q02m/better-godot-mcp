@@ -1,3 +1,3 @@
-## 2024-05-24 - Backend Only Repository Constraints
-**Learning:** This repository is a pure backend Model Context Protocol (MCP) server written in TypeScript and Node.js for Godot. It does not contain any frontend user interfaces, web applications, HTML, or UI components, rendering visual UI/UX enhancements inapplicable.
-**Action:** Do not attempt to apply frontend UX or accessibility improvements in this repository. Ensure future tasks are aware of the backend-only nature of the codebase.
+## 2025-01-20 - Repo Structure Context
+**Learning:** This repository is an MCP server for Godot Engine written purely in Node.js/TypeScript. It contains absolutely no web front-end UI components (HTML, CSS, React, etc.).
+**Action:** When tasked with UX/UI enhancements in this repository, immediately recognize that it is a headless backend and stop work, as visual UX and accessibility improvements are not applicable.

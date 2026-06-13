@@ -22,6 +22,8 @@ function copyDir(src, dest) {
 }
 
 async function buildCli() {
+  const log = (msg) => process.stderr.write(`[better-godot-mcp] ${msg}\n`)
+
   // Bundle src into single CLI file
   await build({
     entryPoints: ['scripts/start-server.ts'],
@@ -54,10 +56,10 @@ async function buildCli() {
   // Copy documentation files for help tool
   copyDir('src/docs', 'build/src/docs')
 
-  console.log(`Built CLI: bin/cli.mjs (${pkg.name} v${pkg.version})`)
+  log(`Built CLI: bin/cli.mjs (${pkg.name} v${pkg.version})`)
 }
 
 buildCli().catch((err) => {
-  console.error('Build failed:', err)
+  process.stderr.write(`[better-godot-mcp] ERROR: Build failed: ${err.message || err}\n`)
   process.exit(1)
 })

@@ -128,31 +128,85 @@ async function handleListAnimations(projectPath: string, args: Record<string, un
   const content = await readFile(fullPath, 'utf-8')
 
   const animations: { name: string; duration?: string; loop?: boolean }[] = []
-  const animRegex = /\[sub_resource type="Animation" id="([^"]+)"\]/g
-  for (const match of content.matchAll(animRegex)) {
-    const id = match[1]
 
-    // Isolate each animation block to avoid O(N^2) slicing and cross-talk
-    const startIndex = match.index
-    let endIndex = content.indexOf('\n[', startIndex + 1)
-    if (endIndex === -1) endIndex = content.length
-    const block = content.slice(startIndex, endIndex)
+  // Efficiently scan for animations without matchAll/slicing the whole block
+  const animSearch = '[sub_resource type="Animation"'
+  let pos = 0
+  while (true) {
+    pos = content.indexOf(animSearch, pos)
+    if (pos === -1) break
 
-    const nameMatch = block.match(/resource_name\s*=\s*"([^"]*)"/)
-    const durationMatch = block.match(/length\s*=\s*([\d.]+)/)
-    const loopMatch = block.match(/loop_mode\s*=\s*(\d+)/)
-    animations.push({
-      name: nameMatch?.[1] || id,
-      duration: durationMatch?.[1],
-      loop: loopMatch ? loopMatch[1] !== '0' : false,
-    })
+    const idStart = content.indexOf('id="', pos)
+    if (idStart === -1) {
+      pos += animSearch.length
+      continue
+    }
+    const idEnd = content.indexOf('"', idStart + 4)
+    if (idEnd === -1) {
+      pos += animSearch.length
+      continue
+    }
+    const id = content.slice(idStart + 4, idEnd)
+
+    // Find end of block
+    let endIdx = content.indexOf('\n[', idEnd)
+    if (endIdx === -1) endIdx = content.length
+
+    // Scan for properties within the range [idEnd, endIdx]
+    let name: string = id
+    const nameLabel = 'resource_name = "'
+    const nameIdx = content.indexOf(nameLabel, idEnd)
+    if (nameIdx !== -1 && nameIdx < endIdx) {
+      const qEnd = content.indexOf('"', nameIdx + nameLabel.length)
+      if (qEnd !== -1 && qEnd < endIdx) {
+        name = content.slice(nameIdx + nameLabel.length, qEnd)
+      }
+    }
+
+    let duration: string | undefined
+    const lenLabel = 'length = '
+    const lenIdx = content.indexOf(lenLabel, idEnd)
+    if (lenIdx !== -1 && lenIdx < endIdx) {
+      let current = lenIdx + lenLabel.length
+      const start = current
+      while (current < endIdx && /[0-9.]/.test(content[current])) current++
+      duration = content.slice(start, current)
+    }
+
+    let loop = false
+    const loopLabel = 'loop_mode = '
+    const loopIdx = content.indexOf(loopLabel, idEnd)
+    if (loopIdx !== -1 && loopIdx < endIdx) {
+      const mode = content[loopIdx + loopLabel.length]
+      loop = mode !== '0'
+    }
+
+    animations.push({ name, duration, loop })
+    pos = endIdx
   }
 
   // Also find AnimationPlayer nodes
   const players: string[] = []
-  const playerRegex = /\[node name="([^"]+)" type="AnimationPlayer"/g
-  for (const playerMatch of content.matchAll(playerRegex)) {
-    players.push(playerMatch[1])
+  const playerSearch = '[node name="'
+  const playerSuffix = '" type="AnimationPlayer"'
+  pos = 0
+  while (true) {
+    pos = content.indexOf(playerSearch, pos)
+    if (pos === -1) break
+
+    const nameStart = pos + playerSearch.length
+    const nameEnd = content.indexOf('"', nameStart)
+    if (nameEnd === -1) {
+      pos = nameStart
+      continue
+    }
+
+    if (content.startsWith(playerSuffix, nameEnd)) {
+      players.push(content.slice(nameStart, nameEnd))
+      pos = nameEnd + playerSuffix.length
+    } else {
+      pos = nameStart
+    }
   }
 
   return formatJSON({ scene: scenePath, players, animations })

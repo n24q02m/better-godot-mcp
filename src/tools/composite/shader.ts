@@ -153,20 +153,87 @@ export async function handleShader(action: string, args: Record<string, unknown>
         const content = await readFile(fullPath, 'utf-8')
         const params: { name: string; type: string; hint?: string; default?: string }[] = []
 
-        const uniformRegex = /uniform\s+(\w+)\s+(\w+)(?:\s*:\s*(\w+(?:\([^)]*\))?))?(?:\s*=\s*([^;]+))?;/g
-        for (const match of content.matchAll(uniformRegex)) {
-          params.push({
-            type: match[1],
-            name: match[2],
-            hint: match[3],
-            default: match[4]?.trim(),
-          })
+        // Efficient manual scanner for uniform declarations
+        let pos = 0
+        while (true) {
+          pos = content.indexOf('uniform', pos)
+          if (pos === -1) break
+
+          // Word boundary check
+          const prevChar = pos > 0 ? content[pos - 1] : ' '
+          const nextChar = pos + 7 < content.length ? content[pos + 7] : ' '
+          if (/\w/.test(prevChar) || /\w/.test(nextChar)) {
+            pos += 7
+            continue
+          }
+
+          let current = pos + 7
+          while (current < content.length && /\s/.test(content[current])) current++
+
+          const typeStart = current
+          while (current < content.length && /\w/.test(content[current])) current++
+          const type = content.slice(typeStart, current)
+
+          while (current < content.length && /\s/.test(content[current])) current++
+
+          const nameStart = current
+          while (current < content.length && /\w/.test(content[current])) current++
+          const name = content.slice(nameStart, current)
+
+          if (!type || !name) {
+            pos += 7
+            continue
+          }
+
+          let hint: string | undefined
+          let defaultValue: string | undefined
+
+          while (current < content.length && /\s/.test(content[current])) current++
+
+          if (content[current] === ':') {
+            current++
+            while (current < content.length && /\s/.test(content[current])) current++
+            const hintStart = current
+            let depth = 0
+            while (current < content.length) {
+              const c = content[current]
+              if (c === '(') depth++
+              else if (c === ')') depth--
+              else if (depth === 0 && (c === '=' || c === ';' || /\s/.test(c))) break
+              current++
+            }
+            hint = content.slice(hintStart, current)
+            while (current < content.length && /\s/.test(content[current])) current++
+          }
+
+          if (content[current] === '=') {
+            current++
+            while (current < content.length && /\s/.test(content[current])) current++
+            const defaultStart = current
+            const semiIdx = content.indexOf(';', current)
+            if (semiIdx !== -1) {
+              defaultValue = content.slice(defaultStart, semiIdx).trim()
+              current = semiIdx
+            }
+          }
+
+          params.push({ type, name, hint, default: defaultValue })
+          pos = current
         }
 
-        const typeMatch = content.match(/shader_type\s+(\w+);/)
+        let shaderType = 'unknown'
+        const stIdx = content.indexOf('shader_type')
+        if (stIdx !== -1) {
+          let current = stIdx + 11
+          while (current < content.length && /\s/.test(content[current])) current++
+          const stStart = current
+          while (current < content.length && /\w/.test(content[current])) current++
+          shaderType = content.slice(stStart, current) || 'unknown'
+        }
+
         return formatJSON({
           shader: shaderPath,
-          shaderType: typeMatch?.[1] || 'unknown',
+          shaderType,
           params,
         })
       } catch (error: unknown) {

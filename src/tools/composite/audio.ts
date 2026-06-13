@@ -38,9 +38,19 @@ function* scanBuses(content: string): Generator<{ index: number; name: string }>
       continue
     }
 
-    const indexStr = content.slice(indexStart, slashIdx)
-    const index = Number.parseInt(indexStr, 10)
-    if (Number.isNaN(index)) {
+    let index = 0
+    let validIndex = true
+    for (let i = indexStart; i < slashIdx; i++) {
+      const charCode = content.charCodeAt(i)
+      if (charCode >= 48 && charCode <= 57) {
+        index = index * 10 + (charCode - 48)
+      } else {
+        validIndex = false
+        break
+      }
+    }
+
+    if (!validIndex || indexStart === slashIdx) {
       pos = indexStart
       continue
     }
@@ -72,6 +82,63 @@ function* scanBuses(content: string): Generator<{ index: number; name: string }>
     yield { index, name: content.slice(quoteStart + 1, quoteEnd) }
     pos = quoteEnd + 1
   }
+}
+
+/**
+ * Efficiently count the number of buses in the layout without allocations.
+ */
+function countBuses(content: string): number {
+  const search = 'bus/'
+  let count = 0
+  let pos = 0
+  while (true) {
+    pos = content.indexOf(search, pos)
+    if (pos === -1) break
+
+    const indexStart = pos + search.length
+    const slashIdx = content.indexOf('/', indexStart)
+    if (slashIdx !== -1 && content.startsWith('/name', slashIdx)) {
+      count++
+    }
+    pos = indexStart
+  }
+  return count
+}
+
+/**
+ * Efficiently find a bus index by name without yielding objects.
+ */
+function findBusIndex(content: string, targetName: string): number {
+  const search = 'bus/'
+  let pos = 0
+  while (true) {
+    pos = content.indexOf(search, pos)
+    if (pos === -1) break
+
+    const indexStart = pos + search.length
+    const slashIdx = content.indexOf('/', indexStart)
+    if (slashIdx === -1 || !content.startsWith('/name', slashIdx)) {
+      pos = indexStart
+      continue
+    }
+
+    const eqIdx = content.indexOf('=', slashIdx + 5)
+    if (eqIdx !== -1) {
+      const quoteStart = content.indexOf('"', eqIdx)
+      if (quoteStart !== -1) {
+        const quoteEnd = quoteStart + 1 + targetName.length
+        if (content.startsWith(targetName, quoteStart + 1) && content[quoteEnd] === '"') {
+          let index = 0
+          for (let i = indexStart; i < slashIdx; i++) {
+            index = index * 10 + (content.charCodeAt(i) - 48)
+          }
+          return index
+        }
+      }
+    }
+    pos = indexStart
+  }
+  return -1
 }
 
 export async function handleAudio(action: string, args: Record<string, unknown>, config: GodotConfig) {
@@ -143,10 +210,7 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       }
 
       // Count existing buses
-      let busCount = 0
-      for (const _ of scanBuses(content)) {
-        busCount++
-      }
+      const busCount = countBuses(content)
 
       const newBus = [
         `bus/${busCount}/name = "${busName}"`,
@@ -212,13 +276,7 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       }
 
       // Find the target bus index
-      let busIndex = -1
-      for (const bus of scanBuses(content)) {
-        if (bus.name === busName) {
-          busIndex = bus.index
-          break
-        }
-      }
+      const busIndex = findBusIndex(content, busName)
       if (busIndex === -1) {
         throw new GodotMCPError(`Bus "${busName}" not found`, 'AUDIO_ERROR', 'Add the bus first with add_bus.')
       }

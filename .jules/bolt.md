@@ -26,3 +26,7 @@
 2. Best prefix/containment match, defined as the one with the smallest absolute length difference relative to the input.
 3. Fuzzy bigram similarity (Dice coefficient) with a threshold > 0.4.
 This ensures that "create" matches "create" even if "create_node" appears earlier in the options list, and "cre" matches "create" over "create_node".
+
+## 2025-05-23 - [Refactor long composite tool handlers]
+**Learning:** Large switch-based tool handlers (e.g., `handleProject`) become difficult to maintain and test as actions grow. Extracting individual actions into separate functions and using a dispatcher map improves readability and allows for easier unit testing of specific logic.
+**Action:** Extracted `info`, `version`, `run`, `stop`, `settings_get`, `settings_set`, and `export` actions into independent functions in `src/tools/composite/project.ts`. Introduced a `PROJECT_ACTIONS` map for dispatching and a `getResolvedProjectPath` helper for common validation logic.

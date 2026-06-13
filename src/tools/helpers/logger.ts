@@ -1,3 +1,5 @@
+import { format } from 'node:util'
+
 /**
  * Centralized logger utility for Better Godot MCP.
  * All logs are written to stderr to avoid interfering with MCP JSON-RPC on stdout.
@@ -8,26 +10,34 @@ const PREFIX = `[${SERVER_NAME}]`
 
 const isDebugEnabled = process.env.DEBUG === 'true' || process.env.NODE_ENV === 'development'
 
+/**
+ * Internal helper to write formatted logs to stderr.
+ */
+function emit(message: string, args: unknown[], levelPrefix = ''): void {
+  const formattedMessage = format(`${PREFIX}${levelPrefix} ${message}`, ...args)
+  process.stderr.write(`${formattedMessage}\n`)
+}
+
 export const logger = {
   /**
    * Log an info message.
    */
   info: (message: string, ...args: unknown[]) => {
-    console.error(`${PREFIX} ${message}`, ...args)
+    emit(message, args)
   },
 
   /**
    * Log a warning message.
    */
   warn: (message: string, ...args: unknown[]) => {
-    console.error(`${PREFIX} WARN: ${message}`, ...args)
+    emit(message, args, ' WARN:')
   },
 
   /**
    * Log an error message.
    */
   error: (message: string, ...args: unknown[]) => {
-    console.error(`${PREFIX} ERROR: ${message}`, ...args)
+    emit(message, args, ' ERROR:')
   },
 
   /**
@@ -35,7 +45,7 @@ export const logger = {
    */
   debug: (message: string, ...args: unknown[]) => {
     if (isDebugEnabled) {
-      console.error(`${PREFIX} DEBUG: ${message}`, ...args)
+      emit(message, args, ' DEBUG:')
     }
   },
 }

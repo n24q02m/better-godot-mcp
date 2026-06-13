@@ -1,0 +1,2 @@
+info to stderr
+error to stderr

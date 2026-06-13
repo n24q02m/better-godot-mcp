@@ -8,7 +8,7 @@ import { dirname } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists, resolveProjectRoot, safeResolve } from '../helpers/paths.js'
-import { countSubstring } from '../helpers/strings.js'
+import { countMatches } from '../helpers/strings.js'
 
 export async function handleTilemap(action: string, args: Record<string, unknown>, config: GodotConfig) {
   const projectPath = resolveProjectRoot(args.project_path, config.projectPath)
@@ -75,7 +75,7 @@ export async function handleTilemap(action: string, args: Record<string, unknown
       const resPath = `res://${texturePath.replaceAll('\\', '/')}`
 
       // Count existing sources to get next ID
-      const sourceCount = countSubstring(content, '[ext_resource')
+      const sourceCount = countMatches(content, /\[ext_resource/g)
       const sourceId = `source_${sourceCount}`
 
       // Add ext_resource reference

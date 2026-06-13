@@ -1,4 +1,5 @@
 import { realpathSync } from 'node:fs'
+import { access } from 'node:fs/promises'
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
 import { GodotMCPError } from './errors.js'
 
@@ -98,8 +99,6 @@ export function resolveProjectRoot(projectPathArg: unknown, trustedBase: string 
   }
   return resolve(base)
 }
-
-import { access } from 'node:fs/promises'
 
 /**
  * Asynchronously checks if a file or directory exists.

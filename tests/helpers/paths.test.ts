@@ -296,4 +296,16 @@ describe('pathExists', () => {
       mockedAccess.mockRestore()
     }
   })
+
+  it('returns false for broken symlinks', async () => {
+    const target = join(testDir, 'non-existent-target')
+    const link = join(testDir, 'broken-link')
+    await symlink(target, link)
+
+    expect(await pathExists(link)).toBe(false)
+  })
+
+  it('returns false for an empty string path', async () => {
+    expect(await pathExists('')).toBe(false)
+  })
 })

@@ -138,9 +138,10 @@ export async function handleResources(action: string, args: Record<string, unkno
         // Parse .tres/.import files for metadata
         if (ext === '.tres' || ext === '.import') {
           const content = await readFile(fullPath, 'utf-8')
-          const typeMatch = content.match(/type="([^"]*)"/)
+          // ⚡ Bolt: Use .exec() on pre-compiled regexes to avoid unnecessary array allocations from .match()
+          const typeMatch = /type="([^"]*)"/.exec(content)
           if (typeMatch) info.type = typeMatch[1]
-          const pathMatch = content.match(/path="([^"]*)"/)
+          const pathMatch = /path="([^"]*)"/.exec(content)
           if (pathMatch) info.importPath = pathMatch[1]
         }
 

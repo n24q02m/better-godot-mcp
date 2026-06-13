@@ -1,0 +1,18 @@
+<<<<<<< SEARCH
+  // Also find AnimationPlayer nodes
+  const players: string[] = []
+  const playerRegex = /\[node name="([^"]+)" type="AnimationPlayer"/g
+  for (const playerMatch of content.matchAll(playerRegex)) {
+    players.push(playerMatch[1])
+  }
+=======
+  // Also find AnimationPlayer nodes
+  const players: string[] = []
+  const scene = parseSceneContent(content)
+  for (let i = 0; i < scene.nodes.length; i++) {
+    const node = scene.nodes[i]
+    if (node.type === 'AnimationPlayer') {
+      players.push(node.name)
+    }
+  }
+>>>>>>> REPLACE

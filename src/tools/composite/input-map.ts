@@ -8,7 +8,7 @@ import { join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { serializeGodotObject } from '../helpers/godot-types.js'
-import { pathExists, safeResolve } from '../helpers/paths.js'
+import { pathExists, resolveProjectRoot } from '../helpers/paths.js'
 
 /**
  * Godot 4.x Key enum numeric values (@GlobalScope.Key)
@@ -102,71 +102,52 @@ const GODOT_MOUSE_CODES: Record<string, number> = {
   MOUSE_BUTTON_WHEEL_DOWN: 5,
   MOUSE_BUTTON_WHEEL_LEFT: 6,
   MOUSE_BUTTON_WHEEL_RIGHT: 7,
+  MOUSE_BUTTON_XBUTTON1: 8,
+  MOUSE_BUTTON_XBUTTON2: 9,
 }
 
-/**
- * Resolve a key name to its numeric Godot code.
- * Accepts both "KEY_SPACE" and raw numeric strings like "32".
- */
-function resolveKeyCode(value: string): number {
-  const upper = value.toUpperCase()
-  if (upper in GODOT_KEY_CODES) return GODOT_KEY_CODES[upper]
-  const parsed = Number.parseInt(value, 10)
-  if (!Number.isNaN(parsed)) return parsed
-  throw new GodotMCPError(
-    `Unknown key: ${value}`,
-    'INVALID_ARGS',
-    `Valid keys: ${Object.keys(GODOT_KEY_CODES).join(', ')}`,
-  )
+function resolveKeyCode(name: string): number {
+  const code = GODOT_KEY_CODES[name] ?? (/^\d+$/.test(name) ? Number.parseInt(name, 10) : undefined)
+  if (code === undefined) {
+    throw new GodotMCPError(`Unknown key: ${name}`, 'INVALID_ARGS', 'Use KEY_ names or numeric codes.')
+  }
+  return code
 }
 
-/**
- * Resolve a mouse button name to its numeric Godot code.
- */
-function resolveMouseCode(value: string): number {
-  const upper = value.toUpperCase()
-  if (upper in GODOT_MOUSE_CODES) return GODOT_MOUSE_CODES[upper]
-  const parsed = Number.parseInt(value, 10)
-  if (!Number.isNaN(parsed)) return parsed
-  throw new GodotMCPError(
-    `Unknown mouse button: ${value}`,
-    'INVALID_ARGS',
-    `Valid buttons: ${Object.keys(GODOT_MOUSE_CODES).join(', ')}`,
-  )
+function resolveMouseCode(name: string): number {
+  const code = GODOT_MOUSE_CODES[name] ?? (/^\d+$/.test(name) ? Number.parseInt(name, 10) : undefined)
+  if (code === undefined) {
+    throw new GodotMCPError(
+      `Unknown mouse button: ${name}`,
+      'INVALID_ARGS',
+      'Use MOUSE_BUTTON_ names or numeric codes.',
+    )
+  }
+  return code
 }
 
-/**
- * Fast-path parser for comma-separated lists, avoiding split/map/filter allocations.
- */
-function parseEventsList(str: string): string[] {
-  if (!str) return []
-  const results: string[] = []
+function parseEventsList(eventsStr: string): string[] {
+  const events: string[] = []
   let depth = 0
-  let inQuotes = false
   let start = 0
-  for (let i = 0; i < str.length; i++) {
-    const char = str[i]
-    if (char === '"' && (i === 0 || str[i - 1] !== '\\')) {
-      inQuotes = !inQuotes
-    }
-    if (!inQuotes) {
-      if (char === '(' || char === '[' || char === '{') depth++
-      else if (char === ')' || char === ']' || char === '}') depth--
-      else if (char === ',' && depth === 0) {
-        const part = str.slice(start, i).trim()
-        if (part) results.push(part)
-        start = i + 1
-      }
+  for (let i = 0; i < eventsStr.length; i++) {
+    const char = eventsStr[i]
+    if (char === '(') depth++
+    else if (char === ')') depth--
+    else if (char === ',' && depth === 0) {
+      events.push(eventsStr.slice(start, i).trim())
+      start = i + 1
     }
   }
-  const lastPart = str.slice(start).trim()
-  if (lastPart) results.push(lastPart)
-  return results
+  if (start < eventsStr.length) {
+    const last = eventsStr.slice(start).trim()
+    if (last) events.push(last)
+  }
+  return events
 }
 
-async function getProjectGodotPath(projectPath: string | null | undefined, baseDir: string): Promise<string> {
-  if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
-  const configPath = join(safeResolve(baseDir, projectPath), 'project.godot')
+async function getProjectGodotPath(projectPath: string): Promise<string> {
+  const configPath = join(projectPath, 'project.godot')
   if (!(await pathExists(configPath)))
     throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
   return configPath
@@ -183,25 +164,17 @@ function parseInputActions(content: string): Map<string, string[]> {
 
   let pos = 0
   const len = content.length
-
   while (pos < len) {
     let nextNewline = content.indexOf('\n', pos)
     if (nextNewline === -1) nextNewline = len
 
-    // manual trim
-    let start = pos
-    let end = nextNewline
-    while (start < end && content.charCodeAt(start) <= 32) start++
-    while (end > start && content.charCodeAt(end - 1) <= 32) end--
+    const line = content.slice(pos, nextNewline)
+    const trimmed = line.trim()
 
-    if (start < end) {
-      const trimmed = content.slice(start, end)
-
-      // Handle multi-line continuation
+    if (trimmed.length > 0) {
       if (currentActionName !== null) {
-        currentActionAccumulator += trimmed
+        currentActionAccumulator += ` ${trimmed}`
         if (trimmed.endsWith('}')) {
-          // End of multi-line action
           const eventsMatch = currentActionAccumulator.match(/"events":\s*\[([^\]]*)\]/)
           const events = eventsMatch ? parseEventsList(eventsMatch[1]) : []
           actions.set(currentActionName, events)
@@ -304,197 +277,202 @@ function transformInputMap(
 
   return { updated: result.join('\n'), found: foundAction }
 }
-export async function handleInputMap(action: string, args: Record<string, unknown>, config: GodotConfig) {
-  const baseDir = config.projectPath || process.cwd()
-  const projectPath = (args.project_path as string) || config.projectPath
 
-  switch (action) {
-    case 'list': {
-      const configPath = await getProjectGodotPath(projectPath, baseDir)
-      const content = await readFile(configPath, 'utf-8')
-      const actions = parseInputActions(content)
+async function handleListActions(projectPath: string, _args: Record<string, unknown>) {
+  const configPath = await getProjectGodotPath(projectPath)
+  const content = await readFile(configPath, 'utf-8')
+  const actions = parseInputActions(content)
 
-      // ⚡ Bolt: Use a pre-allocated array and for...of loop to prevent Array.from() + .map() allocation overhead
-      const actionList = new Array(actions.size)
-      let idx = 0
-      for (const [name, events] of actions) {
-        actionList[idx++] = {
-          name,
-          eventCount: events.length,
-        }
-      }
-
-      return formatJSON({ count: actionList.length, actions: actionList })
+  // ⚡ Bolt: Use a pre-allocated array and for...of loop to prevent Array.from() + .map() allocation overhead
+  const actionList = new Array(actions.size)
+  let idx = 0
+  for (const [name, events] of actions) {
+    actionList[idx++] = {
+      name,
+      eventCount: events.length,
     }
-
-    case 'add_action': {
-      const configPath = await getProjectGodotPath(projectPath, baseDir)
-      const actionName = args.action_name as string
-      if (!actionName) throw new GodotMCPError('No action_name specified', 'INVALID_ARGS', 'Provide action_name.')
-      if (typeof actionName !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(actionName)) {
-        throw new GodotMCPError(
-          `Invalid action name: ${actionName}`,
-          'INVALID_ARGS',
-          'Action names must contain only alphanumeric characters, underscores, and hyphens.',
-        )
-      }
-      const deadzone = (args.deadzone as number) || 0.5
-
-      let content = await readFile(configPath, 'utf-8')
-
-      // Check if [input] section exists
-      if (!content.includes('[input]')) {
-        content += `\n[input]\n`
-      }
-
-      // Check if action already exists
-      if (content.includes(`${actionName}={`)) {
-        throw new GodotMCPError(`Action "${actionName}" already exists`, 'INPUT_ERROR', 'Remove it first to recreate.')
-      }
-
-      // Add action after [input] section header
-      const actionLine = `${actionName}={\n"deadzone": ${deadzone},\n"events": []\n}`
-      content = content.replace('[input]', () => `[input]\n${actionLine}`)
-
-      await writeFile(configPath, content, 'utf-8')
-      return formatSuccess(`Added input action: ${actionName} (deadzone: ${deadzone})`)
-    }
-
-    case 'remove_action': {
-      const configPath = await getProjectGodotPath(projectPath, baseDir)
-      const actionName = args.action_name as string
-      if (!actionName) throw new GodotMCPError('No action_name specified', 'INVALID_ARGS', 'Provide action_name.')
-      if (typeof actionName !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(actionName)) {
-        throw new GodotMCPError(
-          `Invalid action name: ${actionName}`,
-          'INVALID_ARGS',
-          'Action names must contain only alphanumeric characters, underscores, and hyphens.',
-        )
-      }
-
-      const content = await readFile(configPath, 'utf-8')
-      const { updated, found } = transformInputMap(content, actionName, () => null)
-
-      if (!found) {
-        throw new GodotMCPError(`Action "${actionName}" not found`, 'INPUT_ERROR', 'Check action name with list.')
-      }
-
-      await writeFile(configPath, updated, 'utf-8')
-      return formatSuccess(`Removed input action: ${actionName}`)
-    }
-
-    case 'add_event': {
-      const configPath = await getProjectGodotPath(projectPath, baseDir)
-      const actionName = args.action_name as string
-      const eventType = args.event_type as string
-      const eventValue = args.event_value as string
-      if (!actionName || !eventType || !eventValue) {
-        throw new GodotMCPError(
-          'action_name, event_type, and event_value required',
-          'INVALID_ARGS',
-          'Provide action_name, event_type (key/mouse/joypad), and event_value (e.g., "KEY_SPACE").',
-        )
-      }
-      if (typeof actionName !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(actionName)) {
-        throw new GodotMCPError(
-          `Invalid action name: ${actionName}`,
-          'INVALID_ARGS',
-          'Action names must contain only alphanumeric characters, underscores, and hyphens.',
-        )
-      }
-
-      const content = await readFile(configPath, 'utf-8')
-
-      // Build event object based on type
-      let eventObj: string
-      switch (eventType) {
-        case 'key': {
-          const keyCode = resolveKeyCode(eventValue)
-          eventObj = serializeGodotObject('InputEventKey', {
-            resource_local_to_scene: false,
-            resource_name: '',
-            device: -1,
-            window_id: 0,
-            alt_pressed: false,
-            shift_pressed: false,
-            ctrl_pressed: false,
-            meta_pressed: false,
-            pressed: false,
-            keycode: 0,
-            physical_keycode: keyCode,
-            key_label: 0,
-            unicode: 0,
-            location: 0,
-            echo: false,
-            script: null,
-          })
-          break
-        }
-        case 'mouse': {
-          const mouseCode = resolveMouseCode(eventValue)
-          eventObj = serializeGodotObject('InputEventMouseButton', {
-            resource_local_to_scene: false,
-            resource_name: '',
-            device: -1,
-            window_id: 0,
-            alt_pressed: false,
-            shift_pressed: false,
-            ctrl_pressed: false,
-            meta_pressed: false,
-            button_mask: 0,
-            position: { x: 0, y: 0 },
-            global_position: { x: 0, y: 0 },
-            factor: 1.0,
-            button_index: mouseCode,
-            canceled: false,
-            pressed: true,
-            double_click: false,
-            script: null,
-          })
-          break
-        }
-        case 'joypad':
-          eventObj = serializeGodotObject('InputEventJoypadButton', {
-            resource_local_to_scene: false,
-            resource_name: '',
-            device: -1,
-            button_index: Number.parseInt(eventValue, 10),
-            pressure: 0.0,
-            pressed: true,
-            script: null,
-          })
-          break
-        default:
-          throw new GodotMCPError(
-            `Unknown event_type: ${eventType}`,
-            'INVALID_ARGS',
-            'Valid types: key, mouse, joypad.',
-          )
-      }
-
-      // Find existing events array and append using transformInputMap
-      const { updated, found } = transformInputMap(content, actionName, (block) => {
-        const eventsRegex = /("events":\s*\[)([^\]]*)\]/
-        const match = block.match(eventsRegex)
-        if (!match) return block // Should not happen with valid Godot files
-
-        const existingEvents = match[2].trim()
-        const newEvents = existingEvents ? `${existingEvents}, ${eventObj}` : eventObj
-        return block.replace(eventsRegex, (_, p1) => `${p1}${newEvents}]`)
-      })
-
-      if (!found) {
-        throw new GodotMCPError(
-          `Action "${actionName}" not found`,
-          'INPUT_ERROR',
-          'Add the action first with add_action.',
-        )
-      }
-
-      await writeFile(configPath, updated, 'utf-8')
-      return formatSuccess(`Added ${eventType} event to action: ${actionName}`)
-    }
-    default:
-      throwUnknownAction(action, ['list', 'add_action', 'remove_action', 'add_event'])
   }
+
+  return formatJSON({ count: actionList.length, actions: actionList })
+}
+
+async function handleAddAction(projectPath: string, args: Record<string, unknown>) {
+  const configPath = await getProjectGodotPath(projectPath)
+  const actionName = args.action_name as string
+  if (!actionName) throw new GodotMCPError('No action_name specified', 'INVALID_ARGS', 'Provide action_name.')
+  if (typeof actionName !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(actionName)) {
+    throw new GodotMCPError(
+      `Invalid action name: ${actionName}`,
+      'INVALID_ARGS',
+      'Action names must contain only alphanumeric characters, underscores, and hyphens.',
+    )
+  }
+  const deadzone = (args.deadzone as number) || 0.5
+
+  let content = await readFile(configPath, 'utf-8')
+
+  // Check if [input] section exists
+  if (!content.includes('[input]')) {
+    content += `\n[input]\n`
+  }
+
+  // Check if action already exists
+  if (content.includes(`${actionName}={`)) {
+    throw new GodotMCPError(`Action "${actionName}" already exists`, 'INPUT_ERROR', 'Remove it first to recreate.')
+  }
+
+  // Add action after [input] section header
+  const actionLine = `${actionName}={\n"deadzone": ${deadzone},\n"events": []\n}`
+  content = content.replace('[input]', () => `[input]\n${actionLine}`)
+
+  await writeFile(configPath, content, 'utf-8')
+  return formatSuccess(`Added input action: ${actionName} (deadzone: ${deadzone})`)
+}
+
+async function handleRemoveAction(projectPath: string, args: Record<string, unknown>) {
+  const configPath = await getProjectGodotPath(projectPath)
+  const actionName = args.action_name as string
+  if (!actionName) throw new GodotMCPError('No action_name specified', 'INVALID_ARGS', 'Provide action_name.')
+  if (typeof actionName !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(actionName)) {
+    throw new GodotMCPError(
+      `Invalid action name: ${actionName}`,
+      'INVALID_ARGS',
+      'Action names must contain only alphanumeric characters, underscores, and hyphens.',
+    )
+  }
+
+  const content = await readFile(configPath, 'utf-8')
+  const { updated, found } = transformInputMap(content, actionName, () => null)
+
+  if (!found) {
+    throw new GodotMCPError(`Action "${actionName}" not found`, 'INPUT_ERROR', 'Check action name with list.')
+  }
+
+  await writeFile(configPath, updated, 'utf-8')
+  return formatSuccess(`Removed input action: ${actionName}`)
+}
+
+async function handleAddEvent(projectPath: string, args: Record<string, unknown>) {
+  const configPath = await getProjectGodotPath(projectPath)
+  const actionName = args.action_name as string
+  const eventType = args.event_type as string
+  const eventValue = args.event_value as string
+  if (!actionName || !eventType || !eventValue) {
+    throw new GodotMCPError(
+      'action_name, event_type, and event_value required',
+      'INVALID_ARGS',
+      'Provide action_name, event_type (key/mouse/joypad), and event_value (e.g., "KEY_SPACE").',
+    )
+  }
+  if (typeof actionName !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(actionName)) {
+    throw new GodotMCPError(
+      `Invalid action name: ${actionName}`,
+      'INVALID_ARGS',
+      'Action names must contain only alphanumeric characters, underscores, and hyphens.',
+    )
+  }
+
+  const content = await readFile(configPath, 'utf-8')
+
+  // Build event object based on type
+  let eventObj: string
+  switch (eventType) {
+    case 'key': {
+      const keyCode = resolveKeyCode(eventValue)
+      eventObj = serializeGodotObject('InputEventKey', {
+        resource_local_to_scene: false,
+        resource_name: '',
+        device: -1,
+        window_id: 0,
+        alt_pressed: false,
+        shift_pressed: false,
+        ctrl_pressed: false,
+        meta_pressed: false,
+        pressed: false,
+        keycode: 0,
+        physical_keycode: keyCode,
+        key_label: 0,
+        unicode: 0,
+        location: 0,
+        echo: false,
+        script: null,
+      })
+      break
+    }
+    case 'mouse': {
+      const mouseCode = resolveMouseCode(eventValue)
+      eventObj = serializeGodotObject('InputEventMouseButton', {
+        resource_local_to_scene: false,
+        resource_name: '',
+        device: -1,
+        window_id: 0,
+        alt_pressed: false,
+        shift_pressed: false,
+        ctrl_pressed: false,
+        meta_pressed: false,
+        button_mask: 0,
+        position: { x: 0, y: 0 },
+        global_position: { x: 0, y: 0 },
+        factor: 1.0,
+        button_index: mouseCode,
+        canceled: false,
+        pressed: true,
+        double_click: false,
+        script: null,
+      })
+      break
+    }
+    case 'joypad':
+      eventObj = serializeGodotObject('InputEventJoypadButton', {
+        resource_local_to_scene: false,
+        resource_name: '',
+        device: -1,
+        button_index: Number.parseInt(eventValue, 10),
+        pressure: 0.0,
+        pressed: true,
+        script: null,
+      })
+      break
+    default:
+      throw new GodotMCPError(`Unknown event_type: ${eventType}`, 'INVALID_ARGS', 'Valid types: key, mouse, joypad.')
+  }
+
+  // Find existing events array and append using transformInputMap
+  const { updated, found } = transformInputMap(content, actionName, (block) => {
+    const eventsRegex = /("events":\s*\[)([^\]]*)\]/
+    const match = block.match(eventsRegex)
+    if (!match) return block // Should not happen with valid Godot files
+
+    const existingEvents = match[2].trim()
+    const newEvents = existingEvents ? `${existingEvents}, ${eventObj}` : eventObj
+    return block.replace(eventsRegex, (_, p1) => `${p1}${newEvents}]`)
+  })
+
+  if (!found) {
+    throw new GodotMCPError(`Action "${actionName}" not found`, 'INPUT_ERROR', 'Add the action first with add_action.')
+  }
+
+  await writeFile(configPath, updated, 'utf-8')
+  return formatSuccess(`Added ${eventType} event to action: ${actionName}`)
+}
+
+/** Tool result type used by MCP handlers */
+type ToolResult = { content: Array<{ type: string; text: string }>; isError?: boolean }
+
+const INPUT_MAP_ACTIONS: Record<string, (projectPath: string, args: Record<string, unknown>) => Promise<ToolResult>> = {
+  list: handleListActions,
+  add_action: handleAddAction,
+  remove_action: handleRemoveAction,
+  add_event: handleAddEvent,
+}
+
+export async function handleInputMap(action: string, args: Record<string, unknown>, config: GodotConfig) {
+  const projectPath = resolveProjectRoot(args.project_path, config.projectPath)
+
+  const handler = INPUT_MAP_ACTIONS[action]
+  if (handler) {
+    return handler(projectPath, args)
+  }
+
+  throwUnknownAction(action, Object.keys(INPUT_MAP_ACTIONS))
 }

@@ -17,22 +17,21 @@ vi.mock('../../src/tools/helpers/paths.js', () => ({
 describe('handleHelp', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Default mock for getDocsDir() logic (marker file exists)
+    vi.mocked(pathExists).mockResolvedValue(true)
   })
 
   it('should return documentation for valid topic', async () => {
     // Mock valid documentation file
-    vi.mocked(pathExists).mockResolvedValue(true)
     vi.mocked(readFile).mockResolvedValue('# Test Documentation')
 
     const result = await handleHelp('project', {})
 
     expect(result.content[0].text).toContain('# Test Documentation')
-    expect(pathExists).toHaveBeenCalled()
     expect(readFile).toHaveBeenCalled()
   })
 
   it('should use tool_name from arguments if provided', async () => {
-    vi.mocked(pathExists).mockResolvedValue(true)
     vi.mocked(readFile).mockResolvedValue('# Scenes Documentation')
 
     const result = await handleHelp('help', { tool_name: 'scenes' })
@@ -48,12 +47,23 @@ describe('handleHelp', () => {
     await expect(handleHelp('help', { tool_name: 'invalid_tool' })).rejects.toThrow('Unknown tool: invalid_tool')
   })
 
-  it('should return fallback message if documentation file is missing', async () => {
-    // Mock file not found
-    vi.mocked(pathExists).mockResolvedValue(false)
+  it('should return fallback message if documentation file is missing (ENOENT)', async () => {
+    // Mock readFile throwing ENOENT (EAFP pattern)
+    const enoent = new Error('File not found') as NodeJS.ErrnoException
+    enoent.code = 'ENOENT'
+    vi.mocked(readFile).mockRejectedValue(enoent)
 
     const result = await handleHelp('project', {})
 
     expect(result.content[0].text).toContain('No documentation available for: project')
+  })
+
+  it('should rethrow non-ENOENT errors from readFile', async () => {
+    // Mock readFile throwing a different error (e.g., EACCES)
+    const eacces = new Error('Permission denied') as NodeJS.ErrnoException
+    eacces.code = 'EACCES'
+    vi.mocked(readFile).mockRejectedValue(eacces)
+
+    await expect(handleHelp('project', {})).rejects.toThrow('Permission denied')
   })
 })

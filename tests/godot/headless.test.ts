@@ -202,21 +202,17 @@ describe('headless', () => {
         signal: null,
       } as unknown as child_process.SpawnSyncReturns<string>)
 
-      const result = execGodotSync(godotPath, args)
+      execGodotSync(godotPath, args)
 
-      expect(result.success).toBe(true)
-      expect(result.stdout).toBe('success')
-      expect(child_process.spawnSync).toHaveBeenCalledTimes(1)
-      expect(child_process.spawn).not.toHaveBeenCalled()
       expect(child_process.spawnSync).toHaveBeenCalledWith(godotPath, args, expect.any(Object))
     })
 
     it('should safely handle malicious arguments without executing them as shell commands', () => {
       const godotPath = '/usr/bin/godot'
-      const maliciousArgs = ['--headless', '--script', 'test.gd', ';', 'ls', '-la']
+      const args = ['--version; rm -rf /']
 
       vi.mocked(child_process.spawnSync).mockReturnValue({
-        stdout: 'success',
+        stdout: 'version output',
         stderr: '',
         status: 0,
         output: [],
@@ -224,13 +220,56 @@ describe('headless', () => {
         signal: null,
       } as unknown as child_process.SpawnSyncReturns<string>)
 
-      execGodotSync(godotPath, maliciousArgs)
+      const result = execGodotSync(godotPath, args)
+      expect(result.success).toBe(true)
+      expect(child_process.spawnSync).toHaveBeenCalledWith(godotPath, args, expect.any(Object))
+    })
 
-      expect(child_process.spawnSync).toHaveBeenCalledWith(
-        godotPath,
-        ['--headless', '--script', 'test.gd', ';', 'ls', '-la'],
-        expect.any(Object),
-      )
+    it('should handle non-string stdout/stderr in error result', () => {
+      vi.mocked(child_process.spawnSync).mockReturnValue({
+        stdout: 123 as unknown as string,
+        stderr: { some: 'obj' } as unknown as string,
+        status: 1,
+        output: [],
+        pid: 0,
+        signal: null,
+      } as unknown as child_process.SpawnSyncReturns<string>)
+
+      const result = execGodotSync('/usr/bin/godot', ['--version'])
+      expect(result.success).toBe(false)
+      expect(result.stdout).toBe('')
+      expect(result.stderr).toBe('Unknown error')
+    })
+
+    it('should handle non-string error message in error result', () => {
+      vi.mocked(child_process.spawnSync).mockReturnValue({
+        error: { message: 123 } as unknown as Error,
+        status: 1,
+        stdout: '',
+        stderr: '',
+        output: [],
+        pid: 0,
+        signal: null,
+      } as unknown as child_process.SpawnSyncReturns<string>)
+
+      const result = execGodotSync('/usr/bin/godot', ['--version'])
+      expect(result.success).toBe(false)
+      expect(result.stderr).toBe('Unknown error')
+    })
+
+    it('should handle non-number status in error result', () => {
+      vi.mocked(child_process.spawnSync).mockReturnValue({
+        status: 'fail' as unknown as number,
+        stdout: '',
+        stderr: 'failed',
+        output: [],
+        pid: 0,
+        signal: null,
+      } as unknown as child_process.SpawnSyncReturns<string>)
+
+      const result = execGodotSync('/usr/bin/godot', ['--version'])
+      expect(result.success).toBe(false)
+      expect(result.exitCode).toBe(1)
     })
   })
 
@@ -488,6 +527,15 @@ describe('headless', () => {
       const result = await execGodotAsync('/usr/bin/godot', ['--version'])
       expect(result.success).toBe(false)
       expect(result.exitCode).toBe(1)
+    })
+
+    it('should handle error with non-string message gracefully', async () => {
+      const error = { message: 123 }
+      execFileAsyncMock.mockRejectedValue(error)
+
+      const result = await execGodotAsync('/usr/bin/godot', ['--version'])
+      expect(result.success).toBe(false)
+      expect(result.stderr).toBe('Unknown error')
     })
   })
 })

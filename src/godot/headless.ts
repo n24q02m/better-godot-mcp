@@ -28,18 +28,24 @@ export function execGodotSync(
   })
 
   if (result.error || result.status !== 0) {
+    const stdout = typeof result.stdout === 'string' ? result.stdout.trim() : ''
+    const stderr = typeof result.stderr === 'string' ? result.stderr.trim() : ''
+    const message =
+      typeof result.error?.message === 'string' && result.error.message ? result.error.message : 'Unknown error'
+    const exitCode = typeof result.status === 'number' ? result.status : 1
+
     return {
       success: false,
-      stdout: (result.stdout as string | undefined)?.trim() || '',
-      stderr: (result.stderr as string | undefined)?.trim() || result.error?.message || 'Unknown error',
-      exitCode: result.status ?? 1,
+      stdout,
+      stderr: stderr || message,
+      exitCode,
     }
   }
 
   return {
     success: true,
-    stdout: result.stdout?.trim() || '',
-    stderr: result.stderr?.trim() || '',
+    stdout: typeof result.stdout === 'string' ? result.stdout.trim() : '',
+    stderr: typeof result.stderr === 'string' ? result.stderr.trim() : '',
     exitCode: 0,
   }
 }
@@ -71,7 +77,8 @@ export async function execGodotAsync(
     const error = err && typeof err === 'object' ? (err as Record<string, unknown>) : null
     const stdout = typeof error?.stdout === 'string' ? error.stdout.trim() : ''
     const stderr = typeof error?.stderr === 'string' ? error.stderr.trim() : ''
-    const message = (err as Error)?.message || 'Unknown error'
+    const message =
+      typeof (err as Error)?.message === 'string' && (err as Error).message ? (err as Error).message : 'Unknown error'
     const exitCode = typeof error?.code === 'number' ? error.code : 1
 
     return {

@@ -13,152 +13,167 @@ import { type ProjectSettings, parseProjectSettingsAsync, setSettingInContent } 
 import { updateNodeInScene } from '../helpers/scene-parser.js'
 import { validateNoNewlines } from '../helpers/security.js'
 
+async function handleLayers(projectPath: string, config: GodotConfig) {
+  if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
+  const configPath = join(safeResolve(config.projectPath || process.cwd(), projectPath), 'project.godot')
+
+  let settings: ProjectSettings
+  try {
+    settings = await parseProjectSettingsAsync(configPath)
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify project path.')
+    }
+    throw err
+  }
+  const layers2d: Record<string, string> = {}
+  const layers3d: Record<string, string> = {}
+
+  for (const [key, value] of settings.sections.get('layer_names') || []) {
+    // ⚡ Bolt: Use .replaceAll('"', '') instead of .replace(/"/g, '') to avoid RegExp compilation overhead
+    if (key.startsWith('2d_physics/layer_')) {
+      layers2d[key] = value.replaceAll('"', '')
+    } else if (key.startsWith('3d_physics/layer_')) {
+      layers3d[key] = value.replaceAll('"', '')
+    }
+  }
+
+  return formatJSON({ layers2d, layers3d })
+}
+
+async function handleCollisionSetup(projectPath: string, args: Record<string, unknown>, config: GodotConfig) {
+  const scenePath = args.scene_path as string
+  if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
+  const nodeName = args.name as string
+  if (!nodeName) throw new GodotMCPError('No node name specified', 'INVALID_ARGS', 'Provide node name.')
+
+  validateNoNewlines(undefined, scenePath, nodeName)
+
+  const collisionLayer = args.collision_layer
+  const collisionMask = args.collision_mask
+
+  const fullPath = safeResolve(safeResolve(config.projectPath || process.cwd(), projectPath), scenePath)
+
+  let content: string
+  try {
+    content = await readFile(fullPath, 'utf-8')
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check file path.')
+    }
+    throw err
+  }
+  const updates: Record<string, string> = {}
+  if (collisionLayer !== undefined) {
+    const val = toGodotValue(collisionLayer)
+    validateNoNewlines('Invalid collision_layer: newlines not allowed', val)
+    updates.collision_layer = val
+  }
+  if (collisionMask !== undefined) {
+    const val = toGodotValue(collisionMask)
+    validateNoNewlines('Invalid collision_mask: newlines not allowed', val)
+    updates.collision_mask = val
+  }
+
+  const { content: updatedContent, updated } = updateNodeInScene(content, nodeName, updates)
+  if (!updated) throw new GodotMCPError(`Node "${nodeName}" not found`, 'NODE_ERROR', 'Check node name.')
+
+  await writeFile(fullPath, updatedContent, 'utf-8')
+
+  return formatSuccess(
+    `Set collision on ${nodeName}: layer=${collisionLayer ?? 'unchanged'}, mask=${collisionMask ?? 'unchanged'}`,
+  )
+}
+
+async function handleBodyConfig(projectPath: string, args: Record<string, unknown>, config: GodotConfig) {
+  const scenePath = args.scene_path as string
+  if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
+  const nodeName = args.name as string
+  if (!nodeName) throw new GodotMCPError('No node name specified', 'INVALID_ARGS', 'Provide node name.')
+
+  validateNoNewlines(undefined, scenePath, nodeName)
+
+  const fullPath = safeResolve(safeResolve(config.projectPath || process.cwd(), projectPath), scenePath)
+
+  let content: string
+  try {
+    content = await readFile(fullPath, 'utf-8')
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check file path.')
+    }
+    throw err
+  }
+  const updates: Record<string, string> = {}
+  const physicsProps = ['gravity_scale', 'mass', 'linear_damp', 'angular_damp', 'freeze']
+  for (const prop of physicsProps) {
+    if (args[prop] !== undefined) {
+      const val = toGodotValue(args[prop])
+      validateNoNewlines(`Invalid ${prop}: newlines not allowed`, val)
+      updates[prop] = val
+    }
+  }
+
+  const { content: updatedContent, updated } = updateNodeInScene(content, nodeName, updates)
+  if (!updated) throw new GodotMCPError(`Node "${nodeName}" not found`, 'NODE_ERROR', 'Check node name.')
+
+  await writeFile(fullPath, updatedContent, 'utf-8')
+
+  return formatSuccess(`Configured physics body: ${nodeName}`)
+}
+
+async function handleSetLayerName(projectPath: string, args: Record<string, unknown>, config: GodotConfig) {
+  if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
+  const layerNumRaw = args.layer_number !== undefined ? String(args.layer_number) : '1'
+  const dimension = (args.dimension as string) || '2d'
+  const name = args.name as string
+  if (!name) throw new GodotMCPError('No name specified', 'INVALID_ARGS', 'Provide layer name.')
+
+  validateNoNewlines(undefined, name, dimension, layerNumRaw)
+
+  const layerNum = Number.parseInt(layerNumRaw, 10)
+  if (Number.isNaN(layerNum)) {
+    throw new GodotMCPError('Invalid layer_number: must be a number', 'INVALID_ARGS')
+  }
+
+  const configPath = join(safeResolve(config.projectPath || process.cwd(), projectPath), 'project.godot')
+
+  let content: string
+  try {
+    content = await readFile(configPath, 'utf-8')
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify project path.')
+    }
+    throw err
+  }
+  const key = `layer_names/${dimension}_physics/layer_${layerNum}`
+  const updated = setSettingInContent(content, key, `"${name}"`)
+  await writeFile(configPath, updated, 'utf-8')
+
+  return formatSuccess(`Set ${dimension} physics layer ${layerNum}: "${name}"`)
+}
+
+/** Tool result type used by MCP handlers */
+type ToolResult = { content: Array<{ type: string; text: string }>; isError?: boolean }
+
+const PHYSICS_ACTIONS: Record<
+  string,
+  (projectPath: string, args: Record<string, unknown>, config: GodotConfig) => Promise<ToolResult>
+> = {
+  layers: (projectPath, _args, config) => handleLayers(projectPath, config),
+  collision_setup: handleCollisionSetup,
+  body_config: handleBodyConfig,
+  set_layer_name: handleSetLayerName,
+}
+
 export async function handlePhysics(action: string, args: Record<string, unknown>, config: GodotConfig) {
   const projectPath = (args.project_path as string) || config.projectPath || ''
 
-  switch (action) {
-    case 'layers': {
-      if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
-      const configPath = join(safeResolve(config.projectPath || process.cwd(), projectPath), 'project.godot')
-
-      let settings: ProjectSettings
-      try {
-        settings = await parseProjectSettingsAsync(configPath)
-      } catch (err) {
-        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-          throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify project path.')
-        }
-        throw err
-      }
-      const layers2d: Record<string, string> = {}
-      const layers3d: Record<string, string> = {}
-
-      for (const [key, value] of settings.sections.get('layer_names') || []) {
-        // ⚡ Bolt: Use .replaceAll('"', '') instead of .replace(/"/g, '') to avoid RegExp compilation overhead
-        if (key.startsWith('2d_physics/layer_')) {
-          layers2d[key] = value.replaceAll('"', '')
-        } else if (key.startsWith('3d_physics/layer_')) {
-          layers3d[key] = value.replaceAll('"', '')
-        }
-      }
-
-      return formatJSON({ layers2d, layers3d })
-    }
-
-    case 'collision_setup': {
-      const scenePath = args.scene_path as string
-      if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
-      const nodeName = args.name as string
-      if (!nodeName) throw new GodotMCPError('No node name specified', 'INVALID_ARGS', 'Provide node name.')
-
-      validateNoNewlines(undefined, scenePath, nodeName)
-
-      const collisionLayer = args.collision_layer
-      const collisionMask = args.collision_mask
-
-      const fullPath = safeResolve(safeResolve(config.projectPath || process.cwd(), projectPath), scenePath)
-
-      let content: string
-      try {
-        content = await readFile(fullPath, 'utf-8')
-      } catch (err) {
-        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-          throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check file path.')
-        }
-        throw err
-      }
-      const updates: Record<string, string> = {}
-      if (collisionLayer !== undefined) {
-        const val = toGodotValue(collisionLayer)
-        validateNoNewlines('Invalid collision_layer: newlines not allowed', val)
-        updates.collision_layer = val
-      }
-      if (collisionMask !== undefined) {
-        const val = toGodotValue(collisionMask)
-        validateNoNewlines('Invalid collision_mask: newlines not allowed', val)
-        updates.collision_mask = val
-      }
-
-      const { content: updatedContent, updated } = updateNodeInScene(content, nodeName, updates)
-      if (!updated) throw new GodotMCPError(`Node "${nodeName}" not found`, 'NODE_ERROR', 'Check node name.')
-
-      await writeFile(fullPath, updatedContent, 'utf-8')
-
-      return formatSuccess(
-        `Set collision on ${nodeName}: layer=${collisionLayer ?? 'unchanged'}, mask=${collisionMask ?? 'unchanged'}`,
-      )
-    }
-
-    case 'body_config': {
-      const scenePath = args.scene_path as string
-      if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
-      const nodeName = args.name as string
-      if (!nodeName) throw new GodotMCPError('No node name specified', 'INVALID_ARGS', 'Provide node name.')
-
-      validateNoNewlines(undefined, scenePath, nodeName)
-
-      const fullPath = safeResolve(safeResolve(config.projectPath || process.cwd(), projectPath), scenePath)
-
-      let content: string
-      try {
-        content = await readFile(fullPath, 'utf-8')
-      } catch (err) {
-        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-          throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check file path.')
-        }
-        throw err
-      }
-      const updates: Record<string, string> = {}
-      const physicsProps = ['gravity_scale', 'mass', 'linear_damp', 'angular_damp', 'freeze']
-      for (const prop of physicsProps) {
-        if (args[prop] !== undefined) {
-          const val = toGodotValue(args[prop])
-          validateNoNewlines(`Invalid ${prop}: newlines not allowed`, val)
-          updates[prop] = val
-        }
-      }
-
-      const { content: updatedContent, updated } = updateNodeInScene(content, nodeName, updates)
-      if (!updated) throw new GodotMCPError(`Node "${nodeName}" not found`, 'NODE_ERROR', 'Check node name.')
-
-      await writeFile(fullPath, updatedContent, 'utf-8')
-
-      return formatSuccess(`Configured physics body: ${nodeName}`)
-    }
-
-    case 'set_layer_name': {
-      if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
-      const layerNumRaw = args.layer_number !== undefined ? String(args.layer_number) : '1'
-      const dimension = (args.dimension as string) || '2d'
-      const name = args.name as string
-      if (!name) throw new GodotMCPError('No name specified', 'INVALID_ARGS', 'Provide layer name.')
-
-      validateNoNewlines(undefined, name, dimension, layerNumRaw)
-
-      const layerNum = Number.parseInt(layerNumRaw, 10)
-      if (Number.isNaN(layerNum)) {
-        throw new GodotMCPError('Invalid layer_number: must be a number', 'INVALID_ARGS')
-      }
-
-      const configPath = join(safeResolve(config.projectPath || process.cwd(), projectPath), 'project.godot')
-
-      let content: string
-      try {
-        content = await readFile(configPath, 'utf-8')
-      } catch (err) {
-        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-          throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify project path.')
-        }
-        throw err
-      }
-      const key = `layer_names/${dimension}_physics/layer_${layerNum}`
-      const updated = setSettingInContent(content, key, `"${name}"`)
-      await writeFile(configPath, updated, 'utf-8')
-
-      return formatSuccess(`Set ${dimension} physics layer ${layerNum}: "${name}"`)
-    }
-
-    default:
-      throwUnknownAction(action, ['layers', 'collision_setup', 'body_config', 'set_layer_name'])
+  const handler = PHYSICS_ACTIONS[action]
+  if (handler) {
+    return handler(projectPath, args, config)
   }
+
+  throwUnknownAction(action, Object.keys(PHYSICS_ACTIONS))
 }

@@ -77,8 +77,10 @@ export function formatJSON(data: unknown): { content: Array<{ type: 'text'; text
  * Find the closest matching string from a list of valid options.
  * Uses a prioritized hierarchy:
  * 1. Case-insensitive exact match
- * 2. Best prefix/containment match (closest in length)
- * 3. Fuzzy bigram similarity (Dice coefficient)
+ * 2. Option starts with input (Best length match)
+ * 3. Option includes input (Best length match)
+ * 4. Input starts with option (Best length match)
+ * 5. Fuzzy bigram similarity (Dice coefficient)
  */
 export function findClosestMatch(input: string, validOptions: string[]): string | null {
   if (!input || validOptions.length === 0) return null
@@ -94,27 +96,43 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
     }
   }
 
-  // 2. Priority: Prefix/containment match
-  // We want the one with the smallest absolute length difference
-  let bestPrefixMatch: string | null = null
-  let minLenDiff = Number.POSITIVE_INFINITY
+  // 2-4. Priority: Prefix and containment matches
+  let bestStartsWith: string | null = null
+  let minLenDiffStartsWith = Number.POSITIVE_INFINITY
+
+  let bestIncludes: string | null = null
+  let minLenDiffIncludes = Number.POSITIVE_INFINITY
+
+  let bestInputStartsWith: string | null = null
+  let minLenDiffInputStartsWith = Number.POSITIVE_INFINITY
 
   for (const option of validOptions) {
     const optionLower = option.toLowerCase()
-    if (optionLower.startsWith(lower) || lower.startsWith(optionLower)) {
-      const lenDiff = Math.abs(optionLower.length - lower.length)
-      if (lenDiff < minLenDiff) {
-        minLenDiff = lenDiff
-        bestPrefixMatch = option
+    const lenDiff = Math.abs(optionLower.length - lower.length)
+
+    if (optionLower.startsWith(lower)) {
+      if (lenDiff < minLenDiffStartsWith) {
+        minLenDiffStartsWith = lenDiff
+        bestStartsWith = option
+      }
+    } else if (optionLower.includes(lower)) {
+      if (lenDiff < minLenDiffIncludes) {
+        minLenDiffIncludes = lenDiff
+        bestIncludes = option
+      }
+    } else if (lower.startsWith(optionLower)) {
+      if (lenDiff < minLenDiffInputStartsWith) {
+        minLenDiffInputStartsWith = lenDiff
+        bestInputStartsWith = option
       }
     }
   }
 
-  if (bestPrefixMatch !== null) {
-    return bestPrefixMatch
-  }
+  if (bestStartsWith !== null) return bestStartsWith
+  if (bestIncludes !== null) return bestIncludes
+  if (bestInputStartsWith !== null) return bestInputStartsWith
 
-  // 3. Fallback: Fuzzy matching using bigram similarity
+  // 5. Fallback: Fuzzy matching using bigram similarity
   let bestFuzzyMatch: string | null = null
   let bestScore = 0
 

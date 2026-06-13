@@ -190,6 +190,22 @@ describe('errors', () => {
     it('should return the closest prefix match by length', () => {
       expect(findClosestMatch('cre', ['create_node', 'create'])).toBe('create')
     })
+
+    it('should prioritize OptionStartsWith over OptionIncludes', () => {
+      expect(findClosestMatch('node', ['create_node', 'node_info'])).toBe('node_info')
+    })
+
+    it('should prioritize OptionIncludes over InputStartsWith', () => {
+      expect(findClosestMatch('foo', ['other_foo_bar', 'fo'])).toBe('other_foo_bar')
+    })
+
+    it('should prioritize InputStartsWith over Fuzzy', () => {
+      expect(findClosestMatch('create_extra', ['create', 'crte'])).toBe('create')
+    })
+
+    it('should prefer create_node over create for create_n', () => {
+      expect(findClosestMatch('create_n', ['create', 'create_node'])).toBe('create_node')
+    })
   })
 
   // ==========================================

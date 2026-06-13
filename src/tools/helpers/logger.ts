@@ -1,3 +1,5 @@
+import { format } from 'node:util'
+
 /**
  * Centralized logger utility for Better Godot MCP.
  * All logs are written to stderr to avoid interfering with MCP JSON-RPC on stdout.
@@ -13,21 +15,21 @@ export const logger = {
    * Log an info message.
    */
   info: (message: string, ...args: unknown[]) => {
-    console.error(`${PREFIX} ${message}`, ...args)
+    process.stderr.write(`${format(`${PREFIX} ${message}`, ...args)}\n`)
   },
 
   /**
    * Log a warning message.
    */
   warn: (message: string, ...args: unknown[]) => {
-    console.error(`${PREFIX} WARN: ${message}`, ...args)
+    process.stderr.write(`${format(`${PREFIX} WARN: ${message}`, ...args)}\n`)
   },
 
   /**
    * Log an error message.
    */
   error: (message: string, ...args: unknown[]) => {
-    console.error(`${PREFIX} ERROR: ${message}`, ...args)
+    process.stderr.write(`${format(`${PREFIX} ERROR: ${message}`, ...args)}\n`)
   },
 
   /**
@@ -35,7 +37,7 @@ export const logger = {
    */
   debug: (message: string, ...args: unknown[]) => {
     if (isDebugEnabled) {
-      console.error(`${PREFIX} DEBUG: ${message}`, ...args)
+      process.stderr.write(`${format(`${PREFIX} DEBUG: ${message}`, ...args)}\n`)
     }
   },
 }

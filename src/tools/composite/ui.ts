@@ -8,7 +8,7 @@ import { dirname } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists, resolveProjectRoot, safeResolve } from '../helpers/paths.js'
-import { parseScene, updateNodeInScene } from '../helpers/scene-parser.js'
+import { normalizeNodePath, parseSceneContent, updateNodeInScene } from '../helpers/scene-parser.js'
 
 const CONTROL_TEMPLATES: Record<string, Record<string, string>> = {
   Button: { text: '"Click"' },
@@ -78,7 +78,7 @@ async function handleCreateControl(projectPath: string, args: Record<string, unk
   if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
   const controlName = args.name as string
   const controlType = (args.type as string) || 'Control'
-  const parent = (args.parent as string) || '.'
+  const { path: parent } = normalizeNodePath((args.parent as string) || '.')
 
   if (!controlName) throw new GodotMCPError('No name specified', 'INVALID_ARGS', 'Provide control node name.')
 
@@ -165,7 +165,7 @@ async function handleSetTheme(projectPath: string, args: Record<string, unknown>
 async function handleLayout(projectPath: string, args: Record<string, unknown>) {
   const scenePath = args.scene_path as string
   if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
-  const nodeName = args.name as string
+  const { path: nodeName } = normalizeNodePath((args.name as string) || '')
   if (!nodeName) throw new GodotMCPError('No name specified', 'INVALID_ARGS', 'Provide node name.')
   const preset = (args.preset as string) || 'full_rect'
 
@@ -256,7 +256,8 @@ async function handleListControls(projectPath: string, args: Record<string, unkn
   if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
 
   const fullPath = await resolveScene(projectPath, scenePath)
-  const scene = await parseScene(fullPath)
+  const content = await readFile(fullPath, 'utf-8')
+  const scene = parseSceneContent(content)
 
   const controls: { name: string; type: string; parent: string }[] = []
 

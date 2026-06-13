@@ -1,22 +1,9 @@
 /**
- * Scene Parser - Parse Godot .tscn (text scene) format
- *
- * .tscn format structure:
- * [gd_scene load_steps=N format=3 uid="uid://..."]
- * [ext_resource type="..." uid="uid://..." path="res://..." id="1_abc"]
- * [sub_resource type="..." id="1_abc"]
- * key = value
- * [node name="..." type="..." parent="."]
- * key = value
- * [connection signal="..." from="..." to="..." method="..."]
+ * Scene Parser - Parse and manipulate Godot .tscn (text scene) format
  */
 
-import { readFile } from 'node:fs/promises'
 import { parseCommaSeparatedList } from './strings.js'
 
-/**
- * Fast-path string extraction for attributes like name="value"
- */
 function extractAttribute(line: string, prefix: string, suffix: string): string | undefined {
   const startIdx = line.indexOf(prefix)
   if (startIdx === -1) return undefined
@@ -26,9 +13,6 @@ function extractAttribute(line: string, prefix: string, suffix: string): string 
   return line.slice(valueStart, endIdx)
 }
 
-/**
- * Fast-path extraction for numeric attributes like format=3
- */
 function extractNumberAttribute(line: string, prefix: string): number | undefined {
   const startIdx = line.indexOf(prefix)
   if (startIdx === -1) return undefined
@@ -36,16 +20,10 @@ function extractNumberAttribute(line: string, prefix: string): number | undefine
   let endIdx = valueStart
   while (endIdx < line.length) {
     const charCode = line.charCodeAt(endIdx)
-    if (charCode >= 48 && charCode <= 57) {
-      // '0'-'9'
-      endIdx++
-    } else {
-      break
-    }
+    if (charCode >= 48 && charCode <= 57) endIdx++
+    else break
   }
-  if (endIdx > valueStart) {
-    return Number.parseInt(line.slice(valueStart, endIdx), 10)
-  }
+  if (endIdx > valueStart) return Number.parseInt(line.slice(valueStart, endIdx), 10)
   return undefined
 }
 
@@ -54,20 +32,17 @@ export interface TscnHeader {
   loadSteps: number
   uid?: string
 }
-
 export interface ExtResource {
   type: string
   uid?: string
   path: string
   id: string
 }
-
 export interface SubResource {
   type: string
   id: string
   properties: Record<string, string>
 }
-
 export interface SceneNodeInfo {
   name: string
   type?: string
@@ -76,7 +51,6 @@ export interface SceneNodeInfo {
   properties: Record<string, string>
   groups?: string[]
 }
-
 export interface SignalConnection {
   signal: string
   from: string
@@ -92,25 +66,11 @@ export interface ParsedScene {
   nodes: SceneNodeInfo[]
   connections: SignalConnection[]
   raw: string
-  /** ⚡ Bolt: Fast lookup for nodes by their full hierarchical path (parent:name) */
   nodesByPath: Map<string, SceneNodeInfo>
-  /** ⚡ Bolt: Fast lookup for the first node matching a given name */
   nodesByName: Map<string, SceneNodeInfo>
-  /** ⚡ Bolt: Fast lookup for signal connections by key (signal:from:to:method) */
   connectionsKeyed: Map<string, SignalConnection>
 }
 
-/**
- * Parse a .tscn file into structured data
- */
-export async function parseScene(filePath: string): Promise<ParsedScene> {
-  const raw = await readFile(filePath, 'utf-8')
-  return parseSceneContent(raw)
-}
-
-/**
- * Parse .tscn content string into structured data
- */
 export function parseSceneContent(content: string): ParsedScene {
   const header: TscnHeader = { format: 3, loadSteps: 1 }
   const extResources: ExtResource[] = []
@@ -131,12 +91,9 @@ export function parseSceneContent(content: string): ParsedScene {
   const saveCurrentNode = () => {
     if (currentNode) {
       nodes.push(currentNode)
-      // Populate maps
       const pathKey = `${currentNode.parent || '.'}:${currentNode.name}`
       nodesByPath.set(pathKey, currentNode)
-      if (!nodesByName.has(currentNode.name)) {
-        nodesByName.set(currentNode.name, currentNode)
-      }
+      if (!nodesByName.has(currentNode.name)) nodesByName.set(currentNode.name, currentNode)
       currentNode = null
     }
   }
@@ -144,77 +101,85 @@ export function parseSceneContent(content: string): ParsedScene {
   while (startIndex < len) {
     let endIndex = content.indexOf('\n', startIndex)
     if (endIndex === -1) endIndex = len
-
     let start = startIndex
-    // Skip leading whitespace manually
-    while (start < endIndex && content.charCodeAt(start) <= 32) {
-      start++
-    }
-
+    while (start < endIndex && content.charCodeAt(start) <= 32) start++
     let end = endIndex
-    // Skip trailing whitespace manually
-    while (end > start && content.charCodeAt(end - 1) <= 32) {
-      end--
-    }
-
+    while (end > start && content.charCodeAt(end - 1) <= 32) end--
     if (start < end) {
       const firstChar = content.charCodeAt(start)
-      // Skip comments starting with ';'
       if (firstChar !== 59) {
         if (firstChar === 91) {
-          // '[' character indicates a new section
-          // Save previous node/sub_resource
           saveCurrentNode()
           if (currentSubResource) subResources.push(currentSubResource)
           currentSubResource = null
-
           const secondChar = content.charCodeAt(start + 1)
           const line = content.slice(start, end)
-
           if (secondChar === 103) {
-            // 'g' -> [gd_scene
             currentSection = 'header'
-            parseHeader(line, header)
+            const f = extractNumberAttribute(line, 'format=')
+            if (f !== undefined) header.format = f
+            const s = extractNumberAttribute(line, 'load_steps=')
+            if (s !== undefined) header.loadSteps = s
+            const u = extractAttribute(line, 'uid="', '"')
+            if (u !== undefined) header.uid = u
           } else if (secondChar === 101) {
-            // 'e' -> [ext_resource
             currentSection = 'ext_resource'
-            const res = parseExtResource(line)
-            if (res) extResources.push(res)
+            const t = extractAttribute(line, 'type="', '"')
+            const u = extractAttribute(line, 'uid="', '"')
+            const p = extractAttribute(line, 'path="', '"')
+            const i = extractAttribute(line, ' id="', '"')
+            if (t && p && i) extResources.push({ type: t, uid: u, path: p, id: i })
           } else if (secondChar === 115) {
-            // 's' -> [sub_resource
             currentSection = 'sub_resource'
-            currentSubResource = parseSubResource(line)
+            const t = extractAttribute(line, 'type="', '"')
+            const i = extractAttribute(line, ' id="', '"')
+            if (t && i) currentSubResource = { type: t, id: i, properties: {} }
           } else if (secondChar === 110) {
-            // 'n' -> [node
             currentSection = 'node'
-            currentNode = parseNode(line)
+            const n = extractAttribute(line, 'name="', '"')
+            if (n) {
+              const groupsStr = extractAttribute(line, 'groups=[', ']')
+              currentNode = {
+                name: n,
+                type: extractAttribute(line, 'type="', '"'),
+                parent: extractAttribute(line, 'parent="', '"'),
+                instance: extractAttribute(line, 'instance=ExtResource("', '")'),
+                properties: {},
+                groups: groupsStr ? parseCommaSeparatedList(groupsStr) : undefined,
+              }
+            }
           } else if (secondChar === 99) {
-            // 'c' -> [connection
             currentSection = 'connection'
-            const conn = parseConnection(line)
-            if (conn) {
-              connections.push(conn)
-              // Populate connections map
-              const connKey = `${conn.signal}:${conn.from}:${conn.to}:${conn.method}`
-              connectionsKeyed.set(connKey, conn)
+            const s = extractAttribute(line, 'signal="', '"')
+            const f = extractAttribute(line, 'from="', '"')
+            const t = extractAttribute(line, 'to="', '"')
+            const m = extractAttribute(line, 'method="', '"')
+            const fl = extractNumberAttribute(line, 'flags=')
+            if (s && f && t && m) {
+              const c = { signal: s, from: f, to: t, method: m, flags: fl }
+              connections.push(c)
+              connectionsKeyed.set(`${s}:${f}:${t}:${m}`, c)
             }
           }
         } else if (currentSection === 'node' || currentSection === 'sub_resource') {
           const target = currentSection === 'node' ? currentNode?.properties : currentSubResource?.properties
           if (target) {
-            parseProperty(content, start, end, target)
+            const eqIdx = content.indexOf('=', start)
+            if (eqIdx !== -1 && eqIdx < end) {
+              let kEnd = eqIdx
+              while (kEnd > start && content.charCodeAt(kEnd - 1) <= 32) kEnd--
+              let vStart = eqIdx + 1
+              while (vStart < end && content.charCodeAt(vStart) <= 32) vStart++
+              target[content.slice(start, kEnd)] = content.slice(vStart, end)
+            }
           }
         }
       }
     }
-
     startIndex = endIndex + 1
   }
-
-  // Save last pending section
   saveCurrentNode()
   if (currentSubResource) subResources.push(currentSubResource)
-
   return {
     header,
     extResources,
@@ -228,123 +193,6 @@ export function parseSceneContent(content: string): ParsedScene {
   }
 }
 
-/**
- * Parse header section [gd_scene ...]
- */
-function parseHeader(line: string, header: TscnHeader): void {
-  const formatVal = extractNumberAttribute(line, 'format=')
-  const stepsVal = extractNumberAttribute(line, 'load_steps=')
-  const uidVal = extractAttribute(line, 'uid="', '"')
-
-  if (formatVal !== undefined) header.format = formatVal
-  if (stepsVal !== undefined) header.loadSteps = stepsVal
-  if (uidVal !== undefined) header.uid = uidVal
-}
-
-/**
- * Parse external resource section [ext_resource ...]
- */
-function parseExtResource(line: string): ExtResource | null {
-  const typeVal = extractAttribute(line, 'type="', '"')
-  const uidVal = extractAttribute(line, 'uid="', '"')
-  const pathVal = extractAttribute(line, 'path="', '"')
-  const idVal = extractAttribute(line, ' id="', '"')
-
-  if (typeVal !== undefined && pathVal !== undefined && idVal !== undefined) {
-    return {
-      type: typeVal,
-      uid: uidVal,
-      path: pathVal,
-      id: idVal,
-    }
-  }
-  return null
-}
-
-/**
- * Parse sub-resource section [sub_resource ...]
- */
-function parseSubResource(line: string): SubResource | null {
-  const typeVal = extractAttribute(line, 'type="', '"')
-  const idVal = extractAttribute(line, ' id="', '"')
-
-  if (typeVal !== undefined && idVal !== undefined) {
-    return { type: typeVal, id: idVal, properties: {} }
-  }
-  return null
-}
-
-/**
- * Parse node section [node ...]
- */
-function parseNode(line: string): SceneNodeInfo | null {
-  const nameVal = extractAttribute(line, 'name="', '"')
-  const typeVal = extractAttribute(line, 'type="', '"')
-  const parentVal = extractAttribute(line, 'parent="', '"')
-  const instanceVal = extractAttribute(line, 'instance=ExtResource("', '")')
-  const groupsVal = extractAttribute(line, 'groups=[', ']')
-
-  if (nameVal !== undefined) {
-    return {
-      name: nameVal,
-      type: typeVal,
-      parent: parentVal,
-      instance: instanceVal,
-      properties: {},
-      groups: groupsVal !== undefined ? parseCommaSeparatedList(groupsVal) : undefined,
-    }
-  }
-  return null
-}
-
-/**
- * Parse signal connection section [connection ...]
- */
-function parseConnection(line: string): SignalConnection | null {
-  const signalVal = extractAttribute(line, 'signal="', '"')
-  const fromVal = extractAttribute(line, 'from="', '"')
-  const toVal = extractAttribute(line, 'to="', '"')
-  const methodVal = extractAttribute(line, 'method="', '"')
-  const flagsVal = extractNumberAttribute(line, 'flags=')
-
-  if (signalVal !== undefined && fromVal !== undefined && toVal !== undefined && methodVal !== undefined) {
-    return {
-      signal: signalVal,
-      from: fromVal,
-      to: toVal,
-      method: methodVal,
-      flags: flagsVal,
-    }
-  }
-  return null
-}
-
-/**
- * Parse a property line (key = value)
- */
-function parseProperty(content: string, start: number, end: number, target: Record<string, string>): void {
-  const eqIdx = content.indexOf('=', start)
-  if (eqIdx !== -1 && eqIdx < end) {
-    // Trim key
-    let kEnd = eqIdx
-    while (kEnd > start && content.charCodeAt(kEnd - 1) <= 32) {
-      kEnd--
-    }
-    const key = content.slice(start, kEnd)
-
-    // Trim value
-    let vStart = eqIdx + 1
-    while (vStart < end && content.charCodeAt(vStart) <= 32) {
-      vStart++
-    }
-    const value = content.slice(vStart, end)
-
-    target[key] = value
-  }
-}
-/**
- * Internal utility to transform scene content line by line with node tracking
- */
 function transformSceneContent(
   content: string,
   nodeName: string,
@@ -357,83 +205,65 @@ function transformSceneContent(
   let pos = 0
   const len = content.length
   let inTargetNode = false
-
+  let firstNodeFound = false
   while (pos < len) {
     let nextNewline = content.indexOf('\n', pos)
     if (nextNewline === -1) nextNewline = len
-
     let start = pos
-    // Skip leading whitespace to find the first character of the line
     while (start < nextNewline && content.charCodeAt(start) <= 32) start++
-
-    const firstChar = content.charCodeAt(start)
     const line = content.slice(pos, nextNewline)
-    const isSectionHeader = firstChar === 91 // "["
-
-    if (isSectionHeader) {
-      // If we were in the target node and it's ending, call onTargetNodeEnd
+    if (content.charCodeAt(start) === 91) {
       if (inTargetNode && callbacks.onTargetNodeEnd) {
-        const extra = callbacks.onTargetNodeEnd()
-        if (extra) {
-          if (Array.isArray(extra)) result.push(...extra)
-          else result.push(extra)
+        const ex = callbacks.onTargetNodeEnd()
+        if (ex) {
+          if (Array.isArray(ex)) result.push(...ex)
+          else result.push(ex)
         }
       }
-
-      // Check if this new section is our target node
-      const isNodeHeader = content.charCodeAt(start + 1) === 110 // "n"
-      inTargetNode = isNodeHeader && line.includes(`name="${nodeName}"`)
+      if (content.charCodeAt(start + 1) === 110) {
+        if (nodeName === '.') {
+          if (!firstNodeFound) {
+            inTargetNode = true
+            firstNodeFound = true
+          } else inTargetNode = false
+        } else {
+          inTargetNode = line.includes(`name="${nodeName}"`)
+          firstNodeFound = true
+        }
+      } else inTargetNode = false
     }
-
-    const processed = callbacks.processLine(line, inTargetNode, isSectionHeader)
+    const processed = callbacks.processLine(line, inTargetNode, content.charCodeAt(start) === 91)
     if (processed !== null) {
       if (Array.isArray(processed)) result.push(...processed)
       else result.push(processed)
     }
-
     pos = nextNewline + 1
   }
-
-  // Handle case where target node is the last section in the file
   if (inTargetNode && callbacks.onTargetNodeEnd) {
-    const extra = callbacks.onTargetNodeEnd()
-    if (extra) {
-      if (Array.isArray(extra)) result.push(...extra)
-      else result.push(extra)
+    const ex = callbacks.onTargetNodeEnd()
+    if (ex) {
+      if (Array.isArray(ex)) result.push(...ex)
+      else result.push(ex)
     }
   }
-
   return result.join('\n')
 }
-/**
- * Update multiple properties on a node in scene content
- */
+
 export function updateNodeInScene(
   content: string,
   nodeName: string,
   updates: Record<string, string>,
-): {
-  content: string
-  updated: boolean
-} {
-  // Fast-path: Skip if node name is not in the content
-  if (!content.includes(`name="${nodeName}"`)) {
-    return { content, updated: false }
-  }
-
+): { content: string; updated: boolean } {
+  if (nodeName !== '.' && !content.includes(`name="${nodeName}"`)) return { content, updated: false }
   const updatedProperties = new Set<string>()
-
   const newContent = transformSceneContent(content, nodeName, {
     processLine: (line, inTargetNode, isSectionHeader) => {
       if (inTargetNode && !isSectionHeader) {
-        // Find if this line is one of our target properties
         const trimmed = line.trimStart()
         for (const key in updates) {
-          if (Object.hasOwn(updates, key)) {
-            if (trimmed.startsWith(`${key} `) || trimmed.startsWith(`${key}=`)) {
-              updatedProperties.add(key)
-              return `${key} = ${updates[key]}`
-            }
+          if (Object.hasOwn(updates, key) && (trimmed.startsWith(`${key} `) || trimmed.startsWith(`${key}=`))) {
+            updatedProperties.add(key)
+            return `${key} = ${updates[key]}`
           }
         }
       }
@@ -442,121 +272,83 @@ export function updateNodeInScene(
     onTargetNodeEnd: () => {
       const added: string[] = []
       for (const key in updates) {
-        if (Object.hasOwn(updates, key)) {
-          if (!updatedProperties.has(key)) {
-            added.push(`${key} = ${updates[key]}`)
-          }
-        }
+        if (Object.hasOwn(updates, key) && !updatedProperties.has(key)) added.push(`${key} = ${updates[key]}`)
       }
       return added
     },
   })
-
-  return {
-    content: newContent,
-    updated: true,
-  }
+  return { content: newContent, updated: true }
 }
 
 export function findNode(scene: ParsedScene, name: string): SceneNodeInfo | undefined {
+  if (name === '.' && scene.nodes.length > 0) return scene.nodes[0]
   return scene.nodesByName.get(name)
 }
-
-/**
- * Remove a node from scene content by name
- */
 export function removeNodeFromContent(content: string, nodeName: string): string {
-  // Fast-path: Skip allocations and processing if the node name is not in the content
   if (
+    nodeName !== '.' &&
     !content.includes(`name="${nodeName}"`) &&
     !content.includes(`from="${nodeName}"`) &&
     !content.includes(`to="${nodeName}"`)
-  ) {
+  )
     return content
-  }
-
   let skipping = false
-
   return transformSceneContent(content, nodeName, {
-    processLine: (line, _inTargetNode, isSectionHeader) => {
+    processLine: (line, inTargetNode, isSectionHeader) => {
       if (isSectionHeader) {
-        const start = line.indexOf('[')
-        const secondChar = line.charCodeAt(start + 1)
-        if (secondChar === 110 && line.includes(`name="${nodeName}"`)) {
-          skipping = true
-          return null
-        }
-        skipping = false
+        skipping = inTargetNode
+        if (skipping) return null
       }
-
       if (skipping) return null
-
-      // Check for connection removals
-      const start = line.indexOf('[')
-      if (start !== -1 && line.charCodeAt(start + 1) === 99) {
-        if (line.includes(`from="${nodeName}"`) || line.includes(`to="${nodeName}"`)) {
-          return null
-        }
-      }
-
+      if (
+        line.charCodeAt(line.indexOf('[')) === 91 &&
+        line.charCodeAt(line.indexOf('[') + 1) === 99 &&
+        nodeName !== '.' &&
+        (line.includes(`from="${nodeName}"`) || line.includes(`to="${nodeName}"`))
+      )
+        return null
       return line
     },
   })
 }
-
-/**
- * Escape special characters in a string for use in a regular expression
- */
 export function escapeRegExp(string: string): string {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
-
-/**
- * Rename a node in scene content
- */
 export function renameNodeInContent(content: string, oldName: string, newName: string): string {
-  // Fast-path: Skip processing if the old name is not in the content
-  if (!content.includes(oldName)) {
-    return content
+  if (oldName === '.' || !content.includes(oldName)) return content
+  let res = content
+    .replaceAll(`name="${oldName}"`, () => `name="${newName}"`)
+    .replaceAll(`parent="${oldName}"`, () => `parent="${newName}"`)
+    .replaceAll(`from="${oldName}"`, () => `from="${newName}"`)
+    .replaceAll(`to="${oldName}"`, () => `to="${newName}"`)
+  if (res.includes(`/${oldName}/`) || res.includes(`/${oldName}"`)) {
+    const esc = escapeRegExp(oldName)
+    res = res
+      .replace(new RegExp(`parent="([^"]*/)${esc}(/[^"]*)"`, 'g'), (_m, p1, p2) => `parent="${p1}${newName}${p2}"`)
+      .replace(new RegExp(`parent="([^"]*/)${esc}"`, 'g'), (_m, p1) => `parent="${p1}${newName}"`)
   }
-
-  // ⚡ Bolt: Use exact string replacements via replaceAll instead of new RegExp(..., 'g')
-  // This avoids expensive regex compilation and matching overhead for simple exact matches.
-  // Using replacement functions () => ... to avoid interpretation of special patterns like $& in newName.
-  let result = content.replaceAll(`name="${oldName}"`, () => `name="${newName}"`)
-  result = result.replaceAll(`parent="${oldName}"`, () => `parent="${newName}"`)
-  result = result.replaceAll(`from="${oldName}"`, () => `from="${newName}"`)
-  result = result.replaceAll(`to="${oldName}"`, () => `to="${newName}"`)
-
-  // Fallback to RegExp only for complex hierarchical path replacements
-  // e.g., parent="Root/OldName/Child" or parent="Root/OldName"
-  if (result.includes(`/${oldName}/`) || result.includes(`/${oldName}"`)) {
-    const escapedOldName = escapeRegExp(oldName)
-    result = result.replace(
-      new RegExp(`parent="([^"]*/)${escapedOldName}(/[^"]*)"`, 'g'),
-      (_match, p1, p2) => `parent="${p1}${newName}${p2}"`,
-    )
-    result = result.replace(
-      new RegExp(`parent="([^"]*/)${escapedOldName}"`, 'g'),
-      (_match, p1) => `parent="${p1}${newName}"`,
-    )
-  }
-
-  return result
+  return res
 }
-
-/**
- * Set a property on a node in scene content
- */
 export function setNodePropertyInContent(content: string, nodeName: string, property: string, value: string): string {
-  const { content: newContent } = updateNodeInScene(content, nodeName, { [property]: value })
-  return newContent
+  return updateNodeInScene(content, nodeName, { [property]: value }).content
 }
-
-/**
- * Get a property value from a node in a parsed scene
- */
 export function getNodeProperty(scene: ParsedScene, nodeName: string, property: string): string | undefined {
-  const node = findNode(scene, nodeName)
-  return node?.properties[property]
+  return findNode(scene, nodeName)?.properties[property]
+}
+export function normalizeNodePath(path: string): { path: string; corrected: boolean } {
+  if (!path) return { path: '', corrected: false }
+  const original = path
+  let curr = path.trim()
+  const gn = curr.match(/^get_node\s*\(\s*['"](.+?)['"]\s*\)$/i)
+  if (gn) curr = gn[1]
+  if (curr.startsWith('$')) curr = curr.slice(1) || '.'
+  curr = curr.replace(/\\/g, '/').replace(/\/+/g, '/')
+  const rm = curr.match(/^\/?root\/(.+)$/i)
+  if (rm) {
+    const segs = rm[1].split('/').filter(Boolean)
+    curr = segs.length <= 1 ? '.' : segs.slice(1).join('/')
+  } else if (curr.toLowerCase() === '/root' || curr.toLowerCase() === 'root') curr = '.'
+  if (curr.startsWith('/') && curr.length > 1) curr = curr.slice(1)
+  if (curr === '') curr = '.'
+  return { path: curr, corrected: curr !== original }
 }

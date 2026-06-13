@@ -9,7 +9,7 @@ import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { toGodotValue } from '../helpers/godot-types.js'
 import { safeResolve } from '../helpers/paths.js'
-import { type ProjectSettings, parseProjectSettingsAsync, setSettingInContent } from '../helpers/project-settings.js'
+import { parseProjectSettingsAsync, setSettingInContent } from '../helpers/project-settings.js'
 import { updateNodeInScene } from '../helpers/scene-parser.js'
 import { validateNoNewlines } from '../helpers/security.js'
 
@@ -21,15 +21,12 @@ export async function handlePhysics(action: string, args: Record<string, unknown
       if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
       const configPath = join(safeResolve(config.projectPath || process.cwd(), projectPath), 'project.godot')
 
-      let settings: ProjectSettings
-      try {
-        settings = await parseProjectSettingsAsync(configPath)
-      } catch (err) {
+      const settings = await parseProjectSettingsAsync(configPath).catch((err) => {
         if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
           throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify project path.')
         }
         throw err
-      }
+      })
       const layers2d: Record<string, string> = {}
       const layers3d: Record<string, string> = {}
 

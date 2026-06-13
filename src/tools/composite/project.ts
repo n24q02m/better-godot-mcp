@@ -107,7 +107,7 @@ export async function handleProject(action: string, args: Record<string, unknown
           'Provide project_path argument or set it via config.set action.',
         )
       }
-      if (typeof args.project_path === 'string' && args.project_path.startsWith('-')) {
+      if (typeof args.project_path === 'string' && args.project_path.trim().startsWith('-')) {
         throw new GodotMCPError('Invalid project path', 'INVALID_ARGS', 'Project path must not start with a hyphen.')
       }
       const info = await parseProjectGodot(safeResolve(config.projectPath || process.cwd(), projectPath))
@@ -128,7 +128,7 @@ export async function handleProject(action: string, args: Record<string, unknown
       const projectPath = (args.project_path as string) || config.projectPath
       if (!projectPath)
         throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path argument.')
-      if (typeof args.project_path === 'string' && args.project_path.startsWith('-')) {
+      if (typeof args.project_path === 'string' && args.project_path.trim().startsWith('-')) {
         throw new GodotMCPError('Invalid project path', 'INVALID_ARGS', 'Project path must not start with a hyphen.')
       }
 
@@ -139,7 +139,7 @@ export async function handleProject(action: string, args: Record<string, unknown
       if (scenePath && (scenePath.includes('\n') || scenePath.includes('\r'))) {
         throw new GodotMCPError('Invalid scene path', 'INVALID_ARGS', 'Scene path must not contain newlines.')
       }
-      if (scenePath?.startsWith('-')) {
+      if (scenePath?.trim().startsWith('-')) {
         throw new GodotMCPError('Invalid scene path', 'INVALID_ARGS', 'Scene path must not start with a hyphen.')
       }
 
@@ -193,7 +193,7 @@ export async function handleProject(action: string, args: Record<string, unknown
     case 'settings_get': {
       const projectPath = (args.project_path as string) || config.projectPath
       if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
-      if (typeof args.project_path === 'string' && args.project_path.startsWith('-')) {
+      if (typeof args.project_path === 'string' && args.project_path.trim().startsWith('-')) {
         throw new GodotMCPError('Invalid project path', 'INVALID_ARGS', 'Project path must not start with a hyphen.')
       }
       const key = args.key as string
@@ -219,7 +219,7 @@ export async function handleProject(action: string, args: Record<string, unknown
     case 'settings_set': {
       const projectPath = (args.project_path as string) || config.projectPath
       if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
-      if (typeof args.project_path === 'string' && args.project_path.startsWith('-')) {
+      if (typeof args.project_path === 'string' && args.project_path.trim().startsWith('-')) {
         throw new GodotMCPError('Invalid project path', 'INVALID_ARGS', 'Project path must not start with a hyphen.')
       }
       const key = args.key as string
@@ -257,7 +257,7 @@ export async function handleProject(action: string, args: Record<string, unknown
         throw new GodotMCPError('Godot not found', 'GODOT_NOT_FOUND', 'Set GODOT_PATH env var or install Godot.')
       const projectPath = (args.project_path as string) || config.projectPath
       if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
-      if (typeof args.project_path === 'string' && args.project_path.startsWith('-')) {
+      if (typeof args.project_path === 'string' && args.project_path.trim().startsWith('-')) {
         throw new GodotMCPError('Invalid project path', 'INVALID_ARGS', 'Project path must not start with a hyphen.')
       }
       const preset = args.preset as string
@@ -274,7 +274,7 @@ export async function handleProject(action: string, args: Record<string, unknown
         throw new GodotMCPError('Invalid arguments', 'INVALID_ARGS', 'Preset and output path must be strings.')
       }
 
-      if (preset.startsWith('-') || outputPath.startsWith('-')) {
+      if (preset.trim().startsWith('-') || outputPath.trim().startsWith('-')) {
         throw new GodotMCPError(
           'Invalid arguments',
           'INVALID_ARGS',

@@ -8,6 +8,7 @@ import { detectGodot, isExecutable, isVersionSupported, tryGetVersion } from '..
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists } from '../helpers/paths.js'
+import { validateNoNewlines } from '../helpers/security.js'
 
 // Mutable runtime config
 const runtimeConfig: Record<string, string> = {}
@@ -39,18 +40,44 @@ export async function handleConfig(action: string, args: Record<string, unknown>
         throw new GodotMCPError(`Invalid config key: ${key}`, 'INVALID_ARGS', `Valid keys: ${validKeys.join(', ')}`)
       }
 
-      // Validate paths don't contain shell metacharacters and don't start with hyphen
-      // Note: backslash (\) is allowed since it's the Windows path separator
-      // and we use spawnSync/spawn (not shell exec), so it's not a security risk
-      if (
-        (key === 'project_path' || key === 'godot_path') &&
-        (typeof value !== 'string' || /[;&|`$(){}<>'"\0\n\r]/.test(value) || value.startsWith('-'))
-      ) {
-        throw new GodotMCPError(
-          `Invalid characters or format in ${key}`,
-          'INVALID_ARGS',
-          'Path must not contain shell metacharacters and must not start with a hyphen.',
-        )
+      // Universal security validation: no newlines allowed in any config value
+      validateNoNewlines(`Invalid characters or format in ${key}`, value)
+
+      if (key === 'project_path' || key === 'godot_path') {
+        // Validate paths don't contain shell metacharacters and don't start with hyphen
+        // Note: backslash (\) is allowed since it's the Windows path separator
+        // and we use spawnSync/spawn (not shell exec), so it's not a security risk
+        if (
+          typeof value !== 'string' ||
+          /[;&|`$(){}<>'"\0]/.test(value) ||
+          value.startsWith('-') ||
+          value !== value.trim() || // No leading/trailing whitespace
+          value.includes('  ') // No multiple consecutive spaces (heuristic for injection)
+        ) {
+          throw new GodotMCPError(
+            `Invalid characters or format in ${key}`,
+            'INVALID_ARGS',
+            'Path must not contain shell metacharacters, leading/trailing whitespace, or consecutive spaces, and must not start with a hyphen.',
+          )
+        }
+      } else if (key === 'timeout') {
+        // Validate timeout is a positive integer string and within reasonable range
+        if (typeof value !== 'string' || !/^\d+$/.test(value)) {
+          throw new GodotMCPError(
+            `Invalid characters or format in ${key}`,
+            'INVALID_ARGS',
+            'Timeout must be a positive integer string.',
+          )
+        }
+        const timeoutMs = Number.parseInt(value, 10)
+        if (timeoutMs < 1 || timeoutMs > 3600000) {
+          // 1 hour max
+          throw new GodotMCPError(
+            `Invalid characters or format in ${key}`,
+            'INVALID_ARGS',
+            'Timeout must be between 1ms and 3600000ms (1 hour).',
+          )
+        }
       }
 
       // Validate before updating runtimeConfig to avoid storing invalid values

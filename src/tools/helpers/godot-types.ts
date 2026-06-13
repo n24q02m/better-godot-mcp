@@ -42,36 +42,33 @@ const V2I_RE = /^Vector2i\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\)$/
 const V3_RE = /^Vector3\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\)$/
 const COLOR_RE = /^Color\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*(?:,\s*(-?[\d.]+)\s*)?\)$/
 const RECT2_RE = /^Rect2\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\)$/
+
 /**
  * Parse a Godot value expression string into a JavaScript value
  */
 const MAX_PARSE_DEPTH = 32
 
-export function parseGodotValue(expr: string, _depth = 0): unknown {
-  if (_depth > MAX_PARSE_DEPTH) return expr
-  const trimmed = expr.trim()
-
-  // Boolean
+function parsePrimitive(trimmed: string): unknown | undefined {
   if (trimmed === 'true') return true
   if (trimmed === 'false') return false
-
-  // null
   if (trimmed === 'null') return null
-
-  // Number (int or float)
   if (NUMBER_RE.test(trimmed)) {
     return Number.parseFloat(trimmed)
   }
+  return undefined
+}
 
-  // String (quoted)
-  const firstChar = trimmed.length > 0 ? trimmed.charCodeAt(0) : 0
+function parseQuotedString(trimmed: string, firstChar: number): string | undefined {
   if (trimmed.length >= 2) {
     const last = trimmed.charCodeAt(trimmed.length - 1)
     if ((firstChar === 34 && last === 34) || (firstChar === 39 && last === 39)) {
       return trimmed.slice(1, -1)
     }
   }
+  return undefined
+}
 
+function parseStructuralType(trimmed: string, firstChar: number): unknown | undefined {
   // ⚡ Bolt: Fast path for checking structural Godot types by checking first character
   // Vector2, Vector2i, Vector3 ('V' = 86)
   if (firstChar === 86) {
@@ -121,22 +118,23 @@ export function parseGodotValue(expr: string, _depth = 0): unknown {
     }
   }
 
-  // NodePath
+  return undefined
+}
+
+function parseSpecialPaths(trimmed: string): string | undefined {
   if (trimmed.startsWith('NodePath("') && trimmed.endsWith('")')) {
     return trimmed.slice(10, -2)
   }
-
-  // ExtResource reference
   if (trimmed.startsWith('ExtResource("') && trimmed.endsWith('")')) {
-    return trimmed // already in correct format
+    return trimmed
   }
-
-  // SubResource reference
   if (trimmed.startsWith('SubResource("') && trimmed.endsWith('")')) {
-    return trimmed // already in correct format
+    return trimmed
   }
+  return undefined
+}
 
-  // Array
+function parseArray(trimmed: string, depth: number): unknown[] | undefined {
   if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
     const inner = trimmed.slice(1, -1).trim()
     if (!inner) return []
@@ -169,15 +167,37 @@ export function parseGodotValue(expr: string, _depth = 0): unknown {
       else if (char === ',' && bracketLevel === 0 && parenLevel === 0) {
         const item = inner.slice(start, i).trim()
         if (item || results.length > 0 || i < inner.length) {
-          results.push(parseGodotValue(item, _depth + 1))
+          results.push(parseGodotValue(item, depth + 1))
         }
         start = i + 1
       }
     }
     return results
   }
+  return undefined
+}
 
-  // Return as-is for unrecognized types
+export function parseGodotValue(expr: string, _depth = 0): unknown {
+  if (_depth > MAX_PARSE_DEPTH) return expr
+  const trimmed = expr.trim()
+  if (!trimmed) return trimmed
+
+  const primitive = parsePrimitive(trimmed)
+  if (primitive !== undefined) return primitive
+
+  const firstChar = trimmed.charCodeAt(0)
+  const quoted = parseQuotedString(trimmed, firstChar)
+  if (quoted !== undefined) return quoted
+
+  const structural = parseStructuralType(trimmed, firstChar)
+  if (structural !== undefined) return structural
+
+  const special = parseSpecialPaths(trimmed)
+  if (special !== undefined) return special
+
+  const array = parseArray(trimmed, _depth)
+  if (array !== undefined) return array
+
   return trimmed
 }
 

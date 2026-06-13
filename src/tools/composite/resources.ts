@@ -43,10 +43,6 @@ async function findResourceFiles(
     const entries = await readdir(dir, { withFileTypes: true })
     const promises: Promise<void>[] = []
 
-    // ⚡ Bolt: Removed .map() and .flat() in favor of a shared results array and .push()
-    // This reduces intermediate array allocations and garbage collection pressure
-    // during recursive asynchronous directory traversals for Godot projects with many assets.
-
     for (let i = 0; i < entries.length; i++) {
       const entry = entries[i]
       const name = entry.name
@@ -76,125 +72,133 @@ async function findResourceFiles(
   }
 }
 
+async function handleListResources(projectRoot: string, args: Record<string, unknown>) {
+  const filterType = args.type as string | undefined
+  let exts: Set<string> | undefined
+  if (filterType) {
+    const typeMap: Record<string, string[]> = {
+      image: ['.png', '.jpg', '.jpeg', '.svg', '.webp'],
+      audio: ['.wav', '.ogg', '.mp3'],
+      font: ['.ttf', '.otf'],
+      shader: ['.gdshader', '.gdshaderinc'],
+      scene: ['.tscn'],
+      resource: ['.tres', '.res'],
+    }
+    if (typeMap[filterType]) exts = new Set(typeMap[filterType])
+  }
+
+  const resources = await findResourceFiles(projectRoot, exts)
+
+  const prefixLen = projectRoot.length + (projectRoot.endsWith('/') || projectRoot.endsWith('\\') ? 0 : 1)
+  const relativePaths = new Array(resources.length)
+  for (let i = 0; i < resources.length; i++) {
+    const r = resources[i]
+    relativePaths[i] = {
+      path: r.path.substring(prefixLen).replaceAll('\\', '/'),
+      ext: extname(r.path),
+      size: r.size,
+    }
+  }
+
+  return formatJSON({ project: projectRoot, count: relativePaths.length, resources: relativePaths })
+}
+
+async function handleResourceInfo(projectRoot: string, args: Record<string, unknown>) {
+  const resPath = args.resource_path as string
+  if (!resPath) throw new GodotMCPError('No resource_path specified', 'INVALID_ARGS', 'Provide resource_path.')
+  const fullPath = safeResolve(projectRoot, resPath)
+
+  try {
+    const fileStat = await stat(fullPath)
+    const ext = extname(fullPath)
+    const info: Record<string, unknown> = {
+      path: resPath,
+      extension: ext,
+      size: fileStat.size,
+      modified: fileStat.mtime.toISOString(),
+    }
+
+    if (ext === '.tres' || ext === '.import') {
+      const content = await readFile(fullPath, 'utf-8')
+      const typeMatch = content.match(/type="([^"]*)"/)
+      if (typeMatch) info.type = typeMatch[1]
+      const pathMatch = content.match(/path="([^"]*)"/)
+      if (pathMatch) info.importPath = pathMatch[1]
+    }
+
+    return formatJSON(info)
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new GodotMCPError(`Resource not found: ${resPath}`, 'RESOURCE_ERROR', 'Check the file path.')
+    }
+    throw err
+  }
+}
+
+async function handleDeleteResource(projectRoot: string, args: Record<string, unknown>) {
+  const resPath = args.resource_path as string
+  if (!resPath) throw new GodotMCPError('No resource_path specified', 'INVALID_ARGS', 'Provide resource_path.')
+  const fullPath = safeResolve(projectRoot, resPath)
+
+  try {
+    await unlink(fullPath)
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new GodotMCPError(`Resource not found: ${resPath}`, 'RESOURCE_ERROR', 'Check the file path.')
+    }
+    throw err
+  }
+
+  try {
+    await unlink(`${fullPath}.import`)
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err
+  }
+
+  return formatSuccess(`Deleted resource: ${resPath}`)
+}
+
+async function handleImportConfig(projectRoot: string, args: Record<string, unknown>) {
+  const resPath = args.resource_path as string
+  if (!resPath) throw new GodotMCPError('No resource_path specified', 'INVALID_ARGS', 'Provide resource_path.')
+
+  const importPath = safeResolve(projectRoot, `${resPath}.import`)
+
+  try {
+    const content = await readFile(importPath, 'utf-8')
+    return formatSuccess(`Import config for ${resPath}:\n\n${content}`)
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      return formatJSON({ path: resPath, imported: false, message: 'No .import file found.' })
+    }
+    throw err
+  }
+}
+
+const RESOURCE_ACTIONS: Record<
+  string,
+  (
+    projectRoot: string,
+    args: Record<string, unknown>,
+  ) => Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }>
+> = {
+  list: handleListResources,
+  info: handleResourceInfo,
+  delete: handleDeleteResource,
+  import_config: handleImportConfig,
+}
+
 export async function handleResources(action: string, args: Record<string, unknown>, config: GodotConfig) {
-  const projectPath = (args.project_path as string) || config.projectPath
-  const baseDir = config.projectPath || process.cwd()
-  // Confined trusted project root for per-file actions (info/delete/import_config):
-  // the caller-supplied project_path must stay within baseDir (path-traversal guard).
   const projectRoot = resolveProjectRoot(args.project_path, config.projectPath)
 
-  switch (action) {
-    case 'list': {
-      if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
-      const resolvedPath = safeResolve(baseDir, projectPath)
-      const filterType = args.type as string | undefined
-      let exts: Set<string> | undefined
-      if (filterType) {
-        const typeMap: Record<string, string[]> = {
-          image: ['.png', '.jpg', '.jpeg', '.svg', '.webp'],
-          audio: ['.wav', '.ogg', '.mp3'],
-          font: ['.ttf', '.otf'],
-          shader: ['.gdshader', '.gdshaderinc'],
-          scene: ['.tscn'],
-          resource: ['.tres', '.res'],
-        }
-        if (typeMap[filterType]) exts = new Set(typeMap[filterType])
-      }
-
-      const resources = await findResourceFiles(resolvedPath, exts)
-
-      // OPTIMIZATION: Use substring and a pre-allocated array instead of .map() and node:path.relative
-      // for significantly faster execution on large arrays of prefixed paths.
-      const prefixLen = resolvedPath.length + (resolvedPath.endsWith('/') || resolvedPath.endsWith('\\') ? 0 : 1)
-      const relativePaths = new Array(resources.length)
-      for (let i = 0; i < resources.length; i++) {
-        const r = resources[i]
-        // ⚡ Bolt: Using replaceAll('\\', '/') avoids RegExp allocation overhead
-        relativePaths[i] = {
-          path: r.path.substring(prefixLen).replaceAll('\\', '/'),
-          ext: extname(r.path),
-          size: r.size,
-        }
-      }
-
-      return formatJSON({ project: resolvedPath, count: relativePaths.length, resources: relativePaths })
-    }
-
-    case 'info': {
-      const resPath = args.resource_path as string
-      if (!resPath) throw new GodotMCPError('No resource_path specified', 'INVALID_ARGS', 'Provide resource_path.')
-      const fullPath = safeResolve(projectRoot, resPath)
-
-      try {
-        const fileStat = await stat(fullPath)
-        const ext = extname(fullPath)
-        const info: Record<string, unknown> = {
-          path: resPath,
-          extension: ext,
-          size: fileStat.size,
-          modified: fileStat.mtime.toISOString(),
-        }
-
-        // Parse .tres/.import files for metadata
-        if (ext === '.tres' || ext === '.import') {
-          const content = await readFile(fullPath, 'utf-8')
-          const typeMatch = content.match(/type="([^"]*)"/)
-          if (typeMatch) info.type = typeMatch[1]
-          const pathMatch = content.match(/path="([^"]*)"/)
-          if (pathMatch) info.importPath = pathMatch[1]
-        }
-
-        return formatJSON(info)
-      } catch (err) {
-        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-          throw new GodotMCPError(`Resource not found: ${resPath}`, 'RESOURCE_ERROR', 'Check the file path.')
-        }
-        throw err
-      }
-    }
-
-    case 'delete': {
-      const resPath = args.resource_path as string
-      if (!resPath) throw new GodotMCPError('No resource_path specified', 'INVALID_ARGS', 'Provide resource_path.')
-      const fullPath = safeResolve(projectRoot, resPath)
-
-      try {
-        await unlink(fullPath)
-      } catch (err) {
-        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-          throw new GodotMCPError(`Resource not found: ${resPath}`, 'RESOURCE_ERROR', 'Check the file path.')
-        }
-        throw err
-      }
-
-      // Also delete .import file if exists
-      try {
-        await unlink(`${fullPath}.import`)
-      } catch (err) {
-        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err
-      }
-
-      return formatSuccess(`Deleted resource: ${resPath}`)
-    }
-
-    case 'import_config': {
-      const resPath = args.resource_path as string
-      if (!resPath) throw new GodotMCPError('No resource_path specified', 'INVALID_ARGS', 'Provide resource_path.')
-
-      const importPath = safeResolve(projectRoot, `${resPath}.import`)
-
-      try {
-        const content = await readFile(importPath, 'utf-8')
-        return formatSuccess(`Import config for ${resPath}:\n\n${content}`)
-      } catch (err) {
-        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-          return formatJSON({ path: resPath, imported: false, message: 'No .import file found.' })
-        }
-        throw err
-      }
-    }
-
-    default:
-      throwUnknownAction(action, ['list', 'info', 'delete', 'import_config'])
+  if (action === 'list' && !args.project_path && !config.projectPath) {
+    throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
   }
+
+  const handler = RESOURCE_ACTIONS[action]
+  if (handler) {
+    return handler(projectRoot, args)
+  }
+
+  throwUnknownAction(action, Object.keys(RESOURCE_ACTIONS))
 }

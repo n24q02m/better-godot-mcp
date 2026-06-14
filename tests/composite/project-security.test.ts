@@ -118,6 +118,37 @@ describe('project security', () => {
       expect(runGodotProject).not.toHaveBeenCalled()
     })
 
+    it('should reject preset starting with a hyphen after whitespace', async () => {
+      await expect(
+        handleProject(
+          'export',
+          {
+            project_path: projectPath,
+            preset: '  --script=malicious.gd',
+            output_path: 'build/game.exe',
+          },
+          config,
+        ),
+      ).rejects.toThrow('Invalid arguments')
+
+      expect(execGodotAsync).not.toHaveBeenCalled()
+    })
+
+    it('should reject scene_path starting with a hyphen after whitespace on run action', async () => {
+      await expect(
+        handleProject(
+          'run',
+          {
+            project_path: projectPath,
+            scene_path: '   --script=malicious.gd',
+          },
+          config,
+        ),
+      ).rejects.toThrow('Invalid scene path')
+
+      expect(runGodotProject).not.toHaveBeenCalled()
+    })
+
     it('should reject scene_path with a leading hyphen even if it looks pathy', async () => {
       await expect(
         handleProject(

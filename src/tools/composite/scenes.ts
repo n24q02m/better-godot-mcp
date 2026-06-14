@@ -155,19 +155,33 @@ export async function handleScenes(action: string, args: Record<string, unknown>
         throw error
       }
       const scene = parseSceneContent(rawContent)
-      const info: SceneInfo = {
-        path: scenePath,
-        rootNode: scene.nodes[0]?.name || '',
-        rootType: scene.nodes[0]?.type || '',
-        nodeCount: scene.nodes.length,
-        nodes: scene.nodes.map((n) => ({
+      // ⚡ Bolt: Use pre-allocated arrays and simple for loops for parsing large scenes
+      // This avoids .map() overhead and closure allocations on hot paths.
+      const nodes = new Array(scene.nodes.length)
+      for (let i = 0; i < scene.nodes.length; i++) {
+        const n = scene.nodes[i]
+        nodes[i] = {
           name: n.name,
           type: n.type || 'Node',
           parent: n.parent || null,
           properties: n.properties,
           script: n.properties.script || null,
-        })),
-        resources: scene.extResources.map((r) => `[ext_resource type="${r.type}" path="${r.path}" id="${r.id}"]`),
+        }
+      }
+
+      const resources = new Array(scene.extResources.length)
+      for (let i = 0; i < scene.extResources.length; i++) {
+        const r = scene.extResources[i]
+        resources[i] = `[ext_resource type="${r.type}" path="${r.path}" id="${r.id}"]`
+      }
+
+      const info: SceneInfo = {
+        path: scenePath,
+        rootNode: scene.nodes[0]?.name || '',
+        rootType: scene.nodes[0]?.type || '',
+        nodeCount: scene.nodes.length,
+        nodes,
+        resources,
       }
       return formatJSON(info)
     }

@@ -26,3 +26,6 @@
 2. Best prefix/containment match, defined as the one with the smallest absolute length difference relative to the input.
 3. Fuzzy bigram similarity (Dice coefficient) with a threshold > 0.4.
 This ensures that "create" matches "create" even if "create_node" appears earlier in the options list, and "cre" matches "create" over "create_node".
+## 2025-02-23 - [Avoid Array.prototype.map() in hot paths]
+**Learning:** In hot paths and especially when dealing with potentially large arrays (like nodes and resources in a Godot scene), `Array.prototype.map()` incurs measurable allocation and execution overhead. Using a pre-allocated array and a simple `for` loop significantly reduces CPU time and garbage collection pressure in V8.
+**Action:** When extracting data from large collections (like `scene.nodes`) or wrapping frequent responses (`wrapToolResult`), always prefer `new Array(len)` followed by a direct indexing `for` loop over chained `.map()` calls.

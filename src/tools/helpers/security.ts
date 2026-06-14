@@ -43,12 +43,21 @@ export function wrapToolResult<T extends { content: Array<{ type: string; text: 
     return result
   }
 
-  return {
-    ...result,
-    content: result.content.map((item) => ({
+  // ⚡ Bolt: Using a pre-allocated array and a for loop instead of .map()
+  // prevents unnecessary closure creation and iterator overhead on this extremely hot path
+  // which is called for almost every tool returning content.
+  const content = new Array(result.content.length)
+  for (let i = 0; i < result.content.length; i++) {
+    const item = result.content[i]
+    content[i] = {
       ...item,
       text: `<untrusted_godot_content>\n${item.text}\n</untrusted_godot_content>\n\n${SAFETY_WARNING}`,
-    })),
+    }
+  }
+
+  return {
+    ...result,
+    content,
   }
 }
 

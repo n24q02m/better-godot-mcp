@@ -40,6 +40,21 @@ describe('project security', () => {
   })
 
   describe('argument injection prevention', () => {
+    it('should reject space-padded preset starting with a hyphen', async () => {
+      await expect(
+        handleProject(
+          'export',
+          {
+            project_path: projectPath,
+            preset: '  --script=malicious.gd',
+            output_path: 'build/game.exe',
+          },
+          config,
+        ),
+      ).rejects.toThrow('Invalid arguments')
+      expect(execGodotAsync).not.toHaveBeenCalled()
+    })
+
     it('should reject preset starting with a hyphen', async () => {
       await expect(
         handleProject(

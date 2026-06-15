@@ -44,7 +44,7 @@ export async function handleConfig(action: string, args: Record<string, unknown>
       // and we use spawnSync/spawn (not shell exec), so it's not a security risk
       if (
         (key === 'project_path' || key === 'godot_path') &&
-        (typeof value !== 'string' || /[;&|`$(){}<>'"\0\n\r]/.test(value) || value.startsWith('-'))
+        (typeof value !== 'string' || /[;&|`$(){}<>'"\0\n\r]/.test(value) || value.trim().startsWith('-'))
       ) {
         throw new GodotMCPError(
           `Invalid characters or format in ${key}`,

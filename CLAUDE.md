@@ -83,14 +83,13 @@ PSR v10 (workflow_dispatch) -> npm + Docker (amd64+arm64) + GHCR + MCP Registry.
 - Pre-commit: biome check, tsc --noEmit. Pre-push: bun test.
 - Secrets: skret SSM namespace `/better-godot-mcp/prod` (region `ap-southeast-1`)
 
-## Known bugs (potential -- E2E test chua chay den godot 2026-04-18)
+## Auth & storage model
 
-Godot MCP dung `@n24q02m/mcp-core` (core-ts) -- co the bi affect boi upstream core-ts bug:
+Godot la **TC-Local**: khong luu credential nao. HTTP mode goi `runHttpServer` cua `@n24q02m/mcp-core` **khong** truyen `relaySchema`, nen server chi serve `/mcp` (khong auth) + `/health` -- khong co OAuth AS, khong co credential form / relay form, khong co JWT, khong co MCP_RELAY_PASSWORD gate. Vi vay:
 
-1. **Browser UI stuck "Waiting for server..." sau khi submit credentials** (neu co relay flow). See `C:\Users\n24q02m-wlap\projects\mcp-core\CLAUDE.md` Known bugs #2.
-2. **Config storage path**: `$APPDATA\mcp\Config\config.enc` (khac Python servers `$LOCALAPPDATA\mcp\config.enc`).
-
-Khi E2E test godot, can clean state tai `$APPDATA\mcp\Config\` + check browser behavior.
+- Khong co credential flow nao de "stuck" -- cac setup_* action cua tool `config` la no-op (xem `src/tools/composite/config.ts`).
+- Server khong ghi config storage. (Trong mcp-core, credential storage canonical la `PerPluginStore` o `~/.<plugin>-mcp/config.json`; `config.enc` la legacy/deprecated. Godot khong dung ca hai.)
+- Khac voi wet/mnemo/imagine (co credential + multi-user), godot khong deploy public va khong co `better-godot-mcp.n24q02m.com`.
 
 ## E2E
 
@@ -107,10 +106,11 @@ T0 ``godot-stub`` runs in CI (no exe); ``godot-with-exe`` is t2-non-interaction 
 Tier policy:
 
 - **T0** (precommit + CI on PR / main push) - runs without upstream identity. Skret keys not required.
-- **T2 non-interaction** (`make e2e-config CONFIG=<id>` locally) - driver pre-fills relay form from skret AWS SSM `n/a (no skret credentials)` (`ap-southeast-1`). No user gate.
-- **T2 interaction** - driver fills relay form, then prints upstream user-gate URL; user signs in / types OTP at provider. Driver enforces per-flow timeouts (device-code 900s, oauth-redirect 300s, browser-form 600s) and emits `[poll] elapsed=Xs remaining=Ys status=<body>` every 30s. On timeout, container logs + last `setup-status` are saved to `<tmp>/e2e-diag/` BEFORE teardown for post-mortem.
+- **T2 non-interaction** (`make e2e-config CONFIG=<id>` locally) - runs `godot-with-exe` against a real Godot binary on PATH. No relay form and no user gate: godot is TC-Local (no credentials), so there is nothing to pre-fill and no upstream sign-in.
 
-Multi-user remote mode (deployment property; not a separate config) requires `CREDENTIAL_SECRET` in the same skret namespace - driver refuses to start the container without it when `PUBLIC_URL` is set. (Godot itself stores no credentials, so this applies only to the shared mcp-core HTTP harness.)
+Godot has no credential form and no upstream OAuth, so there is no T2 interaction tier (no user-gate URL, no OTP / device-code / oauth-redirect flow) for this server.
 
-References: `mcp-core/scripts/e2e/matrix.yaml`, `~/.claude/skills/mcp-dev/references/e2e-full-matrix.md` (harness-readiness gate), `~/.claude/skills/mcp-dev/references/secrets-skret.md` (per-server credential layout), `~/.claude/skills/mcp-dev/references/multi-user-pattern.md` (per-JWT-sub isolation).
+Godot stores no credentials and is not deployed as a public HTTP service, so multi-user remote mode (`CREDENTIAL_SECRET`, per-JWT-sub isolation) does not apply.
+
+References: `mcp-core/scripts/e2e/matrix.yaml`, `~/.claude/skills/mcp-dev/references/e2e-full-matrix.md` (harness-readiness gate).
 

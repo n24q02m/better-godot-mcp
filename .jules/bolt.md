@@ -26,3 +26,6 @@
 2. Best prefix/containment match, defined as the one with the smallest absolute length difference relative to the input.
 3. Fuzzy bigram similarity (Dice coefficient) with a threshold > 0.4.
 This ensures that "create" matches "create" even if "create_node" appears earlier in the options list, and "cre" matches "create" over "create_node".
+## 2025-06-15 - [Avoid Regex matchAll for Scene Parsing]
+**Learning:** Using `content.matchAll()` with complex regular expressions to extract structured data (like animations or nodes) from Godot `.tscn` files is significantly slower and creates many temporary array/string allocations compared to a dedicated, single-pass parser.
+**Action:** Replace `matchAll` regex loops with the centralized `parseSceneContent` utility (which does a single-pass character-by-character scan) to extract `subResources` and `nodes`.

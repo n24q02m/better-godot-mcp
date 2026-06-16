@@ -26,3 +26,6 @@
 2. Best prefix/containment match, defined as the one with the smallest absolute length difference relative to the input.
 3. Fuzzy bigram similarity (Dice coefficient) with a threshold > 0.4.
 This ensures that "create" matches "create" even if "create_node" appears earlier in the options list, and "cre" matches "create" over "create_node".
+## 2025-06-16 - [Optimize Godot type parsing with specific prefix checks and exec]
+**Learning:** Using `.match()` with regular expressions to determine structural Godot types (e.g. `Vector2`, `Color`) introduces unnecessary overhead, as the regex compiles and executes even if the string clearly does not match. Additionally, `match` allocates arrays that are immediately thrown away.
+**Action:** Replaced `.match()` with explicit `startsWith` checks on prefixes (e.g., `Vector2(`, `Color(`) followed by `.exec()` to avoid evaluating complex regexes on wrong strings, improving iteration time significantly. Added `// ⚡ Bolt:` comment to denote intentional optimization.

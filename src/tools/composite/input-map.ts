@@ -252,18 +252,24 @@ function transformInputMap(
   targetAction: string,
   transformer: (actionBlock: string) => string | null,
 ): { updated: string; found: boolean } {
-  const lines = content.split('\n')
+  // ⚡ Bolt: Removed content.split('\n') to avoid array allocation overhead on large files.
   const result: string[] = []
   let inInputSection = false
   let foundAction = false
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]
+  let pos = 0
+  const len = content.length
+
+  while (pos < len || (pos === len && len > 0 && content.endsWith('\n'))) {
+    const nextNewline = content.indexOf('\n', pos)
+    const lineEnd = nextNewline === -1 ? len : nextNewline
+    const line = content.slice(pos, lineEnd)
     const trimmed = line.trim()
 
     if (trimmed === '[input]') {
       inInputSection = true
       result.push(line)
+      pos = nextNewline === -1 ? len + 1 : nextNewline + 1
       continue
     }
 
@@ -283,10 +289,18 @@ function transformInputMap(
           foundAction = true
           let block = line
           const rest = line.slice(eqIdx + 1).trim()
+
+          let nextPos = nextNewline === -1 ? len + 1 : nextNewline + 1
           if (rest.startsWith('{') && !rest.endsWith('}')) {
-            while (i + 1 < lines.length && !lines[i].trim().endsWith('}')) {
-              i++
-              block += `\n${lines[i]}`
+            while (nextPos < len) {
+              const innerNextNewline = content.indexOf('\n', nextPos)
+              const innerLineEnd = innerNextNewline === -1 ? len : innerNextNewline
+              const innerLine = content.slice(nextPos, innerLineEnd)
+              block += `\n${innerLine}`
+              nextPos = innerNextNewline === -1 ? len + 1 : innerNextNewline + 1
+              if (innerLine.trim().endsWith('}')) {
+                break
+              }
             }
           }
 
@@ -294,12 +308,14 @@ function transformInputMap(
           if (transformed !== null) {
             result.push(transformed)
           }
+          pos = nextPos
           continue
         }
       }
     }
 
     result.push(line)
+    pos = nextNewline === -1 ? len + 1 : nextNewline + 1
   }
 
   return { updated: result.join('\n'), found: foundAction }

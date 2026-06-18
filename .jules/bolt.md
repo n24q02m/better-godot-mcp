@@ -38,3 +38,7 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## 2026-06-20 - Pre-compile Regex in hot paths
 **Learning:** Evaluating regular expressions directly via `String.prototype.match()` in hot paths (like parsing metadata for every resource) unnecessarily recreates RegExp instances and allocates arrays. Using a module-level pre-compiled RegExp with `RegExp.prototype.exec()` reduces these overheads and handles iterations more efficiently.
 **Action:** Extract inline regular expressions to module-scoped constants and use `exec()` for faster parsing in large files or deep iterations.
+
+## 2025-06-18 - [Avoid `split('\\n')` for line-by-line parsing in Input Map]
+**Learning:** Using `split('\n')` creates an array of strings in memory. This array allocation and string duplication can be a bottleneck when repeatedly iterating through Godot's `project.godot` lines, especially if the file is large and parsing happens frequently in hot paths.
+**Action:** Replace `split('\n')` combined with iteration (e.g. `for (let i = 0; i < lines.length; i++)`) with a `while` loop that uses `indexOf('\n', pos)` and `slice(pos, lineEnd)` to extract lines continuously without intermediate array allocations.

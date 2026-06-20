@@ -34,3 +34,7 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## 2025-06-20 - [Optimize parseGodotValue structural types RegExp matching]
 **Learning:** Checking for string prefixes (`Vector2(`, `Rect2(`, etc.) is faster than immediately passing the string into a regular expression. Also, when extracting groups from non-global regular expressions, `REGEX.exec(string)` is generally preferred over `string.match(REGEX)`.
 **Action:** Guard Regular Expression evaluations in `parseGodotValue` with `.startsWith()` string checks, and replaced `.match()` with `.exec()`. Added `// ⚡ Bolt:` comments to indicate intentional performance optimization.
+
+## 2026-06-20 - Pre-compile Regex in hot paths
+**Learning:** Evaluating regular expressions directly via `String.prototype.match()` in hot paths (like parsing metadata for every resource) unnecessarily recreates RegExp instances and allocates arrays. Using a module-level pre-compiled RegExp with `RegExp.prototype.exec()` reduces these overheads and handles iterations more efficiently.
+**Action:** Extract inline regular expressions to module-scoped constants and use `exec()` for faster parsing in large files or deep iterations.

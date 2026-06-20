@@ -9,6 +9,9 @@ import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
 
+const TYPE_REGEX = /type="([^"]*)"/
+const PATH_REGEX = /path="([^"]*)"/
+
 const RESOURCE_EXTENSIONS = new Set([
   '.tres',
   '.res',
@@ -120,9 +123,9 @@ async function handleResourceInfo(projectRoot: string, args: Record<string, unkn
 
     if (ext === '.tres' || ext === '.import') {
       const content = await readFile(fullPath, 'utf-8')
-      const typeMatch = content.match(/type="([^"]*)"/)
+      const typeMatch = TYPE_REGEX.exec(content)
       if (typeMatch) info.type = typeMatch[1]
-      const pathMatch = content.match(/path="([^"]*)"/)
+      const pathMatch = PATH_REGEX.exec(content)
       if (pathMatch) info.importPath = pathMatch[1]
     }
 

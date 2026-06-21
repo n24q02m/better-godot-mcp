@@ -2,7 +2,7 @@
   "name": "@n24q02m/better-godot-mcp",
   "mcpName": "io.github.n24q02m/better-godot-mcp",
   "version": "1.19.0-beta.2",
-  "description": "Enhanced MCP server for Godot Engine with composite mega-tools and comprehensive game development tooling.",
+  "description": "Composite MCP server for Godot Engine -- 17 composite tools for AI-assisted game development.",
   "type": "module",
   "main": "build/src/init-server.js",
   "bin": {

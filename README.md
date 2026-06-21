@@ -46,14 +46,14 @@ mcp-name: io.github.n24q02m/better-godot-mcp
 ## Table of contents
 
 - [Features](#features)
-- [Status](#status)
+- [Install](#install)
 - [Documentation](#documentation)
 - [Tools](#tools)
 - [Comparison](#comparison)
 - [Configuration](#configuration)
 - [Security](#security)
-- [Build from Source](#build-from-source)
-- [Trust Model](#trust-model)
+- [Build from source](#build-from-source)
+- [Trust model](#trust-model)
 - [License](#license)
 
 
@@ -69,33 +69,47 @@ mcp-name: io.github.n24q02m/better-godot-mcp
 - **GDScript CRUD** -- create, read, write, and attach scripts in a single call
 - **Tiered token optimization** -- compressed descriptions + on-demand `help` tool
 
-## Status
+## Install
 
-> **2026-05-02 -- Architecture stabilization update**
->
-> Past months saw significant churn around credential handling and the daemon-bridge auto-spawn pattern. This caused multi-process races, browser tab spam, and inconsistent setup UX across plugins. **As of v\<auto\>, the architecture is stable**: 2 clean modes (stdio + HTTP), no daemon-bridge layer, no auto-spawn from stdio.
->
-> Apologies for the instability period. If you encountered issues with prior versions, please update to v\<auto\>+ and follow the current [Setup guide](https://mcp.n24q02m.com/servers/better-godot-mcp/setup/) -- most prior workarounds are no longer needed.
->
-> **Related plugins from the same author**:
-> - [wet-mcp](https://github.com/n24q02m/wet-mcp) -- Web search + content extraction
-> - [mnemo-mcp](https://github.com/n24q02m/mnemo-mcp) -- Persistent AI memory
-> - [imagine-mcp](https://github.com/n24q02m/imagine-mcp) -- Image/video understanding + generation
-> - [better-notion-mcp](https://github.com/n24q02m/better-notion-mcp) -- Notion API
-> - [better-email-mcp](https://github.com/n24q02m/better-email-mcp) -- Email management
-> - [better-telegram-mcp](https://github.com/n24q02m/better-telegram-mcp) -- Telegram
-> - [better-godot-mcp](https://github.com/n24q02m/better-godot-mcp) -- Godot Engine
-> - [better-code-review-graph](https://github.com/n24q02m/better-code-review-graph) -- Code review knowledge graph
->
-> All plugins share the same architecture -- install once, learn pattern transfers.
+Runs over **stdio** by default. No credentials, no account, no relay -- the server reads and writes your local Godot project files directly. Godot 4.x is optional (only `run`/`stop`/`export` and `editor` actions need the binary).
+
+### Via npx (recommended)
+
+```bash
+npx -y @n24q02m/better-godot-mcp@latest
+```
+
+### MCP client config
+
+Add to your client's MCP config (Claude Code, Cursor, Windsurf, Codex, `mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "better-godot-mcp": {
+      "command": "npx",
+      "args": ["-y", "@n24q02m/better-godot-mcp"],
+      "env": {
+        "GODOT_PROJECT_PATH": "/path/to/your/godot/project"
+      }
+    }
+  }
+}
+```
+
+`GODOT_PROJECT_PATH` is optional -- every tool also accepts a `project_path` argument per call.
+
+### Via Docker
+
+```bash
+docker run -i --rm -v /path/to/your/godot/project:/project n24q02m/better-godot-mcp
+```
+
+The image is published for `amd64` and `arm64`. Mount your project directory so the server can read and write scene, script, and resource files.
 
 ## Documentation
 
-Full docs at **[mcp.n24q02m.com/servers/better-godot-mcp/setup/](https://mcp.n24q02m.com/servers/better-godot-mcp/setup/)**:
-
-- [Setup](https://mcp.n24q02m.com/servers/better-godot-mcp/setup/) -- install methods for Claude Code, Codex, Gemini CLI, Cursor, Windsurf, mcp.json
-- [Modes overview](https://mcp.n24q02m.com/get-started/modes-overview/) -- stdio / local-relay / remote-relay / remote-oauth
-- [Multi-user setup](https://mcp.n24q02m.com/get-started/multi-user/) -- per-JWT-sub credential model
+Full setup guide at **[mcp.n24q02m.com/servers/better-godot-mcp/setup/](https://mcp.n24q02m.com/servers/better-godot-mcp/setup/)** -- install steps for Claude Code, Codex, Gemini CLI, Cursor, Windsurf, and `mcp.json`.
 
 **Install with AI agent** -- paste this to your AI coding agent:
 
@@ -151,12 +165,22 @@ How better-godot-mcp stacks up against direct competitors in each pillar:
 
 ## Configuration
 
-Godot binary is auto-detected from common install locations and `PATH`. No environment variables are required for basic usage. Optionally set `GODOT_PROJECT_PATH` and `GODOT_PATH` to override defaults.
+The Godot binary is auto-detected from common install locations and `PATH`. No environment variables are required for basic usage. Optionally set `GODOT_PROJECT_PATH` and `GODOT_PATH` to override the defaults.
 
 | Variable | Required | Default | Description |
 |:---------|:---------|:--------|:------------|
-| `GODOT_PROJECT_PATH` | No | - | Default project path (tools also accept `project_path` param) |
-| `GODOT_PATH` | No | Auto-detected | Path to Godot binary |
+| `GODOT_PROJECT_PATH` | No | - | Default project path (tools also accept a `project_path` param) |
+| `GODOT_PATH` | No | Auto-detected | Path to the Godot binary |
+
+### HTTP transport
+
+The server runs over stdio by default. To serve over Streamable HTTP instead, pass `--http` or set `MCP_TRANSPORT=http` (`TRANSPORT_MODE=http` is also accepted). HTTP mode exposes an unauthenticated `/mcp` endpoint -- there are no credentials to protect, so it is meant for trusted local or self-hosted use.
+
+| Variable | Required | Default | Description |
+|:---------|:---------|:--------|:------------|
+| `MCP_TRANSPORT` | No | `stdio` | Set to `http` for Streamable HTTP transport |
+| `PORT` | No | `0` (auto-assign) | HTTP port (HTTP mode only) |
+| `HOST` | No | Server default | HTTP host (HTTP mode only) |
 
 ### Limitations
 
@@ -171,16 +195,17 @@ Godot binary is auto-detected from common install locations and `PATH`. No envir
 - **Project validation** -- Verifies project.godot exists before operations
 - **Cross-platform** -- Windows, macOS, Linux path handling
 
-## Build from Source
+## Build from source
 
 ```bash
 git clone https://github.com/n24q02m/better-godot-mcp.git
 cd better-godot-mcp
 bun install
-bun run dev
+bun run dev          # stdio mode (default)
+bun run dev:http     # Streamable HTTP mode
 ```
 
-## Trust Model
+## Trust model
 
 This plugin implements **TC-Local** (no auth required -- no credentials stored). See [the trust model reference](https://mcp.n24q02m.com/servers/mcp-core/trust-model/) for full classification.
 

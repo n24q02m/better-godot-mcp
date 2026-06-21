@@ -42,3 +42,7 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## 2025-06-18 - [Avoid `split('\\n')` for line-by-line parsing in Input Map]
 **Learning:** Using `split('\n')` creates an array of strings in memory. This array allocation and string duplication can be a bottleneck when repeatedly iterating through Godot's `project.godot` lines, especially if the file is large and parsing happens frequently in hot paths.
 **Action:** Replace `split('\n')` combined with iteration (e.g. `for (let i = 0; i < lines.length; i++)`) with a `while` loop that uses `indexOf('\n', pos)` and `slice(pos, lineEnd)` to extract lines continuously without intermediate array allocations.
+
+## 2025-06-25 - [Avoid RegExp.matchAll() for structural parsing]
+**Learning:** Using `RegExp.prototype.matchAll()` or `String.prototype.match()` to parse structured file formats (like Godot's `.tscn` files) requires executing complex regex patterns and creating intermediate array objects for each match. This is less efficient than using a centralized, single-pass structural parser (like `parseSceneContent`), which avoids regex execution overhead entirely.
+**Action:** Replace `matchAll` and `match` usage with existing single-pass structural parsers when analyzing `.tscn` contents. Reusing a standard parser prevents redundant parsing work, eliminates regular expression array allocations, and improves maintainability.

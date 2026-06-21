@@ -7,6 +7,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists, resolveProjectRoot, safeResolve } from '../helpers/paths.js'
+import { parseSceneContent } from '../helpers/scene-parser.js'
 import { validateNoNewlines } from '../helpers/security.js'
 
 async function resolveScene(projectRoot: string, scenePath: string): Promise<string> {
@@ -127,32 +128,38 @@ async function handleListAnimations(projectPath: string, args: Record<string, un
   const fullPath = await resolveScene(projectPath, scenePath)
   const content = await readFile(fullPath, 'utf-8')
 
+  // ⚡ Bolt: Replace RegExp.matchAll() with a centralized structural parser (parseSceneContent)
+  // to avoid repeatedly parsing the file and creating intermediate arrays for matches and slicing.
+  const parsed = parseSceneContent(content)
   const animations: { name: string; duration?: string; loop?: boolean }[] = []
-  const animRegex = /\[sub_resource type="Animation" id="([^"]+)"\]/g
-  for (const match of content.matchAll(animRegex)) {
-    const id = match[1]
 
-    // Isolate each animation block to avoid O(N^2) slicing and cross-talk
-    const startIndex = match.index
-    let endIndex = content.indexOf('\n[', startIndex + 1)
-    if (endIndex === -1) endIndex = content.length
-    const block = content.slice(startIndex, endIndex)
+  for (let i = 0; i < parsed.subResources.length; i++) {
+    const sub = parsed.subResources[i]
+    if (sub.type === 'Animation') {
+      const resourceName = sub.properties.resource_name
+      let name = sub.id
+      if (resourceName) {
+        // Strip quotes if present
+        name = resourceName.startsWith('"') && resourceName.endsWith('"') ? resourceName.slice(1, -1) : resourceName
+      }
 
-    const nameMatch = block.match(/resource_name\s*=\s*"([^"]*)"/)
-    const durationMatch = block.match(/length\s*=\s*([\d.]+)/)
-    const loopMatch = block.match(/loop_mode\s*=\s*(\d+)/)
-    animations.push({
-      name: nameMatch?.[1] || id,
-      duration: durationMatch?.[1],
-      loop: loopMatch ? loopMatch[1] !== '0' : false,
-    })
+      const duration = sub.properties.length
+      const loopMode = sub.properties.loop_mode
+
+      animations.push({
+        name,
+        duration,
+        loop: loopMode ? loopMode !== '0' : false,
+      })
+    }
   }
 
-  // Also find AnimationPlayer nodes
   const players: string[] = []
-  const playerRegex = /\[node name="([^"]+)" type="AnimationPlayer"/g
-  for (const playerMatch of content.matchAll(playerRegex)) {
-    players.push(playerMatch[1])
+  for (let i = 0; i < parsed.nodes.length; i++) {
+    const node = parsed.nodes[i]
+    if (node.type === 'AnimationPlayer') {
+      players.push(node.name)
+    }
   }
 
   return formatJSON({ scene: scenePath, players, animations })

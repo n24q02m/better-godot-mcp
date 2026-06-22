@@ -7,3 +7,7 @@
 **Vulnerability:** Argument injection in CLI-invoking tools.
 **Learning:** Checking for leading hyphens using `startsWith('-')` on untrusted input can be bypassed if the attacker pads the flag with leading spaces (e.g., " -s malicious.gd").
 **Prevention:** Always `.trim()` user-provided strings before performing safety checks like hyphen-prefixed flag detection.
+## 2026-06-21 - Flag Injection via Tool Argument Validation Gap
+**Vulnerability:** Flag injection in CLI-invoking tools.
+**Learning:** Checking for leading hyphens must be applied consistently across all tools that accept file paths or similar arguments passed to external commands. The `handleEditor` tool lacked the protection already present in `handleProject`.
+**Prevention:** Apply the `.trim().startsWith('-')` check universally to any untrusted argument that will eventually be used as an argument to a spawned process.

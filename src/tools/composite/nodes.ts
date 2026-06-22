@@ -31,16 +31,36 @@ function normalizeNodePath(path: string): { path: string; corrected: boolean } {
   const normalized = path.replace(/\\/g, '/')
   const corrected = path.includes('\\')
 
+  const lowerNormalized = normalized.toLowerCase()
+  let rootPrefixLen = 0
+  if (lowerNormalized.startsWith('root/')) {
+    rootPrefixLen = 5
+  } else if (lowerNormalized.startsWith('/root/')) {
+    rootPrefixLen = 6
+  }
+
   // Case-insensitive check for /root/ or root/ prefix
   // These are common LLM mistakes when they try to use absolute paths.
-  const rootMatch = normalized.match(/^\/?root\/(.+)$/i)
-  if (rootMatch) {
-    const afterRoot = rootMatch[1]
-    const segments = afterRoot.split('/').filter(Boolean)
-    if (segments.length <= 1) {
+  if (rootPrefixLen > 0) {
+    const nextSlashIdx = normalized.indexOf('/', rootPrefixLen)
+    if (nextSlashIdx === -1) {
       return { path: '.', corrected: true }
     }
-    const remaining = segments.slice(1).join('/')
+
+    let startIdx = nextSlashIdx
+    while (startIdx < normalized.length && normalized.charCodeAt(startIdx) === 47) {
+      startIdx++
+    }
+
+    if (startIdx === normalized.length) {
+      return { path: '.', corrected: true }
+    }
+
+    const remaining = normalized.slice(startIdx)
+    // ⚡ Bolt: Fast-path optimization avoiding RegExp match and split/filter array allocations
+    if (remaining.includes('//')) {
+      return { path: remaining.split('/').filter(Boolean).join('/'), corrected: true }
+    }
     return { path: remaining, corrected: true }
   }
 
@@ -49,7 +69,7 @@ function normalizeNodePath(path: string): { path: string; corrected: boolean } {
   // But wait, if someone has a node named "Root" that is NOT the scene root?
   // In Godot, the root of the scene being edited is often named after the scene or "Root".
   // LLMs often use "/root/SceneName/..."
-  if (normalized.toLowerCase() === '/root') {
+  if (lowerNormalized === '/root') {
     return { path: '.', corrected: true }
   }
 

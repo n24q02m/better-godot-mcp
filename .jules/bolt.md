@@ -46,3 +46,6 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## 2025-06-25 - [Avoid RegExp.matchAll() for structural parsing]
 **Learning:** Using `RegExp.prototype.matchAll()` or `String.prototype.match()` to parse structured file formats (like Godot's `.tscn` files) requires executing complex regex patterns and creating intermediate array objects for each match. This is less efficient than using a centralized, single-pass structural parser (like `parseSceneContent`), which avoids regex execution overhead entirely.
 **Action:** Replace `matchAll` and `match` usage with existing single-pass structural parsers when analyzing `.tscn` contents. Reusing a standard parser prevents redundant parsing work, eliminates regular expression array allocations, and improves maintainability.
+## 2026-06-23 - Non-blocking binary detection
+**Learning:** Synchronous file system and process operations in the Godot binary detection chain can block the Node.js event loop, which is critical in an MCP server handling concurrent requests.
+**Action:** Always use `node:fs/promises` and `promisify(execFile)` for binary detection and verification tasks to ensure the server remains responsive during I/O-heavy operations.

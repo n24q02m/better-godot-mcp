@@ -24,9 +24,9 @@ function getVersion(): string {
   return pkg.version ?? '0.0.0'
 }
 
-export function createGodotServer(): Server {
+export async function createGodotServer(): Promise<Server> {
   // Detect Godot binary
-  const detection = detectGodot()
+  const detection = await detectGodot()
 
   if (detection) {
     logger.info(`Godot detected: ${detection.version.raw} at ${detection.path} (${detection.source})`)
@@ -72,7 +72,7 @@ export async function initServer(): Promise<void> {
     if (!isHttp) {
       // Direct MCP SDK stdio transport (no daemon proxy hop).
       // See spec 2026-05-01-stdio-pure-http-multiuser.md §5.2.2.
-      const server = createGodotServer()
+      const server = await createGodotServer()
       const transport = new StdioServerTransport()
       await server.connect(transport)
       logger.info(`Server started in stdio mode (v${getVersion()})`)

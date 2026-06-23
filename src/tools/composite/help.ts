@@ -47,15 +47,20 @@ async function getDocsDir(): Promise<string> {
     join(process.cwd(), 'build', 'src', 'docs'),
   ]
 
-  // ⚡ Bolt: Cache docs dir discovery and use a sequential for-of loop with early return
-  // to avoid redundant I/O operations and array allocations.
-  for (const candidate of candidates) {
-    // Validate candidate contains actual tool docs (not a random 'docs' directory)
-    const markerFile = join(candidate, 'help.md')
-    if (await pathExists(markerFile)) {
-      cachedDocsDir = candidate
-      return cachedDocsDir
-    }
+  // ⚡ Bolt: Check all candidates in parallel to avoid sequential I/O pauses on misses,
+  // then pick the first existing one to maintain priority.
+  const checks = await Promise.all(
+    candidates.map(async (candidate) => {
+      const markerFile = join(candidate, 'help.md')
+      const exists = await pathExists(markerFile)
+      return exists ? candidate : null
+    }),
+  )
+
+  const found = checks.find((c) => c !== null)
+  if (found) {
+    cachedDocsDir = found
+    return cachedDocsDir
   }
 
   cachedDocsDir = join(process.cwd(), 'src', 'docs')

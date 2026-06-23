@@ -56,6 +56,17 @@ describe('editor', () => {
 
       expect(result.content[0].text).toContain('Godot editor launched')
     })
+
+    it('should throw INVALID_ARGS when project_path starts with a hyphen', async () => {
+      config = makeConfig({ godotPath: '/usr/bin/godot', projectPath })
+
+      await expect(handleEditor('launch', { project_path: '--headless' }, config)).rejects.toThrow(
+        'Invalid project path',
+      )
+      await expect(handleEditor('launch', { project_path: ' -headless' }, config)).rejects.toThrow(
+        'Invalid project path',
+      )
+    })
   })
 
   // ==========================================

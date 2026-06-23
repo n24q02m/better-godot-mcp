@@ -1,7 +1,40 @@
 import { describe, expect, it } from 'vitest'
-import { countSubstring, parseCommaSeparatedList } from '../../src/tools/helpers/strings.js'
+import { countSubstring, fastTrimRange, parseCommaSeparatedList } from '../../src/tools/helpers/strings.js'
 
 describe('strings helper', () => {
+  describe('fastTrimRange', () => {
+    it('should trim whitespace from both ends', () => {
+      const s = '  hello  '
+      expect(fastTrimRange(s, 0, s.length)).toEqual({ start: 2, end: 7 })
+    })
+
+    it('should handle already trimmed strings', () => {
+      const s = 'hello'
+      expect(fastTrimRange(s, 0, s.length)).toEqual({ start: 0, end: 5 })
+    })
+
+    it('should handle empty strings', () => {
+      const s = ''
+      expect(fastTrimRange(s, 0, 0)).toEqual({ start: 0, end: 0 })
+    })
+
+    it('should handle strings with only whitespace', () => {
+      const s = '   '
+      expect(fastTrimRange(s, 0, s.length)).toEqual({ start: 3, end: 3 })
+    })
+
+    it('should respect the provided range', () => {
+      const s = 'abc  def  ghi'
+      // "  def  " is from index 3 to 10
+      expect(fastTrimRange(s, 3, 10)).toEqual({ start: 5, end: 8 })
+    })
+
+    it('should handle null/unusual whitespace (charCode <= 32)', () => {
+      const s = '\t\n \rhello\0'
+      expect(fastTrimRange(s, 0, s.length)).toEqual({ start: 4, end: 9 })
+    })
+  })
+
   describe('parseCommaSeparatedList', () => {
     it('should parse simple list', () => {
       expect(parseCommaSeparatedList('a,b,c')).toEqual(['a', 'b', 'c'])

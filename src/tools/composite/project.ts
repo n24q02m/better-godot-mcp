@@ -17,7 +17,7 @@ import {
   setSettingInContent,
 } from '../helpers/project-settings.js'
 import { isValidPid, validatePid } from '../helpers/security.js'
-import { parseCommaSeparatedList } from '../helpers/strings.js'
+import { fastTrimRange, parseCommaSeparatedList } from '../helpers/strings.js'
 
 async function parseProjectGodot(projectPath: string): Promise<ProjectInfo> {
   const configPath = join(projectPath, 'project.godot')
@@ -45,11 +45,8 @@ async function parseProjectGodot(projectPath: string): Promise<ProjectInfo> {
     let nextNewline = content.indexOf('\n', pos)
     if (nextNewline === -1) nextNewline = len
 
-    // manual trim
-    let start = pos
-    let end = nextNewline
-    while (start < end && content.charCodeAt(start) <= 32) start++
-    while (end > start && content.charCodeAt(end - 1) <= 32) end--
+    // ⚡ Bolt: Centralized trim logic
+    const { start, end } = fastTrimRange(content, pos, nextNewline)
 
     if (start < end) {
       const trimmed = content.slice(start, end)

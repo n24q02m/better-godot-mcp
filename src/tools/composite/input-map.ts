@@ -9,6 +9,7 @@ import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { serializeGodotObject } from '../helpers/godot-types.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
+import { fastTrimRange } from '../helpers/strings.js'
 
 /**
  * Godot 4.x Key enum numeric values (@GlobalScope.Key)
@@ -188,11 +189,8 @@ function parseInputActions(content: string): Map<string, string[]> {
     let nextNewline = content.indexOf('\n', pos)
     if (nextNewline === -1) nextNewline = len
 
-    // manual trim
-    let start = pos
-    let end = nextNewline
-    while (start < end && content.charCodeAt(start) <= 32) start++
-    while (end > start && content.charCodeAt(end - 1) <= 32) end--
+    // ⚡ Bolt: Centralized trim logic avoids manual loops and array allocations
+    const { start, end } = fastTrimRange(content, pos, nextNewline)
 
     if (start < end) {
       const trimmed = content.slice(start, end)

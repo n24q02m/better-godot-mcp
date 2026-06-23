@@ -3,6 +3,21 @@
  */
 
 /**
+ * Fast-path string trimming for a specific range within a string.
+ * Returns the new start and end indices without allocating a new string.
+ * Uses charCodeAt(i) <= 32 to match Godot's whitespace definition.
+ */
+export function fastTrimRange(str: string, start: number, end: number): { start: number; end: number } {
+  let s = start
+  let e = end
+
+  while (s < e && str.charCodeAt(s) <= 32) s++
+  while (e > s && str.charCodeAt(e - 1) <= 32) e--
+
+  return { start: s, end: e }
+}
+
+/**
  * Fast-path parser for comma-separated lists, avoiding split/map/filter allocations.
  * Uses a single-pass loop to find delimiters, trimming whitespace and quotes in-place.
  */

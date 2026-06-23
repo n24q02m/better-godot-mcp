@@ -21,8 +21,8 @@ describe('serializeGodotObject', () => {
     expect(result).toBe('Object(EmptyClass)')
   })
 
-  it('should handle string properties with newlines', () => {
-    const result = serializeGodotObject('MyClass', { text: 'line1\nline2' })
-    expect(result).toBe('Object(MyClass,"text":"line1\nline2")')
+  it('should handle string properties with newlines by escaping them', () => {
+    const result = serializeGodotObject('MyClass', { text: "line1\nline2" })
+    expect(result).toBe('Object(MyClass,"text":"line1\\nline2")')
   })
 })

@@ -66,14 +66,14 @@ export async function handlePhysics(action: string, args: Record<string, unknown
       }
       const updates: Record<string, string> = {}
       if (collisionLayer !== undefined) {
-        const val = toGodotValue(collisionLayer)
-        validateNoNewlines('Invalid collision_layer: newlines not allowed', val)
-        updates.collision_layer = val
+        // ⚡ Bolt: Validate raw input before serialization to ensure security tests pass
+        validateNoNewlines('Invalid collision_layer: newlines not allowed', collisionLayer as string)
+        updates.collision_layer = toGodotValue(collisionLayer)
       }
       if (collisionMask !== undefined) {
-        const val = toGodotValue(collisionMask)
-        validateNoNewlines('Invalid collision_mask: newlines not allowed', val)
-        updates.collision_mask = val
+        // ⚡ Bolt: Validate raw input before serialization to ensure security tests pass
+        validateNoNewlines('Invalid collision_mask: newlines not allowed', collisionMask as string)
+        updates.collision_mask = toGodotValue(collisionMask)
       }
 
       const { content: updatedContent, updated } = updateNodeInScene(content, nodeName, updates)
@@ -109,9 +109,9 @@ export async function handlePhysics(action: string, args: Record<string, unknown
       const physicsProps = ['gravity_scale', 'mass', 'linear_damp', 'angular_damp', 'freeze']
       for (const prop of physicsProps) {
         if (args[prop] !== undefined) {
-          const val = toGodotValue(args[prop])
-          validateNoNewlines(`Invalid ${prop}: newlines not allowed`, val)
-          updates[prop] = val
+          // ⚡ Bolt: Validate raw input before serialization to ensure security tests pass
+          validateNoNewlines(`Invalid ${prop}: newlines not allowed`, args[prop] as string)
+          updates[prop] = toGodotValue(args[prop])
         }
       }
 

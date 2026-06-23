@@ -45,7 +45,8 @@ describe('handleHelp', () => {
     const calledPath = vi.mocked(readFile).mock.calls[0][0] as string
 
     // The first candidate path should contain 'docs' and not 'build' (based on help.ts)
-    expect(calledPath).toMatch(/docs\/project\.md$/)
+    // Use a platform-agnostic check for the end of the path
+    expect(calledPath).toMatch(/[\\/]docs[\\/]project\.md$/)
     expect(calledPath).not.toContain('build')
   })
 

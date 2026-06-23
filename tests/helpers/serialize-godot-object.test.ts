@@ -20,4 +20,14 @@ describe('serializeGodotObject', () => {
     const result = serializeGodotObject('EmptyClass', {})
     expect(result).toBe('Object(EmptyClass)')
   })
+
+  it('should ignore inherited properties', () => {
+    const proto = { inherited: 'yes' }
+    const props = Object.create(proto)
+    props.own = 'no'
+
+    const result = serializeGodotObject('TestClass', props)
+    expect(result).toBe('Object(TestClass,"own":"no")')
+    expect(result).not.toContain('inherited')
+  })
 })

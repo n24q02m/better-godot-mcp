@@ -89,48 +89,41 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
   const safeInput = input.length > 100 ? input.slice(0, 100) : input
   const lower = safeInput.toLowerCase()
 
-  // 1. Priority: Exact match (case-insensitive)
-  for (const option of validOptions) {
-    if (option.toLowerCase() === lower) {
-      return option
-    }
-  }
-
-  // 2-4. Priority: Prefix and containment matches
-  let bestStartsWith: string | null = null
-  let minLenDiffStartsWith = Number.POSITIVE_INFINITY
-
-  let bestIncludes: string | null = null
-  let minLenDiffIncludes = Number.POSITIVE_INFINITY
-
-  let bestInputStartsWith: string | null = null
-  let minLenDiffInputStartsWith = Number.POSITIVE_INFINITY
+  // 1-4. Priority: Exact, Prefix, and containment matches
+  let bestOption: string | null = null
+  let bestPriority = 5 // Higher than any matching priority
+  let minLenDiff = Number.POSITIVE_INFINITY
 
   for (const option of validOptions) {
     const optionLower = option.toLowerCase()
     const lenDiff = Math.abs(optionLower.length - lower.length)
+    let currentPriority = 5
+
+    if (optionLower === lower) {
+      return option // 1. Priority: Exact match (case-insensitive)
+    }
 
     if (optionLower.startsWith(lower)) {
-      if (lenDiff < minLenDiffStartsWith) {
-        minLenDiffStartsWith = lenDiff
-        bestStartsWith = option
-      }
+      currentPriority = 2
     } else if (optionLower.includes(lower)) {
-      if (lenDiff < minLenDiffIncludes) {
-        minLenDiffIncludes = lenDiff
-        bestIncludes = option
-      }
+      currentPriority = 3
     } else if (lower.startsWith(optionLower)) {
-      if (lenDiff < minLenDiffInputStartsWith) {
-        minLenDiffInputStartsWith = lenDiff
-        bestInputStartsWith = option
+      currentPriority = 4
+    }
+
+    if (currentPriority < 5) {
+      if (currentPriority < bestPriority) {
+        bestPriority = currentPriority
+        minLenDiff = lenDiff
+        bestOption = option
+      } else if (currentPriority === bestPriority && lenDiff < minLenDiff) {
+        minLenDiff = lenDiff
+        bestOption = option
       }
     }
   }
 
-  if (bestStartsWith !== null) return bestStartsWith
-  if (bestIncludes !== null) return bestIncludes
-  if (bestInputStartsWith !== null) return bestInputStartsWith
+  if (bestOption !== null) return bestOption
 
   // 5. Fallback: Fuzzy matching using bigram similarity
   let bestFuzzyMatch: string | null = null

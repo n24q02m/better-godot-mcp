@@ -158,6 +158,33 @@ describe('project-settings', () => {
       const settings = parseProjectSettingsContent(SAMPLE_PROJECT_GODOT)
       expect(getSetting(settings, 'application')).toBeUndefined()
     })
+
+    it('should return undefined for empty path', () => {
+      const settings = parseProjectSettingsContent(SAMPLE_PROJECT_GODOT)
+      expect(getSetting(settings, '')).toBeUndefined()
+    })
+
+    it('should return undefined for path starting with slash (empty section)', () => {
+      const settings = parseProjectSettingsContent('[application]\nkey="value"')
+      expect(getSetting(settings, '/key')).toBeUndefined()
+    })
+
+    it('should return undefined for path ending with slash (empty key)', () => {
+      const settings = parseProjectSettingsContent('[application]\nkey="value"')
+      expect(getSetting(settings, 'application/')).toBeUndefined()
+    })
+
+    it('should return undefined for path consisting only of a slash', () => {
+      const settings = parseProjectSettingsContent(SAMPLE_PROJECT_GODOT)
+      expect(getSetting(settings, '/')).toBeUndefined()
+    })
+
+    it('should handle path with multiple slashes correctly', () => {
+      const content = '[audio_canvas_events]\ncanvas_item/audio_bus_name="Master"'
+      const settings = parseProjectSettingsContent(content)
+      // Section: audio_canvas_events, Key: canvas_item/audio_bus_name
+      expect(getSetting(settings, 'audio_canvas_events/canvas_item/audio_bus_name')).toBe('"Master"')
+    })
   })
 
   // ==========================================

@@ -1,11 +1,8 @@
 import { execFileSync } from 'node:child_process'
-import type { PathLike } from 'node:fs'
-import { accessSync, existsSync, fstatSync, openSync, readdirSync, readSync, statSync } from 'node:fs'
-import { join } from 'node:path'
+import { accessSync, existsSync, fstatSync, openSync, readSync, statSync } from 'node:fs'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   detectGodot,
-  isExecutable,
   isLikelyGodotBinary,
   isVersionSupported,
   parseGodotVersion,
@@ -16,12 +13,20 @@ vi.mock('node:child_process')
 vi.mock('node:fs')
 
 // Helper to mock readSync with ELF magic
-const mockReadSyncWithELF = (buffer: Buffer | Uint8Array, offset?: number, length?: number, position?: number) => {
+const mockReadSyncWithELF = (
+  _fd: number,
+  buffer: Buffer | Uint8Array,
+  _offset?: number,
+  _length?: number,
+  position?: number,
+) => {
   const b = buffer as Buffer
-  const off = offset ?? 0
   const pos = position ?? 0
   if (pos === 0) {
-    b[off] = 0x7f; b[off+1] = 0x45; b[off+2] = 0x4c; b[off+3] = 0x46;
+    b[0] = 0x7f
+    b[1] = 0x45
+    b[2] = 0x4c
+    b[3] = 0x46
     return 4
   }
   return 0
@@ -168,12 +173,15 @@ describe('detector', () => {
     })
 
     it('should return true when signature is in first chunk', () => {
-      vi.mocked(readSync).mockImplementation((_fd, buffer, offset, length, position) => {
+      vi.mocked(readSync).mockImplementation((_fd, buffer, offset, _length, position) => {
         const b = buffer as Buffer
         const off = offset ?? 0
         const pos = position ?? 0
         if (pos === 0) {
-          b[off] = 0x7f; b[off+1] = 0x45; b[off+2] = 0x4c; b[off+3] = 0x46;
+          b[off] = 0x7f
+          b[off + 1] = 0x45
+          b[off + 2] = 0x4c
+          b[off + 3] = 0x46
           b.write('Godot Engine', off + 4)
           return 16
         }
@@ -183,12 +191,15 @@ describe('detector', () => {
     })
 
     it('should return true when GDScript signature is found', () => {
-      vi.mocked(readSync).mockImplementation((_fd, buffer, offset, length, position) => {
+      vi.mocked(readSync).mockImplementation((_fd, buffer, offset, _length, position) => {
         const b = buffer as Buffer
         const off = offset ?? 0
         const pos = position ?? 0
         if (pos === 0) {
-          b[off] = 0x7f; b[off+1] = 0x45; b[off+2] = 0x4c; b[off+3] = 0x46;
+          b[off] = 0x7f
+          b[off + 1] = 0x45
+          b[off + 2] = 0x4c
+          b[off + 3] = 0x46
           b.write('GDScript', off + 4)
           return 12
         }
@@ -199,13 +210,16 @@ describe('detector', () => {
 
     it('should scan multiple chunks for large binaries where signature is not in first chunk', () => {
       let callCount = 0
-      vi.mocked(readSync).mockImplementation((_fd, buffer, offset, length, position) => {
+      vi.mocked(readSync).mockImplementation((_fd, buffer, offset, _length, position) => {
         const b = buffer as Buffer
         const off = offset ?? 0
         const pos = position ?? 0
         callCount++
         if (pos === 0) {
-          b[off] = 0x7f; b[off+1] = 0x45; b[off+2] = 0x4c; b[off+3] = 0x46;
+          b[off] = 0x7f
+          b[off + 1] = 0x45
+          b[off + 2] = 0x4c
+          b[off + 3] = 0x46
           return 4
         }
         if (pos > 0 && pos < 10 * 1024 * 1024) {
@@ -224,17 +238,20 @@ describe('detector', () => {
     })
 
     it('should return false on read error', () => {
-      vi.mocked(openSync).mockImplementation(() => { throw new Error('fail') })
+      vi.mocked(openSync).mockImplementation(() => {
+        throw new Error('fail')
+      })
       expect(isLikelyGodotBinary('/path/to/bad')).toBe(false)
     })
 
     it('should reject scripts starting with shebang', () => {
-      vi.mocked(readSync).mockImplementation((_fd, buffer, offset, length, position) => {
+      vi.mocked(readSync).mockImplementation((_fd, buffer, offset, _length, position) => {
         const b = buffer as Buffer
         const off = offset ?? 0
         const pos = position ?? 0
         if (pos === 0) {
-          b[off] = 0x23; b[off+1] = 0x21; // #!
+          b[off] = 0x23
+          b[off + 1] = 0x21 // #!
           return 2
         }
         return 0
@@ -254,12 +271,15 @@ describe('detector', () => {
     })
 
     it('should return version if signature and exec succeed', () => {
-      vi.mocked(readSync).mockImplementation((_fd, buffer, offset, length, position) => {
+      vi.mocked(readSync).mockImplementation((_fd, buffer, offset, _length, position) => {
         const b = buffer as Buffer
         const off = offset ?? 0
         const pos = position ?? 0
         if (pos === 0) {
-          b[off] = 0x7f; b[off+1] = 0x45; b[off+2] = 0x4c; b[off+3] = 0x46;
+          b[off] = 0x7f
+          b[off + 1] = 0x45
+          b[off + 2] = 0x4c
+          b[off + 3] = 0x46
           b.write('Godot Engine', off + 4)
           return 16
         }
@@ -288,12 +308,15 @@ describe('detector', () => {
       vi.mocked(fstatSync).mockReturnValue(mockStats)
       vi.mocked(accessSync).mockReturnValue(undefined)
       vi.mocked(openSync).mockReturnValue(999)
-      vi.mocked(readSync).mockImplementation((_fd, buffer, offset, length, position) => {
+      vi.mocked(readSync).mockImplementation((_fd, buffer, offset, _length, position) => {
         const b = buffer as Buffer
         const off = offset ?? 0
         const pos = position ?? 0
         if (pos === 0) {
-          b[off] = 0x7f; b[off+1] = 0x45; b[off+2] = 0x4c; b[off+3] = 0x46;
+          b[off] = 0x7f
+          b[off + 1] = 0x45
+          b[off + 2] = 0x4c
+          b[off + 3] = 0x46
           b.write('Godot Engine', off + 4)
           return 16
         }

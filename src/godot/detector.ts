@@ -85,7 +85,7 @@ export function isLikelyGodotBinary(filePath: string): boolean {
     // Minimum size for any reasonable binary
     if (fileSize < 1024) return false
 
-    const headBuf = Buffer.alloc(4)
+    const headBuf = Buffer.allocUnsafe(4)
     const bytesReadHead = readSync(fd, headBuf, 0, 4, 0)
     if (bytesReadHead < 2) return false
 
@@ -96,7 +96,10 @@ export function isLikelyGodotBinary(filePath: string): boolean {
     const isELF = headBuf[0] === 0x7f && headBuf[1] === 0x45 && headBuf[2] === 0x4c && headBuf[3] === 0x46
     const isPE = headBuf[0] === 0x4d && headBuf[1] === 0x5a
     const isMachO =
-      (headBuf[0] === 0xfe && headBuf[1] === 0xed && headBuf[2] === 0xfa && (headBuf[3] === 0xce || headBuf[3] === 0xcf)) ||
+      (headBuf[0] === 0xfe &&
+        headBuf[1] === 0xed &&
+        headBuf[2] === 0xfa &&
+        (headBuf[3] === 0xce || headBuf[3] === 0xcf)) ||
       (headBuf[0] === 0xce && headBuf[1] === 0xfa && headBuf[2] === 0xed && headBuf[3] === 0xfe) ||
       (headBuf[0] === 0xcf && headBuf[1] === 0xfa && headBuf[2] === 0xed && headBuf[3] === 0xfe)
 
@@ -107,7 +110,7 @@ export function isLikelyGodotBinary(filePath: string): boolean {
     const sig2 = Buffer.from('GDScript')
 
     const fastSize = 64 * 1024
-    const fastBuf = Buffer.alloc(fastSize)
+    const fastBuf = Buffer.allocUnsafe(fastSize)
     const headRead = readSync(fd, fastBuf, 0, Math.min(fastSize, fileSize), 0)
     if (headRead > 0 && (fastBuf.subarray(0, headRead).includes(sig1) || fastBuf.subarray(0, headRead).includes(sig2)))
       return true
@@ -126,7 +129,7 @@ export function isLikelyGodotBinary(filePath: string): boolean {
     const maxSigLen = Math.max(sig1.length, sig2.length)
     const overlap = maxSigLen - 1
     const step = chunkSize - overlap
-    const buffer = Buffer.alloc(chunkSize)
+    const buffer = Buffer.allocUnsafe(chunkSize)
     for (let offset = 0; offset < fileSize; offset += step) {
       const readLen = Math.min(chunkSize, fileSize - offset)
       const bytesRead = readSync(fd, buffer, 0, readLen, offset)

@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { GodotConfig } from '../../src/godot/types.js'
 import { handleEditor } from '../../src/tools/composite/editor.js'
 import { createTmpProject, makeConfig } from '../fixtures.js'
+import { resolve } from 'node:path'
 
 vi.mock('../../src/godot/headless.js', () => ({
   launchGodotEditor: vi.fn(() => ({ pid: 12345 })),
@@ -56,6 +57,26 @@ describe('editor', () => {
 
       expect(result.content[0].text).toContain('Godot editor launched')
     })
+
+    it('should fallback to process.cwd() when config.projectPath is null', async () => {
+      // In this test, we need project_path to be reachable from process.cwd() to pass safeResolve.
+      // Since createTmpProject creates a directory in /tmp, and process.cwd() is /app,
+      // safeResolve will throw "Access denied" because /tmp is outside /app.
+      // We can mock process.cwd() or just use a relative path if possible,
+      // but the easiest is to set projectPath to a subfolder of process.cwd() if we really want to test the fallback.
+      // However, for the sake of coverage of line 50:
+      // const { pid } = launchGodotEditor(config.godotPath, safeResolve(config.projectPath || process.cwd(), projectPath))
+      // If we provide an absolute projectPath as the second argument, safeResolve(base, absolute)
+      // will still check if absolute is under base.
+
+      const cwd = process.cwd()
+      config = makeConfig({ godotPath: '/usr/bin/godot', projectPath: null })
+
+      // To pass safeResolve(cwd, project_path), project_path must be inside cwd.
+      // Let's use "." as project_path, which is always inside cwd.
+      const result = await handleEditor('launch', { project_path: '.' }, config)
+      expect(result.content[0].text).toContain('Godot editor launched')
+    })
   })
 
   // ==========================================
@@ -91,6 +112,20 @@ describe('editor', () => {
       expect(typeof data.running).toBe('boolean')
     })
 
+    it('should skip invalid PIDs in activePids', async () => {
+      // @ts-ignore - testing runtime security check for invalid types/values
+      config.activePids.push(-1)
+      // @ts-ignore
+      config.activePids.push('invalid')
+      config.activePids.push(12345)
+
+      const result = await handleEditor('status', {}, config)
+      const data = JSON.parse(result.content[0].text)
+
+      expect(data.processes.length).toBe(1)
+      expect(data.processes[0].pid).toBe('12345')
+    })
+
     it('should show not detected when godotPath is null', async () => {
       config = makeConfig()
       const result = await handleEditor('status', {}, config)
@@ -106,6 +141,19 @@ describe('editor', () => {
 
       // In CI/test environment, no Godot processes should be running
       expect(data.running).toBe(false)
+    })
+
+    it('should handle process.kill throwing an error (dead process)', async () => {
+      config.activePids.push(99999)
+      processKillSpy.mockImplementation((pid) => {
+        if (pid === 99999) throw new Error('ESRCH')
+        return true
+      })
+
+      const result = await handleEditor('status', {}, config)
+      const data = JSON.parse(result.content[0].text)
+
+      expect(data.processes.find((p: any) => p.pid === '99999')).toBeUndefined()
     })
   })
 

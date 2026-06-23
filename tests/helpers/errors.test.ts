@@ -131,6 +131,9 @@ describe('errors', () => {
       expect(findClosestMatch('input', [])).toBeNull()
     })
 
+    it('should return null for array of empty strings', () => {
+      expect(findClosestMatch('something', ['', ''])).toBeNull()
+    })
     it('should return exact match (case-insensitive)', () => {
       expect(findClosestMatch('CREATE', ['create', 'delete'])).toBe('create')
     })

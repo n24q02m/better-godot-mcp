@@ -84,13 +84,15 @@ export function formatJSON(data: unknown): { content: Array<{ type: 'text'; text
  */
 export function findClosestMatch(input: string, validOptions: string[]): string | null {
   if (!input || validOptions.length === 0) return null
+  const options = validOptions.filter((o) => o.length > 0)
+  if (options.length === 0) return null
 
   // Truncate to prevent CPU exhaustion from excessively long inputs
   const safeInput = input.length > 100 ? input.slice(0, 100) : input
   const lower = safeInput.toLowerCase()
 
   // 1. Priority: Exact match (case-insensitive)
-  for (const option of validOptions) {
+  for (const option of options) {
     if (option.toLowerCase() === lower) {
       return option
     }
@@ -106,7 +108,7 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
   let bestInputStartsWith: string | null = null
   let minLenDiffInputStartsWith = Number.POSITIVE_INFINITY
 
-  for (const option of validOptions) {
+  for (const option of options) {
     const optionLower = option.toLowerCase()
     const lenDiff = Math.abs(optionLower.length - lower.length)
 
@@ -141,7 +143,7 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
     inputBigrams.add(lower.slice(i, i + 2))
   }
 
-  for (const option of validOptions) {
+  for (const option of options) {
     const optionLower = option.toLowerCase()
     const optionBigrams = new Set<string>()
     for (let i = 0; i < optionLower.length - 1; i++) {

@@ -5,12 +5,12 @@
 import { describe, expect, it } from 'vitest'
 import {
   type GodotColor,
-  type Rect2,
-  type Vector2,
-  type Vector3,
   parseGodotValue,
+  type Rect2,
   serializeGodotObject,
   toGodotValue,
+  type Vector2,
+  type Vector3,
 } from '../../src/tools/helpers/godot-types.js'
 
 describe('godot-types', () => {
@@ -324,7 +324,7 @@ describe('godot-types', () => {
         position: { x: 10, y: 20 },
       }
       expect(serializeGodotObject('KinematicBody2D', props)).toBe(
-        'Object(KinematicBody2D,"name":"Player","health":100,"position":Vector2(10, 20))'
+        'Object(KinematicBody2D,"name":"Player","health":100,"position":Vector2(10, 20))',
       )
     })
 

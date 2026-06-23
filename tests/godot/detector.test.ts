@@ -1,26 +1,19 @@
 import { execFile } from 'node:child_process'
-import {
-  access,
-  open,
-  readdir,
-  stat,
-} from 'node:fs/promises'
-import { join } from 'node:path'
+import { access, open, readdir, stat } from 'node:fs/promises'
 /**
  * Tests for Godot binary detector
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mocking before imports
 vi.mock('node:child_process', () => ({
-  execFile: vi.fn()
+  execFile: vi.fn(),
 }))
 vi.mock('node:fs/promises')
 
 import {
   detectGodot,
   isExecutable,
-  isLikelyGodotBinary,
   isVersionSupported,
   parseGodotVersion,
   tryGetVersion,
@@ -98,17 +91,20 @@ describe('detector', () => {
   // ==========================================
   describe('isExecutable', () => {
     it('should return true for executable files', async () => {
+      // biome-ignore lint/suspicious/noExplicitAny: mock
       vi.mocked(stat).mockResolvedValue({ isFile: () => true } as any)
       vi.mocked(access).mockResolvedValue(undefined)
       expect(await isExecutable('/path/to/godot')).toBe(true)
     })
 
     it('should return false if path is a directory', async () => {
+      // biome-ignore lint/suspicious/noExplicitAny: mock
       vi.mocked(stat).mockResolvedValue({ isFile: () => false } as any)
       expect(await isExecutable('/path/to/dir')).toBe(false)
     })
 
     it('should return false if access is denied', async () => {
+      // biome-ignore lint/suspicious/noExplicitAny: mock
       vi.mocked(stat).mockResolvedValue({ isFile: () => true } as any)
       vi.mocked(access).mockRejectedValue(new Error('denied'))
       expect(await isExecutable('/path/to/godot')).toBe(false)
@@ -120,6 +116,7 @@ describe('detector', () => {
   // ==========================================
   describe('tryGetVersion', () => {
     it('should return version if binary signature check passes and execFile succeeds', async () => {
+      // biome-ignore lint/suspicious/noExplicitAny: mock
       const mockStats = { isFile: () => true, size: 100 } as any
       const mockHandle = {
         stat: vi.fn().mockResolvedValue(mockStats),
@@ -129,11 +126,15 @@ describe('detector', () => {
         }),
         close: vi.fn().mockResolvedValue(undefined),
       }
+      // biome-ignore lint/suspicious/noExplicitAny: mock
       vi.mocked(open).mockResolvedValue(mockHandle as any)
 
+      // biome-ignore lint/suspicious/noExplicitAny: mock
       vi.mocked(execFile).mockImplementation(((_path: any, _args: any, _options: any, callback: any) => {
         callback(null, { stdout: '4.2.1.stable', stderr: '' })
+        // biome-ignore lint/suspicious/noExplicitAny: mock
         return {} as any
+        // biome-ignore lint/suspicious/noExplicitAny: mock
       }) as any)
 
       const v = await tryGetVersion('/path/to/godot')
@@ -142,9 +143,12 @@ describe('detector', () => {
     })
 
     it('should return version if skipSignatureCheck is true', async () => {
+      // biome-ignore lint/suspicious/noExplicitAny: mock
       vi.mocked(execFile).mockImplementation(((_path: any, _args: any, _options: any, callback: any) => {
         callback(null, { stdout: '4.2.1.stable', stderr: '' })
+        // biome-ignore lint/suspicious/noExplicitAny: mock
         return {} as any
+        // biome-ignore lint/suspicious/noExplicitAny: mock
       }) as any)
 
       const v = await tryGetVersion('/path/to/godot', true)
@@ -158,16 +162,17 @@ describe('detector', () => {
   // ==========================================
   describe('detectGodot', () => {
     const originalEnv = process.env
-    const originalPlatform = process.platform
 
     beforeEach(() => {
       vi.clearAllMocks()
       process.env = { ...originalEnv }
 
+      // biome-ignore lint/suspicious/noExplicitAny: mock
       vi.mocked(stat).mockResolvedValue({ isFile: () => true, size: 100 } as any)
       vi.mocked(access).mockResolvedValue(undefined)
 
       const mockHandle = {
+        // biome-ignore lint/suspicious/noExplicitAny: mock
         stat: vi.fn().mockResolvedValue({ isFile: () => true, size: 100 } as any),
         read: vi.fn().mockImplementation((buffer: Buffer) => {
           buffer.write('Godot Engine')
@@ -175,20 +180,19 @@ describe('detector', () => {
         }),
         close: vi.fn().mockResolvedValue(undefined),
       }
+      // biome-ignore lint/suspicious/noExplicitAny: mock
       vi.mocked(open).mockResolvedValue(mockHandle as any)
-    })
-
-    afterEach(() => {
-      process.env = originalEnv
-      Object.defineProperty(process, 'platform', { value: originalPlatform })
     })
 
     it('should detect from GODOT_PATH env var', async () => {
       process.env.GODOT_PATH = '/custom/path/godot'
 
+      // biome-ignore lint/suspicious/noExplicitAny: mock
       vi.mocked(execFile).mockImplementation(((_path: any, _args: any, _options: any, callback: any) => {
         callback(null, { stdout: 'Godot Engine v4.2.1.stable.official', stderr: '' })
+        // biome-ignore lint/suspicious/noExplicitAny: mock
         return {} as any
+        // biome-ignore lint/suspicious/noExplicitAny: mock
       }) as any)
 
       const result = await detectGodot()
@@ -199,13 +203,16 @@ describe('detector', () => {
     it('should detect from system PATH', async () => {
       delete process.env.GODOT_PATH
 
-      vi.mocked(execFile).mockImplementation(((cmd: any, args: any, _options: any, callback: any) => {
+      // biome-ignore lint/suspicious/noExplicitAny: mock
+      vi.mocked(execFile).mockImplementation(((_cmd: any, args: any, _options: any, callback: any) => {
         if (args && (args[0] === 'godot' || args[0] === 'which' || args[0] === 'where')) {
-           callback(null, { stdout: '/usr/local/bin/godot\n', stderr: '' })
+          callback(null, { stdout: '/usr/local/bin/godot\n', stderr: '' })
         } else {
-           callback(null, { stdout: 'Godot Engine v4.1.2.stable.official', stderr: '' })
+          callback(null, { stdout: 'Godot Engine v4.1.2.stable.official', stderr: '' })
         }
+        // biome-ignore lint/suspicious/noExplicitAny: mock
         return {} as any
+        // biome-ignore lint/suspicious/noExplicitAny: mock
       }) as any)
 
       const result = await detectGodot()
@@ -218,18 +225,23 @@ describe('detector', () => {
       delete process.env.GODOT_PATH
       Object.defineProperty(process, 'platform', { value: 'linux' })
 
-      vi.mocked(execFile).mockImplementation(((cmd: any, args: any, _options: any, callback: any) => {
+      // biome-ignore lint/suspicious/noExplicitAny: mock
+      vi.mocked(execFile).mockImplementation(((_cmd: any, args: any, _options: any, callback: any) => {
         if (args && (args[0] === 'godot' || args[0] === 'which')) {
           callback(new Error('not found'), { stdout: '', stderr: '' })
-        } else if (cmd === '/usr/bin/godot') {
+        } else if (_cmd === '/usr/bin/godot') {
           callback(null, { stdout: 'Godot Engine v4.3.stable.official', stderr: '' })
         } else {
           callback(new Error('not found'), { stdout: '', stderr: '' })
         }
+        // biome-ignore lint/suspicious/noExplicitAny: mock
         return {} as any
+        // biome-ignore lint/suspicious/noExplicitAny: mock
       }) as any)
 
+      // biome-ignore lint/suspicious/noExplicitAny: mock
       vi.mocked(stat).mockImplementation((path: any) => {
+        // biome-ignore lint/suspicious/noExplicitAny: mock
         if (path === '/usr/bin/godot') return Promise.resolve({ isFile: () => true, size: 100 } as any)
         return Promise.reject(new Error('ENOENT'))
       })
@@ -242,9 +254,12 @@ describe('detector', () => {
 
     it('should return null if no Godot found', async () => {
       delete process.env.GODOT_PATH
+      // biome-ignore lint/suspicious/noExplicitAny: mock
       vi.mocked(execFile).mockImplementation(((_cmd: any, _args: any, _options: any, callback: any) => {
         callback(new Error('not found'), { stdout: '', stderr: '' })
+        // biome-ignore lint/suspicious/noExplicitAny: mock
         return {} as any
+        // biome-ignore lint/suspicious/noExplicitAny: mock
       }) as any)
 
       vi.mocked(stat).mockRejectedValue(new Error('ENOENT'))

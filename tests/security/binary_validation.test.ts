@@ -1,16 +1,12 @@
 import { execFile } from 'node:child_process'
-import {
-  access,
-  open,
-  stat,
-} from 'node:fs/promises'
+import { access, open, stat } from 'node:fs/promises'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { tryGetVersion } from '../../src/godot/detector.js'
 import { handleConfig } from '../../src/tools/composite/config.js'
 
 // Mocking before imports
 vi.mock('node:child_process', () => ({
-  execFile: vi.fn()
+  execFile: vi.fn(),
 }))
 vi.mock('node:fs/promises')
 
@@ -18,6 +14,7 @@ describe('Binary Validation Security', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     // Default mock for stat to pass isExecutable and provide file size
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     vi.mocked(stat).mockResolvedValue({ isFile: () => true, size: 50 * 1024 * 1024 } as any)
     vi.mocked(access).mockResolvedValue(undefined)
   })
@@ -26,6 +23,7 @@ describe('Binary Validation Security', () => {
     const maliciousPath = '/usr/bin/ls'
     // Mock open/read to return something that doesn't contain Godot signatures
     const mockHandle = {
+      // biome-ignore lint/suspicious/noExplicitAny: mock
       stat: vi.fn().mockResolvedValue({ isFile: () => true, size: 50 * 1024 * 1024 } as any),
       read: vi.fn().mockImplementation((buffer: Buffer) => {
         buffer.write('standard linux binary content')
@@ -33,6 +31,7 @@ describe('Binary Validation Security', () => {
       }),
       close: vi.fn().mockResolvedValue(undefined),
     }
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     vi.mocked(open).mockResolvedValue(mockHandle as any)
 
     const result = await tryGetVersion(maliciousPath)
@@ -45,6 +44,7 @@ describe('Binary Validation Security', () => {
   it('should ACCEPT valid Godot binaries', async () => {
     const godotPath = '/usr/bin/godot'
     const mockHandle = {
+      // biome-ignore lint/suspicious/noExplicitAny: mock
       stat: vi.fn().mockResolvedValue({ isFile: () => true, size: 50 * 1024 * 1024 } as any),
       read: vi.fn().mockImplementation((buffer: Buffer) => {
         buffer.write('some data... Godot Engine ... more data')
@@ -52,11 +52,15 @@ describe('Binary Validation Security', () => {
       }),
       close: vi.fn().mockResolvedValue(undefined),
     }
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     vi.mocked(open).mockResolvedValue(mockHandle as any)
 
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     vi.mocked(execFile).mockImplementation(((_path: any, _args: any, _options: any, callback: any) => {
       callback(null, { stdout: 'Godot Engine v4.1.stable', stderr: '' })
+      // biome-ignore lint/suspicious/noExplicitAny: mock
       return {} as any
+      // biome-ignore lint/suspicious/noExplicitAny: mock
     }) as any)
 
     const result = await tryGetVersion(godotPath)
@@ -80,6 +84,7 @@ describe('Binary Validation Security', () => {
 describe('handleConfig Security', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     vi.mocked(stat).mockResolvedValue({ isFile: () => true, size: 50 * 1024 * 1024 } as any)
     vi.mocked(access).mockResolvedValue(undefined)
   })
@@ -88,9 +93,12 @@ describe('handleConfig Security', () => {
     const config = { godotPath: null, godotVersion: null, projectPath: null, activePids: [] }
     // config.ts uses tryGetVersion(value, true) which skips signature check and validates via --version.
     // Simulate a non-Godot binary: execFile returns error.
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     vi.mocked(execFile).mockImplementation(((_path: any, _args: any, _options: any, callback: any) => {
       callback(new Error('Command failed: /usr/bin/ls --version'), { stdout: '', stderr: '' })
+      // biome-ignore lint/suspicious/noExplicitAny: mock
       return {} as any
+      // biome-ignore lint/suspicious/noExplicitAny: mock
     }) as any)
 
     await expect(handleConfig('set', { key: 'godot_path', value: '/usr/bin/ls' }, config)).rejects.toThrow(
@@ -103,6 +111,7 @@ describe('handleConfig Security', () => {
   it('should accept valid Godot binary when setting godot_path', async () => {
     const config = { godotPath: null, godotVersion: null, projectPath: null, activePids: [] }
     const mockHandle = {
+      // biome-ignore lint/suspicious/noExplicitAny: mock
       stat: vi.fn().mockResolvedValue({ isFile: () => true, size: 50 * 1024 * 1024 } as any),
       read: vi.fn().mockImplementation((buffer: Buffer) => {
         buffer.write('Godot Engine v4.1')
@@ -110,11 +119,15 @@ describe('handleConfig Security', () => {
       }),
       close: vi.fn().mockResolvedValue(undefined),
     }
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     vi.mocked(open).mockResolvedValue(mockHandle as any)
 
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     vi.mocked(execFile).mockImplementation(((_path: any, _args: any, _options: any, callback: any) => {
       callback(null, { stdout: 'Godot Engine v4.1.stable', stderr: '' })
+      // biome-ignore lint/suspicious/noExplicitAny: mock
       return {} as any
+      // biome-ignore lint/suspicious/noExplicitAny: mock
     }) as any)
 
     await handleConfig('set', { key: 'godot_path', value: '/usr/bin/godot' }, config)

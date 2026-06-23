@@ -10,12 +10,7 @@
 
 import { execFile } from 'node:child_process'
 import { constants } from 'node:fs'
-import {
-  access,
-  open,
-  readdir,
-  stat,
-} from 'node:fs/promises'
+import { access, open, readdir, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import type { DetectionResult, GodotVersion } from './types.js'

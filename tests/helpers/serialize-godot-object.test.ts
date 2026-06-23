@@ -22,7 +22,7 @@ describe('serializeGodotObject', () => {
   })
 
   it('should handle string properties with newlines by escaping them', () => {
-    const result = serializeGodotObject('MyClass', { text: "line1\nline2" })
+    const result = serializeGodotObject('MyClass', { text: 'line1\nline2' })
     expect(result).toBe('Object(MyClass,"text":"line1\\nline2")')
   })
 })

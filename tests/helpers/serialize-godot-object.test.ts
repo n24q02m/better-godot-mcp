@@ -20,4 +20,9 @@ describe('serializeGodotObject', () => {
     const result = serializeGodotObject('EmptyClass', {})
     expect(result).toBe('Object(EmptyClass)')
   })
+
+  it('should handle string properties with newlines', () => {
+    const result = serializeGodotObject('MyClass', { text: 'line1\nline2' })
+    expect(result).toBe('Object(MyClass,"text":"line1\nline2")')
+  })
 })

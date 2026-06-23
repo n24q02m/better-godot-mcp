@@ -46,3 +46,7 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## 2025-06-25 - [Avoid RegExp.matchAll() for structural parsing]
 **Learning:** Using `RegExp.prototype.matchAll()` or `String.prototype.match()` to parse structured file formats (like Godot's `.tscn` files) requires executing complex regex patterns and creating intermediate array objects for each match. This is less efficient than using a centralized, single-pass structural parser (like `parseSceneContent`), which avoids regex execution overhead entirely.
 **Action:** Replace `matchAll` and `match` usage with existing single-pass structural parsers when analyzing `.tscn` contents. Reusing a standard parser prevents redundant parsing work, eliminates regular expression array allocations, and improves maintainability.
+
+## 2025-06-21 - [Fast-path for string serialization]
+**Learning:** Performing multiple `.replace()` calls on every string during serialization to Godot format (via `toGodotValue`) is expensive, as it always allocates new strings even if no escaping is required.
+**Action:** Add a fast-path check using `.includes()` for common escape characters (`\`, `"`, `\n`, `\r`) before performing any replacements. This avoids all RegExp execution and intermediate string allocations for the majority of strings.

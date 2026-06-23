@@ -196,7 +196,13 @@ export function toGodotValue(value: unknown): string {
   if (value === true) return 'true'
   if (value === false) return 'false'
   if (typeof value === 'number') return value.toString()
-  if (typeof value === 'string') return `"${value}"`
+  if (typeof value === 'string') {
+    // ⚡ Bolt: Fast-path for strings without characters needing escaping to avoid RegExp/allocation overhead
+    if (!value.includes('\\') && !value.includes('"') && !value.includes('\n') && !value.includes('\r')) {
+      return `"${value}"`
+    }
+    return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r')}"`
+  }
 
   if (Array.isArray(value)) {
     let result = '['

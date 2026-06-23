@@ -8,16 +8,13 @@ import { join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
+import { validateNoNewlines } from '../helpers/security.js'
 
 /**
  * Helper to resolve the default bus layout path.
- * Throws GodotMCPError if project path is missing.
  */
-function resolveBusLayoutPath(projectPath: string | null | undefined, baseDir: string): string {
-  if (!projectPath) {
-    throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
-  }
-  return join(safeResolve(baseDir, projectPath), 'default_bus_layout.tres')
+function resolveBusLayoutPath(projectPath: string): string {
+  return join(projectPath, 'default_bus_layout.tres')
 }
 
 /**
@@ -74,233 +71,217 @@ function* scanBuses(content: string): Generator<{ index: number; name: string }>
   }
 }
 
-export async function handleAudio(action: string, args: Record<string, unknown>, config: GodotConfig) {
-  const projectPath = (args.project_path as string) || config.projectPath
-  const baseDir = config.projectPath || process.cwd()
+async function handleListBuses(projectPath: string, _args: Record<string, unknown>) {
+  const busLayoutPath = resolveBusLayoutPath(projectPath)
 
-  switch (action) {
-    case 'list_buses': {
-      const busLayoutPath = resolveBusLayoutPath(projectPath, baseDir)
-
-      let content: string
-      try {
-        content = await readFile(busLayoutPath, 'utf-8')
-      } catch (err) {
-        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-          return formatJSON({ buses: [{ name: 'Master', volume: 0, effects: [] }], note: 'Using default bus layout.' })
-        }
-        throw err
-      }
-
-      const buses: { name: string; volume?: string; solo?: boolean; mute?: boolean }[] = []
-
-      // Parse bus entries
-      for (const { name } of scanBuses(content)) {
-        buses.push({ name })
-      }
-
-      if (buses.length === 0) buses.push({ name: 'Master' })
-      return formatJSON({ buses })
+  let content: string
+  try {
+    content = await readFile(busLayoutPath, 'utf-8')
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      return formatJSON({ buses: [{ name: 'Master', volume: 0, effects: [] }], note: 'Using default bus layout.' })
     }
-
-    case 'add_bus': {
-      const busLayoutPath = resolveBusLayoutPath(projectPath, baseDir)
-      const busName = args.bus_name as string
-      if (!busName) throw new GodotMCPError('No bus_name specified', 'INVALID_ARGS', 'Provide bus name.')
-      const sendTo = (args.send_to as string) || 'Master'
-
-      if (
-        busName.includes('"') ||
-        busName.includes('\n') ||
-        busName.includes('\r') ||
-        sendTo.includes('"') ||
-        sendTo.includes('\n') ||
-        sendTo.includes('\r')
-      ) {
-        throw new GodotMCPError(
-          'Invalid characters in parameters',
-          'INVALID_ARGS',
-          'Parameters must not contain quotes or newlines.',
-        )
-      }
-
-      let content: string
-      try {
-        content = await readFile(busLayoutPath, 'utf-8')
-      } catch (err) {
-        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err
-        content = [
-          '[gd_resource type="AudioBusLayout" format=3]',
-          '',
-          '[resource]',
-          'bus/0/name = "Master"',
-          'bus/0/solo = false',
-          'bus/0/mute = false',
-          'bus/0/bypass_fx = false',
-          'bus/0/volume_db = 0.0',
-          '',
-        ].join('\n')
-      }
-
-      // Count existing buses
-      let busCount = 0
-      for (const _ of scanBuses(content)) {
-        busCount++
-      }
-
-      const newBus = [
-        `bus/${busCount}/name = "${busName}"`,
-        `bus/${busCount}/solo = false`,
-        `bus/${busCount}/mute = false`,
-        `bus/${busCount}/bypass_fx = false`,
-        `bus/${busCount}/volume_db = 0.0`,
-        `bus/${busCount}/send = "${sendTo}"`,
-      ].join('\n')
-
-      content = `${content.trimEnd()}\n${newBus}\n`
-      await writeFile(busLayoutPath, content, 'utf-8')
-
-      return formatSuccess(`Added audio bus: ${busName} (send to: ${sendTo})`)
-    }
-
-    case 'add_effect': {
-      const busLayoutPath = resolveBusLayoutPath(projectPath, baseDir)
-      const busName = args.bus_name as string
-      const effectType = args.effect_type as string
-      if (!busName || !effectType) {
-        throw new GodotMCPError(
-          'bus_name and effect_type required',
-          'INVALID_ARGS',
-          'Provide bus name and effect type (e.g., "Reverb", "Compressor", "Limiter", "EQ").',
-        )
-      }
-
-      if (
-        busName.includes('"') ||
-        busName.includes('\n') ||
-        busName.includes('\r') ||
-        effectType.includes('"') ||
-        effectType.includes('\n') ||
-        effectType.includes('\r')
-      ) {
-        throw new GodotMCPError(
-          'Invalid characters in parameters',
-          'INVALID_ARGS',
-          'Parameters must not contain quotes or newlines.',
-        )
-      }
-
-      // Normalize effect type name (allow shorthand like "Reverb" -> "AudioEffectReverb")
-      const fullEffectType = effectType.startsWith('AudioEffect') ? effectType : `AudioEffect${effectType}`
-
-      let content: string
-      try {
-        content = await readFile(busLayoutPath, 'utf-8')
-      } catch (err) {
-        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err
-        content = [
-          '[gd_resource type="AudioBusLayout" format=3]',
-          '',
-          '[resource]',
-          'bus/0/name = "Master"',
-          'bus/0/solo = false',
-          'bus/0/mute = false',
-          'bus/0/bypass_fx = false',
-          'bus/0/volume_db = 0.0',
-          '',
-        ].join('\n')
-      }
-
-      // Find the target bus index
-      let busIndex = -1
-      for (const bus of scanBuses(content)) {
-        if (bus.name === busName) {
-          busIndex = bus.index
-          break
-        }
-      }
-      if (busIndex === -1) {
-        throw new GodotMCPError(`Bus "${busName}" not found`, 'AUDIO_ERROR', 'Add the bus first with add_bus.')
-      }
-
-      // Count existing effects on this bus
-      let effectIndex = 0
-      while (content.includes(`bus/${busIndex}/effect/${effectIndex}/effect`)) {
-        effectIndex++
-      }
-
-      // Generate unique sub_resource id
-      const subResId = `${fullEffectType}_${Date.now()}`
-
-      // Insert sub_resource before [resource] section
-      const resourceIdx = content.indexOf('[resource]')
-      const subResource = `[sub_resource type="${fullEffectType}" id="${subResId}"]\n\n`
-      if (resourceIdx !== -1) {
-        content = `${content.slice(0, resourceIdx)}${subResource}${content.slice(resourceIdx)}`
-      } else {
-        content += `\n${subResource}`
-      }
-
-      // Add effect reference to the bus
-      const effectRef = `bus/${busIndex}/effect/${effectIndex}/effect = SubResource("${subResId}")\nbus/${busIndex}/effect/${effectIndex}/enabled = true\n`
-      content = `${content.trimEnd()}\n${effectRef}`
-
-      await writeFile(busLayoutPath, content, 'utf-8')
-      return formatSuccess(`Added ${fullEffectType} to bus "${busName}" (effect index: ${effectIndex})`)
-    }
-
-    case 'create_stream': {
-      const scenePath = args.scene_path as string
-      if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
-      const nodeName = (args.name as string) || 'AudioStreamPlayer'
-      const streamType = (args.stream_type as string) || '2D'
-      const parent = (args.parent as string) || '.'
-      const bus = (args.bus as string) || 'Master'
-
-      if (
-        nodeName.includes('"') ||
-        nodeName.includes('\n') ||
-        nodeName.includes('\r') ||
-        streamType.includes('"') ||
-        streamType.includes('\n') ||
-        streamType.includes('\r') ||
-        parent.includes('"') ||
-        parent.includes('\n') ||
-        parent.includes('\r') ||
-        bus.includes('"') ||
-        bus.includes('\n') ||
-        bus.includes('\r')
-      ) {
-        throw new GodotMCPError(
-          'Invalid characters in parameters',
-          'INVALID_ARGS',
-          'Parameters must not contain quotes or newlines.',
-        )
-      }
-
-      // Confine caller project_path to the trusted base before resolving the scene.
-      const fullPath = safeResolve(resolveProjectRoot(args.project_path, config.projectPath), scenePath)
-      let content: string
-      try {
-        content = await readFile(fullPath, 'utf-8')
-      } catch (err) {
-        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-          throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check file path.')
-        }
-        throw err
-      }
-
-      const nodeType =
-        streamType === '3D' ? 'AudioStreamPlayer3D' : streamType === '2D' ? 'AudioStreamPlayer2D' : 'AudioStreamPlayer'
-      const parentAttr = parent === '.' ? '' : ` parent="${parent}"`
-      const nodeDecl = `\n[node name="${nodeName}" type="${nodeType}"${parentAttr}]\nbus = "${bus}"\n`
-      content = `${content.trimEnd()}\n${nodeDecl}`
-
-      await writeFile(fullPath, content, 'utf-8')
-      return formatSuccess(`Created ${nodeType}: ${nodeName} (bus: ${bus})`)
-    }
-
-    default:
-      throwUnknownAction(action, ['list_buses', 'add_bus', 'add_effect', 'create_stream'])
+    throw err
   }
+
+  const buses: { name: string; volume?: string; solo?: boolean; mute?: boolean }[] = []
+
+  // Parse bus entries
+  for (const { name } of scanBuses(content)) {
+    buses.push({ name })
+  }
+
+  if (buses.length === 0) buses.push({ name: 'Master' })
+  return formatJSON({ buses })
+}
+
+async function handleAddBus(projectPath: string, args: Record<string, unknown>) {
+  const busLayoutPath = resolveBusLayoutPath(projectPath)
+  const busName = args.bus_name as string
+  if (!busName) throw new GodotMCPError('No bus_name specified', 'INVALID_ARGS', 'Provide bus name.')
+  const sendTo = (args.send_to as string) || 'Master'
+
+  validateNoNewlines('Invalid characters in parameters', busName, sendTo)
+
+  if (busName.includes('"') || sendTo.includes('"')) {
+    throw new GodotMCPError('Invalid characters in parameters', 'INVALID_ARGS', 'Parameters must not contain quotes.')
+  }
+
+  let content: string
+  try {
+    content = await readFile(busLayoutPath, 'utf-8')
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err
+    content = [
+      '[gd_resource type="AudioBusLayout" format=3]',
+      '',
+      '[resource]',
+      'bus/0/name = "Master"',
+      'bus/0/solo = false',
+      'bus/0/mute = false',
+      'bus/0/bypass_fx = false',
+      'bus/0/volume_db = 0.0',
+      '',
+    ].join('\n')
+  }
+
+  // Count existing buses
+  let busCount = 0
+  for (const _ of scanBuses(content)) {
+    busCount++
+  }
+
+  const newBus = [
+    `bus/${busCount}/name = "${busName}"`,
+    `bus/${busCount}/solo = false`,
+    `bus/${busCount}/mute = false`,
+    `bus/${busCount}/bypass_fx = false`,
+    `bus/${busCount}/volume_db = 0.0`,
+    `bus/${busCount}/send = "${sendTo}"`,
+  ].join('\n')
+
+  content = `${content.trimEnd()}\n${newBus}\n`
+  await writeFile(busLayoutPath, content, 'utf-8')
+
+  return formatSuccess(`Added audio bus: ${busName} (send to: ${sendTo})`)
+}
+
+async function handleAddEffect(projectPath: string, args: Record<string, unknown>) {
+  const busLayoutPath = resolveBusLayoutPath(projectPath)
+  const busName = args.bus_name as string
+  const effectType = args.effect_type as string
+  if (!busName || !effectType) {
+    throw new GodotMCPError(
+      'bus_name and effect_type required',
+      'INVALID_ARGS',
+      'Provide bus name and effect type (e.g., "Reverb", "Compressor", "Limiter", "EQ").',
+    )
+  }
+
+  validateNoNewlines('Invalid characters in parameters', busName, effectType)
+
+  if (busName.includes('"') || effectType.includes('"')) {
+    throw new GodotMCPError('Invalid characters in parameters', 'INVALID_ARGS', 'Parameters must not contain quotes.')
+  }
+
+  // Normalize effect type name (allow shorthand like "Reverb" -> "AudioEffectReverb")
+  const fullEffectType = effectType.startsWith('AudioEffect') ? effectType : `AudioEffect${effectType}`
+
+  let content: string
+  try {
+    content = await readFile(busLayoutPath, 'utf-8')
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err
+    content = [
+      '[gd_resource type="AudioBusLayout" format=3]',
+      '',
+      '[resource]',
+      'bus/0/name = "Master"',
+      'bus/0/solo = false',
+      'bus/0/mute = false',
+      'bus/0/bypass_fx = false',
+      'bus/0/volume_db = 0.0',
+      '',
+    ].join('\n')
+  }
+
+  // Find the target bus index
+  let busIndex = -1
+  for (const bus of scanBuses(content)) {
+    if (bus.name === busName) {
+      busIndex = bus.index
+      break
+    }
+  }
+  if (busIndex === -1) {
+    throw new GodotMCPError(`Bus "${busName}" not found`, 'AUDIO_ERROR', 'Add the bus first with add_bus.')
+  }
+
+  // Count existing effects on this bus
+  let effectIndex = 0
+  while (content.includes(`bus/${busIndex}/effect/${effectIndex}/effect`)) {
+    effectIndex++
+  }
+
+  // Generate unique sub_resource id
+  const subResId = `${fullEffectType}_${Date.now()}`
+
+  // Insert sub_resource before [resource] section
+  const resourceIdx = content.indexOf('[resource]')
+  const subResource = `[sub_resource type="${fullEffectType}" id="${subResId}"]\n\n`
+  if (resourceIdx !== -1) {
+    content = `${content.slice(0, resourceIdx)}${subResource}${content.slice(resourceIdx)}`
+  } else {
+    content += `\n${subResource}`
+  }
+
+  // Add effect reference to the bus
+  const effectRef = `bus/${busIndex}/effect/${effectIndex}/effect = SubResource("${subResId}")\nbus/${busIndex}/effect/${effectIndex}/enabled = true\n`
+  content = `${content.trimEnd()}\n${effectRef}`
+
+  await writeFile(busLayoutPath, content, 'utf-8')
+  return formatSuccess(`Added ${fullEffectType} to bus "${busName}" (effect index: ${effectIndex})`)
+}
+
+async function handleCreateStream(projectPath: string, args: Record<string, unknown>) {
+  const scenePath = args.scene_path as string
+  if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
+  const nodeName = (args.name as string) || 'AudioStreamPlayer'
+  const streamType = (args.stream_type as string) || '2D'
+  const parent = (args.parent as string) || '.'
+  const bus = (args.bus as string) || 'Master'
+
+  validateNoNewlines('Invalid characters in parameters', nodeName, streamType, parent, bus)
+
+  if (nodeName.includes('"') || streamType.includes('"') || parent.includes('"') || bus.includes('"')) {
+    throw new GodotMCPError('Invalid characters in parameters', 'INVALID_ARGS', 'Parameters must not contain quotes.')
+  }
+
+  // Confine caller project_path to the trusted base before resolving the scene.
+  const fullPath = safeResolve(projectPath, scenePath)
+  let content: string
+  try {
+    content = await readFile(fullPath, 'utf-8')
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check file path.')
+    }
+    throw err
+  }
+
+  const nodeType =
+    streamType === '3D' ? 'AudioStreamPlayer3D' : streamType === '2D' ? 'AudioStreamPlayer2D' : 'AudioStreamPlayer'
+  const parentAttr = parent === '.' ? '' : ` parent="${parent}"`
+  const nodeDecl = `\n[node name="${nodeName}" type="${nodeType}"${parentAttr}]\nbus = "${bus}"\n`
+  content = `${content.trimEnd()}\n${nodeDecl}`
+
+  await writeFile(fullPath, content, 'utf-8')
+  return formatSuccess(`Created ${nodeType}: ${nodeName} (bus: ${bus})`)
+}
+
+const AUDIO_ACTIONS: Record<
+  string,
+  (
+    projectPath: string,
+    args: Record<string, unknown>,
+  ) => Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }>
+> = {
+  list_buses: handleListBuses,
+  add_bus: handleAddBus,
+  add_effect: handleAddEffect,
+  create_stream: handleCreateStream,
+}
+
+export async function handleAudio(action: string, args: Record<string, unknown>, config: GodotConfig) {
+  const projectPathArg = (args.project_path as string) || config.projectPath
+  if (!projectPathArg) {
+    throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
+  }
+  const projectPath = resolveProjectRoot(args.project_path, config.projectPath)
+
+  if (Object.hasOwn(AUDIO_ACTIONS, action)) {
+    return AUDIO_ACTIONS[action](projectPath, args)
+  }
+
+  throwUnknownAction(action, Object.keys(AUDIO_ACTIONS))
 }

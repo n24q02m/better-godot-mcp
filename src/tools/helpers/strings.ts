@@ -47,3 +47,19 @@ export function countSubstring(str: string, search: string): number {
   }
   return count
 }
+
+/**
+ * Efficiently find the start of a trimmed range within a string.
+ */
+export function trimStart(str: string, start: number, end: number): number {
+  while (start < end && str.charCodeAt(start) <= 32) start++
+  return start
+}
+
+/**
+ * Efficiently find the end of a trimmed range within a string.
+ */
+export function trimEnd(str: string, start: number, end: number): number {
+  while (end > start && str.charCodeAt(end - 1) <= 32) end--
+  return end
+}

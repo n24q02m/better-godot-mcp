@@ -12,7 +12,7 @@
  */
 
 import { readFile } from 'node:fs/promises'
-import { parseCommaSeparatedList } from './strings.js'
+import { parseCommaSeparatedList, trimEnd, trimStart } from './strings.js'
 
 /**
  * Fast-path string extraction for attributes like name="value"
@@ -145,17 +145,8 @@ export function parseSceneContent(content: string): ParsedScene {
     let endIndex = content.indexOf('\n', startIndex)
     if (endIndex === -1) endIndex = len
 
-    let start = startIndex
-    // Skip leading whitespace manually
-    while (start < endIndex && content.charCodeAt(start) <= 32) {
-      start++
-    }
-
-    let end = endIndex
-    // Skip trailing whitespace manually
-    while (end > start && content.charCodeAt(end - 1) <= 32) {
-      end--
-    }
+    const start = trimStart(content, startIndex, endIndex)
+    const end = trimEnd(content, start, endIndex)
 
     if (start < end) {
       const firstChar = content.charCodeAt(start)
@@ -326,17 +317,11 @@ function parseProperty(content: string, start: number, end: number, target: Reco
   const eqIdx = content.indexOf('=', start)
   if (eqIdx !== -1 && eqIdx < end) {
     // Trim key
-    let kEnd = eqIdx
-    while (kEnd > start && content.charCodeAt(kEnd - 1) <= 32) {
-      kEnd--
-    }
+    const kEnd = trimEnd(content, start, eqIdx)
     const key = content.slice(start, kEnd)
 
     // Trim value
-    let vStart = eqIdx + 1
-    while (vStart < end && content.charCodeAt(vStart) <= 32) {
-      vStart++
-    }
+    const vStart = trimStart(content, eqIdx + 1, end)
     const value = content.slice(vStart, end)
 
     target[key] = value
@@ -362,9 +347,7 @@ function transformSceneContent(
     let nextNewline = content.indexOf('\n', pos)
     if (nextNewline === -1) nextNewline = len
 
-    let start = pos
-    // Skip leading whitespace to find the first character of the line
-    while (start < nextNewline && content.charCodeAt(start) <= 32) start++
+    const start = trimStart(content, pos, nextNewline)
 
     const firstChar = content.charCodeAt(start)
     const line = content.slice(pos, nextNewline)

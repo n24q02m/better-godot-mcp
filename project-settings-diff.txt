@@ -1,0 +1,58 @@
+<<<<<<< SEARCH
+import { readFile } from 'node:fs/promises'
+
+export interface ProjectSettings {
+=======
+import { readFile } from 'node:fs/promises'
+import { trimEnd, trimStart } from './strings'
+
+export interface ProjectSettings {
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+    // Trim line manually (whitespace <= 32)
+    let start = pos
+    let end = lineEnd
+    while (start < end && content.charCodeAt(start) <= 32) start++
+    while (end > start && content.charCodeAt(end - 1) <= 32) end--
+
+    // Skip empty lines or comments (59 is ';')
+=======
+    // Trim line manually (whitespace <= 32)
+    const start = trimStart(content, pos, lineEnd)
+    const end = trimEnd(content, start, lineEnd)
+
+    // Skip empty lines or comments (59 is ';')
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+      const eqIdx = content.indexOf('=', start)
+      if (eqIdx !== -1 && eqIdx < end) {
+        let keyEnd = eqIdx
+        while (keyEnd > start && content.charCodeAt(keyEnd - 1) <= 32) keyEnd--
+
+        let valStart = eqIdx + 1
+        while (valStart < end && content.charCodeAt(valStart) <= 32) valStart++
+
+        const key = content.slice(start, keyEnd)
+=======
+      const eqIdx = content.indexOf('=', start)
+      if (eqIdx !== -1 && eqIdx < end) {
+        const keyEnd = trimEnd(content, start, eqIdx)
+        const valStart = trimStart(content, eqIdx + 1, end)
+
+        const key = content.slice(start, keyEnd)
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+    // Trim line manually for logic
+    let start = pos
+    let end = lineEnd
+    while (start < end && content.charCodeAt(start) <= 32) start++
+    while (end > start && content.charCodeAt(end - 1) <= 32) end--
+
+    if (start < end) {
+=======
+    // Trim line manually for logic
+    const start = trimStart(content, pos, lineEnd)
+    const end = trimEnd(content, start, lineEnd)
+
+    if (start < end) {
+>>>>>>> REPLACE

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { countSubstring, parseCommaSeparatedList } from '../../src/tools/helpers/strings.js'
+import { countSubstring, parseCommaSeparatedList, trimEnd, trimStart } from '../../src/tools/helpers/strings.js'
 
 describe('strings helper', () => {
   describe('parseCommaSeparatedList', () => {
@@ -37,6 +37,40 @@ describe('strings helper', () => {
 
     it('should handle empty search string', () => {
       expect(countSubstring('banana', '')).toBe(0)
+    })
+  })
+
+  describe('trimStart', () => {
+    it('should trim leading whitespace', () => {
+      const s = '  hello'
+      expect(trimStart(s, 0, s.length)).toBe(2)
+    })
+
+    it('should handle no leading whitespace', () => {
+      const s = 'hello'
+      expect(trimStart(s, 0, s.length)).toBe(0)
+    })
+
+    it('should respect end boundary', () => {
+      const s = '    '
+      expect(trimStart(s, 0, 2)).toBe(2)
+    })
+  })
+
+  describe('trimEnd', () => {
+    it('should trim trailing whitespace', () => {
+      const s = 'hello  '
+      expect(trimEnd(s, 0, s.length)).toBe(5)
+    })
+
+    it('should handle no trailing whitespace', () => {
+      const s = 'hello'
+      expect(trimEnd(s, 0, s.length)).toBe(5)
+    })
+
+    it('should respect start boundary', () => {
+      const s = '    '
+      expect(trimEnd(s, 2, s.length)).toBe(2)
     })
   })
 })

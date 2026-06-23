@@ -8,6 +8,7 @@
  */
 
 import { readFile } from 'node:fs/promises'
+import { trimEnd, trimStart } from './strings'
 
 export interface ProjectSettings {
   sections: Map<string, Map<string, string>>
@@ -39,10 +40,8 @@ export function parseProjectSettingsContent(content: string): ProjectSettings {
     const lineEnd = nextNewline === -1 ? len : nextNewline
 
     // Trim line manually (whitespace <= 32)
-    let start = pos
-    let end = lineEnd
-    while (start < end && content.charCodeAt(start) <= 32) start++
-    while (end > start && content.charCodeAt(end - 1) <= 32) end--
+    const start = trimStart(content, pos, lineEnd)
+    const end = trimEnd(content, start, lineEnd)
 
     // Skip empty lines or comments (59 is ';')
     if (start === end || content.charCodeAt(start) === 59) {
@@ -63,11 +62,8 @@ export function parseProjectSettingsContent(content: string): ProjectSettings {
       // Key=value
       const eqIdx = content.indexOf('=', start)
       if (eqIdx !== -1 && eqIdx < end) {
-        let keyEnd = eqIdx
-        while (keyEnd > start && content.charCodeAt(keyEnd - 1) <= 32) keyEnd--
-
-        let valStart = eqIdx + 1
-        while (valStart < end && content.charCodeAt(valStart) <= 32) valStart++
+        const keyEnd = trimEnd(content, start, eqIdx)
+        const valStart = trimStart(content, eqIdx + 1, end)
 
         const key = content.slice(start, keyEnd)
         const value = content.slice(valStart, end)
@@ -121,10 +117,8 @@ export function setSettingInContent(content: string, path: string, value: string
     const lineEnd = nextNewline === -1 ? len : nextNewline
 
     // Trim line manually for logic
-    let start = pos
-    let end = lineEnd
-    while (start < end && content.charCodeAt(start) <= 32) start++
-    while (end > start && content.charCodeAt(end - 1) <= 32) end--
+    const start = trimStart(content, pos, lineEnd)
+    const end = trimEnd(content, start, lineEnd)
 
     if (start < end) {
       const firstChar = content.charCodeAt(start)

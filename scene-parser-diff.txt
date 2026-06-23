@@ -1,0 +1,61 @@
+<<<<<<< SEARCH
+import { readFile } from 'node:fs/promises'
+import { parseCommaSeparatedList } from './strings.js'
+
+/**
+=======
+import { readFile } from 'node:fs/promises'
+import { parseCommaSeparatedList, trimEnd, trimStart } from './strings.js'
+
+/**
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+    let start = startIndex
+    // Skip leading whitespace manually
+    while (start < endIndex && content.charCodeAt(start) <= 32) {
+      start++
+    }
+
+    let end = endIndex
+    // Skip trailing whitespace manually
+    while (end > start && content.charCodeAt(end - 1) <= 32) {
+      end--
+    }
+=======
+    const start = trimStart(content, startIndex, endIndex)
+    const end = trimEnd(content, start, endIndex)
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+    // Trim key
+    let kEnd = eqIdx
+    while (kEnd > start && content.charCodeAt(kEnd - 1) <= 32) {
+      kEnd--
+    }
+    const key = content.slice(start, kEnd)
+
+    // Trim value
+    let vStart = eqIdx + 1
+    while (vStart < end && content.charCodeAt(vStart) <= 32) {
+      vStart++
+    }
+    const value = content.slice(vStart, end)
+=======
+    // Trim key
+    const kEnd = trimEnd(content, start, eqIdx)
+    const key = content.slice(start, kEnd)
+
+    // Trim value
+    const vStart = trimStart(content, eqIdx + 1, end)
+    const value = content.slice(vStart, end)
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+    let start = pos
+    // Skip leading whitespace to find the first character of the line
+    while (start < nextNewline && content.charCodeAt(start) <= 32) start++
+
+    const firstChar = content.charCodeAt(start)
+=======
+    let start = trimStart(content, pos, nextNewline)
+
+    const firstChar = content.charCodeAt(start)
+>>>>>>> REPLACE

@@ -4,7 +4,7 @@
 
 import { describe, expect, it } from 'vitest'
 import type { GodotColor, Rect2, Vector2, Vector3 } from '../../src/tools/helpers/godot-types.js'
-import { parseGodotValue, toGodotValue } from '../../src/tools/helpers/godot-types.js'
+import { parseGodotValue, toGodotValue, serializeGodotObject } from '../../src/tools/helpers/godot-types.js'
 
 describe('godot-types', () => {
   // ==========================================
@@ -161,6 +161,10 @@ describe('godot-types', () => {
       expect(parseGodotValue('Vector2(1, a)')).toBe('Vector2(1, a)')
     })
 
+    it('should return malformed Vector2i as-is', () => {
+      expect(parseGodotValue('Vector2i(1)')).toBe('Vector2i(1)')
+    })
+
     it('should return malformed Vector3 as-is', () => {
       expect(parseGodotValue('Vector3(1, 2)')).toBe('Vector3(1, 2)')
     })
@@ -274,6 +278,58 @@ describe('godot-types', () => {
 
     it('should fallback to string representation for unhandled objects', () => {
       expect(toGodotValue({ unhandled: true })).toBe('[object Object]')
+    })
+
+    it('should serialize generic object {a: 1} to string representation', () => {
+      expect(toGodotValue({ a: 1 })).toBe('[object Object]')
+    })
+
+    it('should serialize undefined to its string representation', () => {
+      expect(toGodotValue(undefined)).toBe('undefined')
+    })
+
+    it('should fallback for partial Vector2-like objects', () => {
+      expect(toGodotValue({ x: 1 })).toBe('[object Object]')
+    })
+
+    it('should fallback for partial Vector3-like objects', () => {
+      expect(toGodotValue({ x: 1, z: 3 })).toBe('[object Object]')
+    })
+
+    it('should fallback for partial Rect2-like objects', () => {
+      // Note: { x: 0, y: 0, w: 100 } matches Vector2(0, 0) because it has x and y
+      expect(toGodotValue({ x: 0, w: 100, h: 50 })).toBe('[object Object]')
+    })
+
+    it('should fallback for partial Color-like objects', () => {
+      expect(toGodotValue({ r: 1, g: 1 })).toBe('[object Object]')
+    })
+  })
+
+  // ==========================================
+  // serializeGodotObject
+  // ==========================================
+  describe('serializeGodotObject', () => {
+    it('should serialize a Godot Object with properties', () => {
+      const props = {
+        name: 'Player',
+        health: 100,
+        position: { x: 10, y: 20 },
+      }
+      expect(serializeGodotObject('KinematicBody2D', props)).toBe(
+        'Object(KinematicBody2D,"name":"Player","health":100,"position":Vector2(10, 20))'
+      )
+    })
+
+    it('should handle Object with no properties', () => {
+      expect(serializeGodotObject('Node', {})).toBe('Object(Node)')
+    })
+
+    it('should ignore inherited properties', () => {
+      const proto = { inherited: true }
+      const props = Object.create(proto)
+      props.own = 'value'
+      expect(serializeGodotObject('Node', props)).toBe('Object(Node,"own":"value")')
     })
   })
 

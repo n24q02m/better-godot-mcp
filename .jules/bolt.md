@@ -46,3 +46,7 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## 2025-06-25 - [Avoid RegExp.matchAll() for structural parsing]
 **Learning:** Using `RegExp.prototype.matchAll()` or `String.prototype.match()` to parse structured file formats (like Godot's `.tscn` files) requires executing complex regex patterns and creating intermediate array objects for each match. This is less efficient than using a centralized, single-pass structural parser (like `parseSceneContent`), which avoids regex execution overhead entirely.
 **Action:** Replace `matchAll` and `match` usage with existing single-pass structural parsers when analyzing `.tscn` contents. Reusing a standard parser prevents redundant parsing work, eliminates regular expression array allocations, and improves maintainability.
+
+## 2026-06-23 - Optimization of WinGet binary detection
+**Learning:** Using `array.find()` with inline regexes inside a loop can lead to redundant array iterations and excessive regex object allocations.
+**Action:** Replace multiple `find()` calls with a single manual `for` loop and use pre-compiled `RegExp` constants to minimize overhead in hot paths like file system scanning.

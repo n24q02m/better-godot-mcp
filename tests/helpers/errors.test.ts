@@ -99,6 +99,13 @@ describe('errors', () => {
       expect(result.content[0].text).toBe('Operation complete')
       expect((result as Record<string, unknown>).isError).toBeUndefined()
     })
+
+    it('should handle very long strings', () => {
+      const longString = 'a'.repeat(1024 * 1024) // 1MB
+      const result = formatSuccess(longString)
+      expect(result.content[0].text).toBe(longString)
+      expect(result.content[0].text.length).toBe(1024 * 1024)
+    })
   })
 
   // ==========================================

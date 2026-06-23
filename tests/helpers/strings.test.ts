@@ -38,5 +38,19 @@ describe('strings helper', () => {
     it('should handle empty search string', () => {
       expect(countSubstring('banana', '')).toBe(0)
     })
+
+    it('should count occurrences with special characters', () => {
+      expect(countSubstring('a[b]c[b]d', '[b]')).toBe(2)
+      expect(countSubstring('a.b.c.d', '.')).toBe(3)
+      expect(countSubstring('a\\b\\c', '\\')).toBe(2)
+      expect(countSubstring('a$b$c', '$')).toBe(2)
+      expect(countSubstring('a(b)c(b)d', '(b)')).toBe(2)
+      expect(countSubstring('a*b*c', '*')).toBe(2)
+      expect(countSubstring('a+b+c', '+')).toBe(2)
+      expect(countSubstring('a?b?c', '?')).toBe(2)
+      expect(countSubstring('a{b}c{b}d', '{b}')).toBe(2)
+      expect(countSubstring('a|b|c', '|')).toBe(2)
+      expect(countSubstring('a^b^c', '^')).toBe(2)
+    })
   })
 })

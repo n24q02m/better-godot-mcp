@@ -21,44 +21,83 @@ function resolveScenePath(projectPath: string, scenePath: string): string {
 
 /**
  * Normalize node path: strip common LLM mistakes like "/root/SceneName/" prefix.
- * Handles backslashes, case-insensitivity, and absolute vs relative paths.
+ * Handles backslashes, case-insensitivity, wrappers, and absolute vs relative paths.
  * Returns the corrected path and whether it was auto-corrected.
  */
-function normalizeNodePath(path: string): { path: string; corrected: boolean } {
+export function normalizeNodePath(path: string): { path: string; corrected: boolean } {
   if (!path || path === '.') return { path, corrected: false }
 
-  // Normalize backslashes to forward slashes
-  const normalized = path.replace(/\\/g, '/')
-  const corrected = path.includes('\\')
+  let current = path.trim()
+  let corrected = path !== current
 
-  // Case-insensitive check for /root/ or root/ prefix
-  // These are common LLM mistakes when they try to use absolute paths.
-  const rootMatch = normalized.match(/^\/?root\/(.+)$/i)
+  // 1. Normalize backslashes to forward slashes
+  if (current.includes('\\')) {
+    current = current.replace(/\\/g, '/')
+    corrected = true
+  }
+
+  // 2. Strip common wrappers: NodePath("..."), ^"...", $"...", or just $prefix
+  const nodePathMatch = current.match(/^NodePath\(["'](.+)["']\)$/)
+  if (nodePathMatch) {
+    current = nodePathMatch[1]
+    corrected = true
+  }
+  const caretMatch = current.match(/^[\^$]["'](.+)["']$/)
+  if (caretMatch) {
+    current = caretMatch[1]
+    corrected = true
+  }
+  if (current.startsWith('$')) {
+    current = current.slice(1)
+    corrected = true
+  }
+
+  // 3. Handle mistaken resource prefixes
+  if (current.startsWith('res://')) {
+    current = current.slice(6)
+    corrected = true
+  } else if (current.startsWith('user://')) {
+    current = current.slice(7)
+    corrected = true
+  }
+
+  // 4. Strip ./ prefix and collapse multiple slashes
+  if (current.startsWith('./')) {
+    current = current.slice(2)
+    corrected = true
+  }
+  if (current.includes('//')) {
+    current = current.replace(/\/+/g, '/')
+    corrected = true
+  }
+
+  // 5. Godot root stripping (/root/SceneName/...)
+  // LLMs often try to use absolute paths starting with /root/ or root/
+  const rootMatch = current.match(/^\/?root\/(.*)$/i)
   if (rootMatch) {
     const afterRoot = rootMatch[1]
     const segments = afterRoot.split('/').filter(Boolean)
     if (segments.length <= 1) {
       return { path: '.', corrected: true }
     }
-    const remaining = segments.slice(1).join('/')
-    return { path: remaining, corrected: true }
+    return { path: segments.slice(1).join('/'), corrected: true }
   }
 
   // Handle /root or root (exact match)
-  // We only treat it as the scene root if it's explicitly "/root" or "root" (case-insensitive)
-  // But wait, if someone has a node named "Root" that is NOT the scene root?
-  // In Godot, the root of the scene being edited is often named after the scene or "Root".
-  // LLMs often use "/root/SceneName/..."
-  if (normalized.toLowerCase() === '/root') {
+  const lower = current.toLowerCase()
+  if (lower === '/root') {
     return { path: '.', corrected: true }
   }
 
-  // Strip leading slash
-  if (normalized.startsWith('/')) {
-    return { path: normalized.slice(1), corrected: true }
+  // 6. Strip leading and trailing slashes
+  if (current.startsWith('/') || current.endsWith('/')) {
+    current = current.replace(/^\/+|\/+$/g, '')
+    corrected = true
   }
 
-  return { path: normalized, corrected }
+  if (current === '') return { path: '.', corrected: true }
+
+  return { path: current, corrected }
 }
 
 async function handleAddNode(projectPath: string, args: Record<string, unknown>) {
@@ -181,7 +220,6 @@ async function handleListNodes(projectPath: string, args: Record<string, unknown
   const content = await readFile(fullPath, 'utf-8')
   const scene = parseSceneContent(content)
   // ⚡ Bolt: Removed double .map() passes and expensive object spread (...node.properties) in mapToSceneNode.
-  // Iterating scene.nodes directly in a single pass reduces O(N) allocation overhead for scenes with many nodes.
   const nodes = []
   for (const n of scene.nodes) {
     nodes.push({

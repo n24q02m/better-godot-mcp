@@ -8,7 +8,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { execGodotAsync, runGodotProject } from '../../godot/headless.js'
 import type { GodotConfig, ProjectInfo } from '../../godot/types.js'
-import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
+import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
 import {
   getSetting,
@@ -51,14 +51,13 @@ async function parseProjectGodot(projectPath: string): Promise<ProjectInfo> {
     while (start < end && content.charCodeAt(start) <= 32) start++
     while (end > start && content.charCodeAt(end - 1) <= 32) end--
 
-    if (start < end) {
-      const trimmed = content.slice(start, end)
-      const firstChar = trimmed.charCodeAt(0)
-      const lastChar = trimmed.charCodeAt(trimmed.length - 1)
+    const trimmed = content.slice(start, end)
 
-      // Section header
-      if (firstChar === 91 && lastChar === 93) {
-        // '[' and ']'
+    if (trimmed !== '' && !trimmed.startsWith(';')) {
+      if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+        // Section header
+        // ⚡ Bolt: Using slice instead of .replace(/[[\]]/g, '')
+        // currentSection = trimmed.replace(/[[\]]/g, '')
         currentSection = trimmed.slice(1, -1)
       } else {
         // Key-value pair
@@ -96,210 +95,215 @@ async function parseProjectGodot(projectPath: string): Promise<ProjectInfo> {
   return info
 }
 
-export async function handleProject(action: string, args: Record<string, unknown>, config: GodotConfig) {
-  switch (action) {
-    case 'info': {
-      const projectPath = (args.project_path as string) || config.projectPath
-      if (!projectPath) {
-        throw new GodotMCPError(
-          'No project path specified',
-          'INVALID_ARGS',
-          'Provide project_path argument or set it via config.set action.',
-        )
-      }
-      if (typeof args.project_path === 'string' && args.project_path.trim().startsWith('-')) {
-        throw new GodotMCPError('Invalid project path', 'INVALID_ARGS', 'Project path must not start with a hyphen.')
-      }
-      const info = await parseProjectGodot(safeResolve(config.projectPath || process.cwd(), projectPath))
-      return formatJSON(info)
+async function handleProjectInfo(args: Record<string, unknown>, config: GodotConfig) {
+  const projectPath = (args.project_path as string) || config.projectPath
+  if (!projectPath) {
+    throw new GodotMCPError(
+      'No project path specified',
+      'INVALID_ARGS',
+      'Provide project_path argument or set it via config.set action.',
+    )
+  }
+  if (typeof args.project_path === 'string' && args.project_path.trim().startsWith('-')) {
+    throw new GodotMCPError('Invalid project path', 'INVALID_ARGS', 'Project path must not start with a hyphen.')
+  }
+  const info = await parseProjectGodot(safeResolve(config.projectPath || process.cwd(), projectPath))
+  return formatJSON(info)
+}
+
+async function handleProjectVersion(_args: Record<string, unknown>, config: GodotConfig) {
+  if (!config.godotPath) {
+    throw new GodotMCPError('Godot not found', 'GODOT_NOT_FOUND', 'Set GODOT_PATH env var or install Godot.')
+  }
+  const result = await execGodotAsync(config.godotPath, ['--version'])
+  return formatSuccess(`Godot version: ${result.stdout}`)
+}
+
+async function handleProjectRun(args: Record<string, unknown>, config: GodotConfig) {
+  if (!config.godotPath)
+    throw new GodotMCPError('Godot not found', 'GODOT_NOT_FOUND', 'Set GODOT_PATH env var or install Godot.')
+  const projectPath = (args.project_path as string) || config.projectPath
+  if (!projectPath)
+    throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path argument.')
+  if (typeof args.project_path === 'string' && args.project_path.trim().startsWith('-')) {
+    throw new GodotMCPError('Invalid project path', 'INVALID_ARGS', 'Project path must not start with a hyphen.')
+  }
+
+  const scenePath = args.scene_path as string
+  if (scenePath !== undefined && typeof scenePath !== 'string') {
+    throw new GodotMCPError('Invalid scene path', 'INVALID_ARGS', 'Scene path must be a string.')
+  }
+  if (scenePath && (scenePath.includes('\n') || scenePath.includes('\r'))) {
+    throw new GodotMCPError('Invalid scene path', 'INVALID_ARGS', 'Scene path must not contain newlines.')
+  }
+  if (scenePath?.trim().startsWith('-')) {
+    throw new GodotMCPError('Invalid scene path', 'INVALID_ARGS', 'Scene path must not start with a hyphen.')
+  }
+
+  const { pid } = runGodotProject(
+    config.godotPath,
+    safeResolve(config.projectPath || process.cwd(), projectPath),
+    scenePath,
+  )
+  if (pid) {
+    validatePid(pid)
+    config.activePids.push(pid)
+  }
+  return formatSuccess(`Godot project started (PID: ${pid})${scenePath ? ` for scene ${scenePath}` : ''}`)
+}
+
+async function handleProjectStop(_args: Record<string, unknown>, config: GodotConfig) {
+  if (config.activePids.length === 0) {
+    return formatSuccess('No running Godot processes found (tracked by this server)')
+  }
+
+  let stoppedCount = 0
+  for (const pid of config.activePids) {
+    // Security: strictly validate pid is a positive safe integer before using in shell commands or process.kill
+    if (!isValidPid(pid)) {
+      continue
     }
 
-    case 'version': {
-      if (!config.godotPath) {
-        throw new GodotMCPError('Godot not found', 'GODOT_NOT_FOUND', 'Set GODOT_PATH env var or install Godot.')
-      }
-      const result = await execGodotAsync(config.godotPath, ['--version'])
-      return formatSuccess(`Godot version: ${result.stdout}`)
-    }
-
-    case 'run': {
-      if (!config.godotPath)
-        throw new GodotMCPError('Godot not found', 'GODOT_NOT_FOUND', 'Set GODOT_PATH env var or install Godot.')
-      const projectPath = (args.project_path as string) || config.projectPath
-      if (!projectPath)
-        throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path argument.')
-      if (typeof args.project_path === 'string' && args.project_path.trim().startsWith('-')) {
-        throw new GodotMCPError('Invalid project path', 'INVALID_ARGS', 'Project path must not start with a hyphen.')
-      }
-
-      const scenePath = args.scene_path as string
-      if (scenePath !== undefined && typeof scenePath !== 'string') {
-        throw new GodotMCPError('Invalid scene path', 'INVALID_ARGS', 'Scene path must be a string.')
-      }
-      if (scenePath && (scenePath.includes('\n') || scenePath.includes('\r'))) {
-        throw new GodotMCPError('Invalid scene path', 'INVALID_ARGS', 'Scene path must not contain newlines.')
-      }
-      if (scenePath?.trim().startsWith('-')) {
-        throw new GodotMCPError('Invalid scene path', 'INVALID_ARGS', 'Scene path must not start with a hyphen.')
-      }
-
-      const { pid } = runGodotProject(
-        config.godotPath,
-        safeResolve(config.projectPath || process.cwd(), projectPath),
-        scenePath,
-      )
-      if (pid) {
-        validatePid(pid)
-        config.activePids.push(pid)
-      }
-      return formatSuccess(`Godot project started (PID: ${pid})${scenePath ? ` for scene ${scenePath}` : ''}`)
-    }
-
-    case 'stop': {
-      if (config.activePids.length === 0) {
-        return formatSuccess('No running Godot processes found (tracked by this server)')
-      }
-
-      let stoppedCount = 0
-      for (const pid of config.activePids) {
-        // Security: strictly validate pid is a positive safe integer before using in shell commands or process.kill
-        if (!isValidPid(pid)) {
+    try {
+      if (process.platform === 'win32') {
+        // Check if process exists before attempting to kill
+        try {
+          process.kill(pid, 0)
+          execFileSync('taskkill', ['/F', '/PID', pid.toString(), '/T'], { stdio: 'pipe' })
+        } catch {
+          // Process already dead
           continue
         }
-
-        try {
-          if (process.platform === 'win32') {
-            // Check if process exists before attempting to kill
-            try {
-              process.kill(pid, 0)
-              execFileSync('taskkill', ['/F', '/PID', pid.toString(), '/T'], { stdio: 'pipe' })
-            } catch {
-              // Process already dead
-              continue
-            }
-          } else {
-            process.kill(pid, 'SIGTERM')
-          }
-          stoppedCount++
-        } catch {
-          // Process might have already terminated
-        }
+      } else {
+        process.kill(pid, 'SIGTERM')
       }
-
-      config.activePids = []
-      return formatSuccess(`Godot processes stopped (Stopped ${stoppedCount} tracked processes)`)
+      stoppedCount++
+    } catch {
+      // Process might have already terminated
     }
-
-    case 'settings_get': {
-      const projectPath = (args.project_path as string) || config.projectPath
-      if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
-      if (typeof args.project_path === 'string' && args.project_path.trim().startsWith('-')) {
-        throw new GodotMCPError('Invalid project path', 'INVALID_ARGS', 'Project path must not start with a hyphen.')
-      }
-      const key = args.key as string
-      if (!key)
-        throw new GodotMCPError('No key specified', 'INVALID_ARGS', 'Provide key (e.g., "application/config/name").')
-
-      const configPath = join(safeResolve(config.projectPath || process.cwd(), projectPath), 'project.godot')
-
-      let settings: ProjectSettings
-      try {
-        settings = await parseProjectSettingsAsync(configPath)
-      } catch (err) {
-        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-          throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
-        }
-        throw err
-      }
-      const value = getSetting(settings, key)
-
-      return formatJSON({ key, value: value ?? null })
-    }
-
-    case 'settings_set': {
-      const projectPath = (args.project_path as string) || config.projectPath
-      if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
-      if (typeof args.project_path === 'string' && args.project_path.trim().startsWith('-')) {
-        throw new GodotMCPError('Invalid project path', 'INVALID_ARGS', 'Project path must not start with a hyphen.')
-      }
-      const key = args.key as string
-      const value = args.value as string
-      if (!key || value === undefined)
-        throw new GodotMCPError('key and value required', 'INVALID_ARGS', 'Provide key and value.')
-
-      if (typeof key === 'string' && (key.includes('\n') || key.includes('\r'))) {
-        throw new GodotMCPError('Invalid key format', 'INVALID_ARGS', 'Key must not contain newlines.')
-      }
-
-      if (typeof value === 'string' && (value.includes('\n') || value.includes('\r'))) {
-        throw new GodotMCPError('Invalid value format', 'INVALID_ARGS', 'Value must not contain newlines.')
-      }
-
-      const configPath = join(safeResolve(config.projectPath || process.cwd(), projectPath), 'project.godot')
-
-      let content: string
-      try {
-        content = await readFile(configPath, 'utf-8')
-      } catch (err) {
-        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-          throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
-        }
-        throw err
-      }
-      const updated = setSettingInContent(content, key, value)
-      await writeFile(configPath, updated, 'utf-8')
-
-      return formatSuccess(`Set ${key} = ${value}`)
-    }
-
-    case 'export': {
-      if (!config.godotPath)
-        throw new GodotMCPError('Godot not found', 'GODOT_NOT_FOUND', 'Set GODOT_PATH env var or install Godot.')
-      const projectPath = (args.project_path as string) || config.projectPath
-      if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
-      if (typeof args.project_path === 'string' && args.project_path.trim().startsWith('-')) {
-        throw new GodotMCPError('Invalid project path', 'INVALID_ARGS', 'Project path must not start with a hyphen.')
-      }
-      const preset = args.preset as string
-      const outputPath = args.output_path as string
-      if (!preset || !outputPath) {
-        throw new GodotMCPError(
-          'preset and output_path required',
-          'INVALID_ARGS',
-          'Provide preset name and output path.',
-        )
-      }
-
-      if (typeof preset !== 'string' || typeof outputPath !== 'string') {
-        throw new GodotMCPError('Invalid arguments', 'INVALID_ARGS', 'Preset and output path must be strings.')
-      }
-
-      if (preset.trim().startsWith('-') || outputPath.trim().startsWith('-')) {
-        throw new GodotMCPError(
-          'Invalid arguments',
-          'INVALID_ARGS',
-          'Preset and output path must not start with a hyphen.',
-        )
-      }
-
-      const resolvedProjectPath = safeResolve(config.projectPath || process.cwd(), projectPath)
-      const result = await execGodotAsync(config.godotPath, [
-        '--headless',
-        '--path',
-        resolvedProjectPath,
-        '--export-release',
-        preset,
-        safeResolve(resolvedProjectPath, outputPath),
-      ])
-
-      return formatSuccess(`Export complete: ${outputPath}\n${result.stdout}`)
-    }
-
-    default:
-      throw new GodotMCPError(
-        `Unknown action: ${action}`,
-        'INVALID_ACTION',
-        'Valid actions: info, version, run, stop, settings_get, settings_set, export. Use help tool for full docs.',
-      )
   }
+
+  config.activePids = []
+  return formatSuccess(`Godot processes stopped (Stopped ${stoppedCount} tracked processes)`)
+}
+
+async function handleProjectSettingsGet(args: Record<string, unknown>, config: GodotConfig) {
+  const projectPath = (args.project_path as string) || config.projectPath
+  if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
+  if (typeof args.project_path === 'string' && args.project_path.trim().startsWith('-')) {
+    throw new GodotMCPError('Invalid project path', 'INVALID_ARGS', 'Project path must not start with a hyphen.')
+  }
+  const key = args.key as string
+  if (!key)
+    throw new GodotMCPError('No key specified', 'INVALID_ARGS', 'Provide key (e.g., "application/config/name").')
+
+  const configPath = join(safeResolve(config.projectPath || process.cwd(), projectPath), 'project.godot')
+
+  let settings: ProjectSettings
+  try {
+    settings = await parseProjectSettingsAsync(configPath)
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
+    }
+    throw err
+  }
+  const value = getSetting(settings, key)
+
+  return formatJSON({ key, value: value ?? null })
+}
+
+async function handleProjectSettingsSet(args: Record<string, unknown>, config: GodotConfig) {
+  const projectPath = (args.project_path as string) || config.projectPath
+  if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
+  if (typeof args.project_path === 'string' && args.project_path.trim().startsWith('-')) {
+    throw new GodotMCPError('Invalid project path', 'INVALID_ARGS', 'Project path must not start with a hyphen.')
+  }
+  const key = args.key as string
+  const value = args.value as string
+  if (!key || value === undefined)
+    throw new GodotMCPError('key and value required', 'INVALID_ARGS', 'Provide key and value.')
+
+  if (typeof key === 'string' && (key.includes('\n') || key.includes('\r'))) {
+    throw new GodotMCPError('Invalid key format', 'INVALID_ARGS', 'Key must not contain newlines.')
+  }
+
+  if (typeof value === 'string' && (value.includes('\n') || value.includes('\r'))) {
+    throw new GodotMCPError('Invalid value format', 'INVALID_ARGS', 'Value must not contain newlines.')
+  }
+
+  const configPath = join(safeResolve(config.projectPath || process.cwd(), projectPath), 'project.godot')
+
+  let content: string
+  try {
+    content = await readFile(configPath, 'utf-8')
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
+    }
+    throw err
+  }
+  const updated = setSettingInContent(content, key, value)
+  await writeFile(configPath, updated, 'utf-8')
+
+  return formatSuccess(`Set ${key} = ${value}`)
+}
+
+async function handleProjectExport(args: Record<string, unknown>, config: GodotConfig) {
+  if (!config.godotPath)
+    throw new GodotMCPError('Godot not found', 'GODOT_NOT_FOUND', 'Set GODOT_PATH env var or install Godot.')
+  const projectPath = (args.project_path as string) || config.projectPath
+  if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
+  if (typeof args.project_path === 'string' && args.project_path.trim().startsWith('-')) {
+    throw new GodotMCPError('Invalid project path', 'INVALID_ARGS', 'Project path must not start with a hyphen.')
+  }
+  const preset = args.preset as string
+  const outputPath = args.output_path as string
+  if (!preset || !outputPath) {
+    throw new GodotMCPError('preset and output_path required', 'INVALID_ARGS', 'Provide preset name and output path.')
+  }
+
+  if (typeof preset !== 'string' || typeof outputPath !== 'string') {
+    throw new GodotMCPError('Invalid arguments', 'INVALID_ARGS', 'Preset and output path must be strings.')
+  }
+
+  if (preset.trim().startsWith('-') || outputPath.trim().startsWith('-')) {
+    throw new GodotMCPError('Invalid arguments', 'INVALID_ARGS', 'Preset and output path must not start with a hyphen.')
+  }
+
+  const resolvedProjectPath = safeResolve(config.projectPath || process.cwd(), projectPath)
+  const result = await execGodotAsync(config.godotPath, [
+    '--headless',
+    '--path',
+    resolvedProjectPath,
+    '--export-release',
+    preset,
+    safeResolve(resolvedProjectPath, outputPath),
+  ])
+
+  return formatSuccess(`Export complete: ${outputPath}\n${result.stdout}`)
+}
+
+const PROJECT_ACTIONS: Record<
+  string,
+  (
+    args: Record<string, unknown>,
+    config: GodotConfig,
+  ) => Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }>
+> = {
+  info: handleProjectInfo,
+  version: handleProjectVersion,
+  run: handleProjectRun,
+  stop: handleProjectStop,
+  settings_get: handleProjectSettingsGet,
+  settings_set: handleProjectSettingsSet,
+  export: handleProjectExport,
+}
+
+export async function handleProject(action: string, args: Record<string, unknown>, config: GodotConfig) {
+  if (Object.hasOwn(PROJECT_ACTIONS, action)) {
+    return PROJECT_ACTIONS[action](args, config)
+  }
+
+  throwUnknownAction(action, Object.keys(PROJECT_ACTIONS))
 }

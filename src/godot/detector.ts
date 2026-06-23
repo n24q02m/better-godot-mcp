@@ -54,11 +54,11 @@ export function isVersionSupported(version: GodotVersion): boolean {
 
 /**
  * Try to get Godot version from a binary path.
- * When skipSignatureCheck is true (e.g. user explicitly provided the path),
- * the binary signature heuristic is skipped and only --version validation is used.
+ * Performs strict signature heuristic check for security before execution.
  */
-export function tryGetVersion(binaryPath: string, skipSignatureCheck = false): GodotVersion | null {
-  if (!skipSignatureCheck && !isLikelyGodotBinary(binaryPath)) return null
+export function tryGetVersion(binaryPath: string): GodotVersion | null {
+  if (binaryPath.trim().startsWith('-')) return null
+  if (!isLikelyGodotBinary(binaryPath)) return null
   try {
     const output = execFileSync(binaryPath, ['--version'], {
       timeout: 5000,
@@ -81,6 +81,28 @@ export function isLikelyGodotBinary(filePath: string): boolean {
     fd = openSync(filePath, 'r')
     const stats = fstatSync(fd)
     const fileSize = stats.size
+
+    // Minimum size for any reasonable binary
+    if (fileSize < 1024) return false
+
+    const headBuf = Buffer.alloc(4)
+    const bytesReadHead = readSync(fd, headBuf, 0, 4, 0)
+    if (bytesReadHead < 2) return false
+
+    // 1. Reject scripts starting with shebang
+    if (headBuf[0] === 0x23 && headBuf[1] === 0x21) return false
+
+    // 2. Check for common executable magic numbers
+    const isELF = headBuf[0] === 0x7f && headBuf[1] === 0x45 && headBuf[2] === 0x4c && headBuf[3] === 0x46
+    const isPE = headBuf[0] === 0x4d && headBuf[1] === 0x5a
+    const isMachO =
+      (headBuf[0] === 0xfe && headBuf[1] === 0xed && headBuf[2] === 0xfa && (headBuf[3] === 0xce || headBuf[3] === 0xcf)) ||
+      (headBuf[0] === 0xce && headBuf[1] === 0xfa && headBuf[2] === 0xed && headBuf[3] === 0xfe) ||
+      (headBuf[0] === 0xcf && headBuf[1] === 0xfa && headBuf[2] === 0xed && headBuf[3] === 0xfe)
+
+    if (!isELF && !isPE && !isMachO) return false
+
+    // 3. Check for Godot-specific signatures in the file
     const sig1 = Buffer.from('Godot Engine')
     const sig2 = Buffer.from('GDScript')
 
@@ -89,6 +111,7 @@ export function isLikelyGodotBinary(filePath: string): boolean {
     const headRead = readSync(fd, fastBuf, 0, Math.min(fastSize, fileSize), 0)
     if (headRead > 0 && (fastBuf.subarray(0, headRead).includes(sig1) || fastBuf.subarray(0, headRead).includes(sig2)))
       return true
+
     if (fileSize > fastSize) {
       const tailOffset = fileSize - fastSize
       const tailRead = readSync(fd, fastBuf, 0, fastSize, tailOffset)

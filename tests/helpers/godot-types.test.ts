@@ -3,8 +3,15 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import type { GodotColor, Rect2, Vector2, Vector3 } from '../../src/tools/helpers/godot-types.js'
-import { parseGodotValue, toGodotValue, serializeGodotObject } from '../../src/tools/helpers/godot-types.js'
+import {
+  type GodotColor,
+  type Rect2,
+  type Vector2,
+  type Vector3,
+  parseGodotValue,
+  serializeGodotObject,
+  toGodotValue,
+} from '../../src/tools/helpers/godot-types.js'
 
 describe('godot-types', () => {
   // ==========================================

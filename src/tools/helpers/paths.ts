@@ -1,5 +1,5 @@
 import { realpathSync } from 'node:fs'
-import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
+import { basename, dirname, isAbsolute, relative, resolve, sep } from 'node:path'
 import { GodotMCPError } from './errors.js'
 
 /**
@@ -28,7 +28,7 @@ function canonicalize(targetPath: string): string {
         // the lexical resolution so brand-new trees still validate.
         return resolve(targetPath)
       }
-      tail.push(current.slice(parent.length + 1))
+      tail.push(basename(current))
       current = parent
     }
   }

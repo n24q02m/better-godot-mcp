@@ -7,7 +7,7 @@ import { copyFile, mkdir, readdir, readFile, unlink, writeFile } from 'node:fs/p
 import { basename, dirname, join } from 'node:path'
 import type { GodotConfig, SceneInfo } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
-import { pathExists, safeResolve } from '../helpers/paths.js'
+import { pathExists, resolveProjectRoot, safeResolve } from '../helpers/paths.js'
 import { setSettingInContent } from '../helpers/project-settings.js'
 import { parseSceneContent } from '../helpers/scene-parser.js'
 
@@ -44,18 +44,13 @@ function generateTscnContent(rootName: string, rootType: string): string {
 }
 
 function validateSceneArgs(action: string, args: Record<string, unknown>, config: GodotConfig) {
-  const baseDir = config.projectPath || process.cwd()
-  // Validate args.project_path against the trusted baseDir to prevent path traversal vulnerabilities
-  const projectPath = args.project_path
-    ? safeResolve(baseDir, args.project_path as string)
-    : config.projectPath || undefined
-  const scenePath = args.scene_path as string
-  const newPath = args.new_path as string
-
-  // project_path required
-  if (['create', 'list', 'set_main'].includes(action) && !projectPath) {
+  const projectPathArg = args.project_path
+  if (!projectPathArg && !config.projectPath && ['create', 'list', 'set_main'].includes(action)) {
     throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path argument.')
   }
+  const projectPath = resolveProjectRoot(args.project_path, config.projectPath)
+  const scenePath = args.scene_path as string
+  const newPath = args.new_path as string
 
   // scene_path required
   if (['create', 'info', 'delete', 'set_main'].includes(action) && !scenePath) {
@@ -88,7 +83,6 @@ function resolvePath(base: string | undefined, relativePath: string): string {
 }
 
 export async function handleScenes(action: string, args: Record<string, unknown>, config: GodotConfig) {
-  const baseDir = config.projectPath || process.cwd()
   const { projectPath, scenePath, newPath } = validateSceneArgs(action, args, config)
 
   switch (action) {
@@ -122,13 +116,11 @@ export async function handleScenes(action: string, args: Record<string, unknown>
     }
 
     case 'list': {
-      // projectPath is guaranteed
-      const resolvedPath = safeResolve(baseDir, projectPath as string)
-      const scenes = await findSceneFiles(resolvedPath)
+      const scenes = await findSceneFiles(projectPath)
 
       // OPTIMIZATION: Use substring and a pre-allocated array instead of .map() and node:path.relative
       // for significantly faster execution on large arrays of prefixed paths.
-      const prefixLen = resolvedPath.length + (resolvedPath.endsWith('/') || resolvedPath.endsWith('\\') ? 0 : 1)
+      const prefixLen = projectPath.length + (projectPath.endsWith('/') || projectPath.endsWith('\\') ? 0 : 1)
       const relativePaths = new Array(scenes.length)
       for (let i = 0; i < scenes.length; i++) {
         // ⚡ Bolt: Using replaceAll('\\', '/') avoids RegExp allocation overhead
@@ -136,7 +128,7 @@ export async function handleScenes(action: string, args: Record<string, unknown>
       }
 
       return formatJSON({
-        project: resolvedPath,
+        project: projectPath,
         count: relativePaths.length,
         scenes: relativePaths,
       })
@@ -217,7 +209,7 @@ export async function handleScenes(action: string, args: Record<string, unknown>
         throw new GodotMCPError('Invalid scene path', 'INVALID_ARGS', 'Scene path must not contain quotes or newlines.')
       }
 
-      const configPath = join(safeResolve(baseDir, projectPath as string), 'project.godot')
+      const configPath = join(projectPath, 'project.godot')
 
       // ⚡ Bolt: Using replaceAll('\\', '/') avoids RegExp allocation overhead
       const resPath = `res://${scenePath.replaceAll('\\', '/')}`

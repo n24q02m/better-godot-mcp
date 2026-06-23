@@ -46,3 +46,6 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## 2025-06-25 - [Avoid RegExp.matchAll() for structural parsing]
 **Learning:** Using `RegExp.prototype.matchAll()` or `String.prototype.match()` to parse structured file formats (like Godot's `.tscn` files) requires executing complex regex patterns and creating intermediate array objects for each match. This is less efficient than using a centralized, single-pass structural parser (like `parseSceneContent`), which avoids regex execution overhead entirely.
 **Action:** Replace `matchAll` and `match` usage with existing single-pass structural parsers when analyzing `.tscn` contents. Reusing a standard parser prevents redundant parsing work, eliminates regular expression array allocations, and improves maintainability.
+## 2025-05-14 - [SECURITY] Unified Project Root Resolution
+**Learning:** Using a centralized `resolveProjectRoot` helper not only improves security by ensuring consistent path confinement but also simplifies handler logic by removing redundant `safeResolve` calls.
+**Action:** Prefer `resolveProjectRoot` for all tools that accept a `project_path` argument to maintain a unified security posture and cleaner code.

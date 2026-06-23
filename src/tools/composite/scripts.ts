@@ -7,7 +7,7 @@ import { mkdir, readdir, readFile, unlink, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
-import { pathExists, safeResolve } from '../helpers/paths.js'
+import { pathExists, resolveProjectRoot, safeResolve } from '../helpers/paths.js'
 import { parseSceneContent, updateNodeInScene } from '../helpers/scene-parser.js'
 
 const SCRIPT_TEMPLATES: Record<string, string> = {
@@ -263,9 +263,11 @@ async function deleteScript(args: Record<string, unknown>, resolvePath: (path: s
 }
 
 export async function handleScripts(action: string, args: Record<string, unknown>, config: GodotConfig) {
-  const baseDir = config.projectPath || process.cwd()
-  // Validate args.project_path against the trusted baseDir to prevent path traversal vulnerabilities
-  const projectPath = args.project_path ? safeResolve(baseDir, args.project_path as string) : config.projectPath
+  const projectPathArg = args.project_path
+  if (!projectPathArg && !config.projectPath) {
+    throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path argument.')
+  }
+  const projectPath = resolveProjectRoot(args.project_path, config.projectPath)
 
   if (!projectPath && action !== 'list') {
     // List handles missing projectPath internally, but others need it for safeResolve base
@@ -292,7 +294,7 @@ export async function handleScripts(action: string, args: Record<string, unknown
     case 'attach':
       return attachScript(args, resolvePath)
     case 'list':
-      return listScripts(baseDir, projectPath ?? undefined)
+      return listScripts(config.projectPath || process.cwd(), projectPath ?? undefined)
     case 'delete':
       return deleteScript(args, resolvePath)
     default:

@@ -174,9 +174,14 @@ export function throwUnknownAction(action: string, validActions: string[]): neve
   const safeAction = action.length > 100 ? `${action.slice(0, 100)}...` : action
   const closest = findClosestMatch(safeAction, validActions)
   const suggestion = closest ? ` Did you mean '${closest}'?` : ''
+  const validActionsList =
+    validActions.length > 20
+      ? `${validActions.slice(0, 20).join(', ')}... and ${validActions.length - 20} more`
+      : validActions.join(', ')
+
   throw new GodotMCPError(
     `Unknown action: ${safeAction}.${suggestion}`,
     'INVALID_ACTION',
-    `Valid actions: ${validActions.join(', ')}. Use help tool for full docs.`,
+    `Valid actions: ${validActionsList}. Use help tool for full docs.`,
   )
 }

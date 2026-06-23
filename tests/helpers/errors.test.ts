@@ -260,5 +260,19 @@ describe('errors', () => {
         expect(error.message.length).toBeLessThan(250)
       }
     })
+
+    it('should truncate extremely long valid actions list in the suggestion field', () => {
+      const manyActions = Array.from({ length: 100 }, (_, i) => `action_${i}`)
+      try {
+        throwUnknownAction('unknown', manyActions)
+      } catch (err) {
+        const error = err as GodotMCPError
+        // Should show 20 actions and "and 80 more"
+        expect(error.suggestion).toContain('action_0, action_1,')
+        expect(error.suggestion).toContain('action_19...')
+        expect(error.suggestion).toContain('and 80 more')
+        expect(error.suggestion).not.toContain('action_20')
+      }
+    })
   })
 })

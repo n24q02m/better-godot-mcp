@@ -39,8 +39,8 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.0",
-    "@types/node": "^26.0.0",
+    "@biomejs/biome": "^2.5.1",
+    "@types/node": "^26.0.1",
     "@vitest/coverage-v8": "^4.1.9",
     "esbuild": "^0.28.1",
     "tsx": "^4.22.4",
@@ -51,7 +51,7 @@
     "esbuild"
   ],
   "engines": {
-    "node": ">=24.17.0"
+    "node": ">=24.18.0"
   },
   "keywords": [
     "mcp",

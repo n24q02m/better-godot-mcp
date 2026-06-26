@@ -33,15 +33,39 @@ function normalizeNodePath(path: string): { path: string; corrected: boolean } {
 
   // Case-insensitive check for /root/ or root/ prefix
   // These are common LLM mistakes when they try to use absolute paths.
-  const rootMatch = normalized.match(/^\/?root\/(.+)$/i)
-  if (rootMatch) {
-    const afterRoot = rootMatch[1]
-    const segments = afterRoot.split('/').filter(Boolean)
-    if (segments.length <= 1) {
+  // ⚡ Bolt: Fast-path for /root/... without RegExp and Array allocations
+  const lower = normalized.toLowerCase()
+  const isRootPrefix = lower.startsWith('/root/')
+  const isRootPrefixNoSlash = lower.startsWith('root/')
+
+  if (isRootPrefix || isRootPrefixNoSlash) {
+    const prefixLen = isRootPrefix ? 6 : 5 // length of '/root/' or 'root/'
+    const afterRoot = normalized.slice(prefixLen)
+
+    // Skip multiple slashes if any exist immediately after root
+    let startIdx = 0
+    while (startIdx < afterRoot.length && afterRoot[startIdx] === '/') {
+      startIdx++
+    }
+
+    const nextSlashIdx = afterRoot.indexOf('/', startIdx)
+
+    if (nextSlashIdx === -1) {
+      // e.g. /root/SceneName -> path is "."
       return { path: '.', corrected: true }
     }
-    const remaining = segments.slice(1).join('/')
-    return { path: remaining, corrected: true }
+
+    // Skip consecutive slashes after the SceneName
+    let remIdx = nextSlashIdx
+    while (remIdx < afterRoot.length && afterRoot[remIdx] === '/') {
+      remIdx++
+    }
+
+    if (remIdx === afterRoot.length) {
+      return { path: '.', corrected: true }
+    }
+
+    return { path: afterRoot.slice(remIdx), corrected: true }
   }
 
   // Handle /root or root (exact match)

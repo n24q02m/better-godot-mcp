@@ -46,3 +46,7 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## 2025-06-25 - [Avoid RegExp.matchAll() for structural parsing]
 **Learning:** Using `RegExp.prototype.matchAll()` or `String.prototype.match()` to parse structured file formats (like Godot's `.tscn` files) requires executing complex regex patterns and creating intermediate array objects for each match. This is less efficient than using a centralized, single-pass structural parser (like `parseSceneContent`), which avoids regex execution overhead entirely.
 **Action:** Replace `matchAll` and `match` usage with existing single-pass structural parsers when analyzing `.tscn` contents. Reusing a standard parser prevents redundant parsing work, eliminates regular expression array allocations, and improves maintainability.
+
+## 2025-07-28 - [Avoid RegExp and Array allocation in path normalization]
+**Learning:** Using `RegExp.match()` and `String.prototype.split('/').filter(Boolean)` for path segmentation allocates intermediate string arrays and incurs RegExp execution overhead, which significantly degrades performance on frequently called utility functions like `normalizeNodePath`.
+**Action:** Replace RegExp matching and `split()` with direct string operations: use `startsWith` for prefix checking and iterate via a manual `while` loop with `charCodeAt(pos) === 47` (`/`) to extract segments using `slice()`. Added `// ⚡ Bolt:` comments to denote intentional optimization.

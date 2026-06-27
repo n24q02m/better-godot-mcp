@@ -198,9 +198,11 @@ export async function handleResources(action: string, args: Record<string, unkno
     throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
   }
 
-  const handler = RESOURCE_ACTIONS[action]
-  if (handler) {
-    return handler(projectRoot, args)
+  if (Object.hasOwn(RESOURCE_ACTIONS, action)) {
+    const handler = RESOURCE_ACTIONS[action]
+    if (handler) {
+      return handler(projectRoot, args)
+    }
   }
 
   throwUnknownAction(action, Object.keys(RESOURCE_ACTIONS))

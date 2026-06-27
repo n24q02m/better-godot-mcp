@@ -179,9 +179,11 @@ const ANIMATION_ACTIONS: Record<string, (projectPath: string, args: Record<strin
 export async function handleAnimation(action: string, args: Record<string, unknown>, config: GodotConfig) {
   const projectPath = resolveProjectRoot(args.project_path, config.projectPath)
 
-  const handler = ANIMATION_ACTIONS[action]
-  if (handler) {
-    return handler(projectPath, args)
+  if (Object.hasOwn(ANIMATION_ACTIONS, action)) {
+    const handler = ANIMATION_ACTIONS[action]
+    if (handler) {
+      return handler(projectPath, args)
+    }
   }
 
   throwUnknownAction(action, Object.keys(ANIMATION_ACTIONS))

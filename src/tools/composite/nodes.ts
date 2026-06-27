@@ -266,9 +266,11 @@ export async function handleNodes(action: string, args: Record<string, unknown>,
   const baseProjectPath = config.projectPath || process.cwd()
   const projectPath = args.project_path ? safeResolve(baseProjectPath, args.project_path as string) : baseProjectPath
 
-  const handler = NODE_ACTIONS[action]
-  if (handler) {
-    return handler(projectPath, args)
+  if (Object.hasOwn(NODE_ACTIONS, action)) {
+    const handler = NODE_ACTIONS[action]
+    if (handler) {
+      return handler(projectPath, args)
+    }
   }
 
   throwUnknownAction(action, Object.keys(NODE_ACTIONS))

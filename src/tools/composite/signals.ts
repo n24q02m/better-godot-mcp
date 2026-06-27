@@ -163,9 +163,11 @@ const SIGNAL_ACTIONS: Record<
 export async function handleSignals(action: string, args: Record<string, unknown>, config: GodotConfig) {
   const projectPath = resolveProjectRoot(args.project_path, config.projectPath)
 
-  const handler = SIGNAL_ACTIONS[action]
-  if (handler) {
-    return handler(projectPath, args)
+  if (Object.hasOwn(SIGNAL_ACTIONS, action)) {
+    const handler = SIGNAL_ACTIONS[action]
+    if (handler) {
+      return handler(projectPath, args)
+    }
   }
 
   throwUnknownAction(action, Object.keys(SIGNAL_ACTIONS))

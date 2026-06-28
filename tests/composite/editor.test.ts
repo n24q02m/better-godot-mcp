@@ -56,6 +56,22 @@ describe('editor', () => {
 
       expect(result.content[0].text).toContain('Godot editor launched')
     })
+
+    it('should reject project_path starting with a hyphen', async () => {
+      config = makeConfig({ godotPath: '/usr/bin/godot', projectPath })
+
+      await expect(handleEditor('launch', { project_path: '--malicious' }, config)).rejects.toThrow(
+        'Invalid project path',
+      )
+    })
+
+    it('should reject space-padded project_path starting with a hyphen', async () => {
+      config = makeConfig({ godotPath: '/usr/bin/godot', projectPath })
+
+      await expect(handleEditor('launch', { project_path: '  --malicious' }, config)).rejects.toThrow(
+        'Invalid project path',
+      )
+    })
   })
 
   // ==========================================

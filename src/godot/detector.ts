@@ -172,6 +172,9 @@ function findWinGetGodotBinaries(localAppData: string): string[] {
   const packagesDir = join(localAppData, 'Microsoft', 'WinGet', 'Packages')
   if (!existsSync(packagesDir)) return results
 
+  const REGULAR_REGEX = /^Godot_v[\d.]+-\w+_win64\.exe$/i
+  const CONSOLE_REGEX = /^Godot_v[\d.]+-\w+_win64_console\.exe$/i
+
   try {
     const dirs = readdirSync(packagesDir, { withFileTypes: true })
     for (const dir of dirs) {
@@ -179,10 +182,18 @@ function findWinGetGodotBinaries(localAppData: string): string[] {
       const pkgDir = join(packagesDir, dir.name)
       try {
         const files = readdirSync(pkgDir)
-        // Prefer GUI version (has actual editor window), then console as fallback
-        const regularExe = files.find((f) => /^Godot_v[\d.]+-\w+_win64\.exe$/i.test(f) && !f.includes('console'))
+        // ⚡ Bolt: Prefer GUI version (has actual editor window), then console as fallback in a single pass
+        let regularExe: string | undefined
+        let consoleExe: string | undefined
+        for (const f of files) {
+          if (regularExe && consoleExe) break
+          if (!regularExe && REGULAR_REGEX.test(f) && !f.includes('console')) {
+            regularExe = f
+          } else if (!consoleExe && CONSOLE_REGEX.test(f)) {
+            consoleExe = f
+          }
+        }
         if (regularExe) results.push(join(pkgDir, regularExe))
-        const consoleExe = files.find((f) => /^Godot_v[\d.]+-\w+_win64_console\.exe$/i.test(f))
         if (consoleExe) results.push(join(pkgDir, consoleExe))
       } catch {
         // Skip unreadable package directories

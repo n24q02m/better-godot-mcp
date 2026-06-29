@@ -11,7 +11,7 @@ import { parseSceneContent } from '../helpers/scene-parser.js'
 import { validateNoNewlines } from '../helpers/security.js'
 
 async function resolveScene(projectRoot: string, scenePath: string): Promise<string> {
-  const fullPath = safeResolve(projectRoot, scenePath)
+  const fullPath = await safeResolve(projectRoot, scenePath)
   if (!(await pathExists(fullPath)))
     throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
   return fullPath
@@ -177,7 +177,7 @@ const ANIMATION_ACTIONS: Record<string, (projectPath: string, args: Record<strin
 }
 
 export async function handleAnimation(action: string, args: Record<string, unknown>, config: GodotConfig) {
-  const projectPath = resolveProjectRoot(args.project_path, config.projectPath)
+  const projectPath = await resolveProjectRoot(args.project_path, config.projectPath)
 
   if (Object.hasOwn(ANIMATION_ACTIONS, action)) {
     const handler = ANIMATION_ACTIONS[action]

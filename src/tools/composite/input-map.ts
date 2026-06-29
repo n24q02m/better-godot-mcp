@@ -167,7 +167,7 @@ function parseEventsList(str: string): string[] {
 
 async function getProjectGodotPath(projectPath: string | null | undefined, baseDir: string): Promise<string> {
   if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
-  const configPath = join(safeResolve(baseDir, projectPath), 'project.godot')
+  const configPath = join(await safeResolve(baseDir, projectPath), 'project.godot')
   if (!(await pathExists(configPath)))
     throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
   return configPath

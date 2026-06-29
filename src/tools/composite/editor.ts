@@ -50,7 +50,10 @@ export async function handleEditor(action: string, args: Record<string, unknown>
         throw new GodotMCPError('Invalid project path', 'INVALID_ARGS', 'Project path must not start with a hyphen.')
       }
 
-      const { pid } = launchGodotEditor(config.godotPath, safeResolve(config.projectPath || process.cwd(), projectPath))
+      const { pid } = launchGodotEditor(
+        config.godotPath,
+        await safeResolve(config.projectPath || process.cwd(), projectPath),
+      )
       if (pid) {
         validatePid(pid)
         config.activePids.push(pid)

@@ -11,7 +11,7 @@ import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
 import { countSubstring } from '../helpers/strings.js'
 
 export async function handleTilemap(action: string, args: Record<string, unknown>, config: GodotConfig) {
-  const projectPath = resolveProjectRoot(args.project_path, config.projectPath)
+  const projectPath = await resolveProjectRoot(args.project_path, config.projectPath)
 
   switch (action) {
     case 'create_tileset': {
@@ -24,7 +24,7 @@ export async function handleTilemap(action: string, args: Record<string, unknown
         )
       const tileSize = (args.tile_size as number) || 16
 
-      const fullPath = safeResolve(projectPath, tilesetPath)
+      const fullPath = await safeResolve(projectPath, tilesetPath)
 
       const content = [
         `[gd_resource type="TileSet" format=3]`,
@@ -63,7 +63,7 @@ export async function handleTilemap(action: string, args: Record<string, unknown
         )
       }
 
-      const fullPath = safeResolve(projectPath, tilesetPath)
+      const fullPath = await safeResolve(projectPath, tilesetPath)
 
       let content: string
       try {
@@ -115,7 +115,7 @@ export async function handleTilemap(action: string, args: Record<string, unknown
       const scenePath = args.scene_path as string
       if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
 
-      const fullPath = safeResolve(projectPath, scenePath)
+      const fullPath = await safeResolve(projectPath, scenePath)
 
       let content: string
       try {

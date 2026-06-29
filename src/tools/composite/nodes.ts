@@ -15,8 +15,8 @@ import {
   setNodePropertyInContent,
 } from '../helpers/scene-parser.js'
 
-function resolveScenePath(projectPath: string, scenePath: string): string {
-  return safeResolve(projectPath, scenePath)
+async function resolveScenePath(projectPath: string, scenePath: string): Promise<string> {
+  return await safeResolve(projectPath, scenePath)
 }
 
 // ⚡ Bolt: Using try-to-perform instead of pathExists to reduce redundant I/O calls
@@ -94,7 +94,7 @@ async function handleAddNode(projectPath: string, args: Record<string, unknown>)
     throw new GodotMCPError('Invalid parent path', 'INVALID_ARGS', 'Parent path must not contain quotes or newlines.')
   }
 
-  const fullPath = resolveScenePath(projectPath, scenePath)
+  const fullPath = await resolveScenePath(projectPath, scenePath)
   let content: string
   try {
     content = await readFile(fullPath, 'utf-8')
@@ -153,7 +153,7 @@ async function handleRemoveNode(projectPath: string, args: Record<string, unknow
   if (!rawName) throw new GodotMCPError('No node name specified', 'INVALID_ARGS', 'Provide name of node to remove.')
   const { path: nodeName } = normalizeNodePath(rawName)
 
-  const fullPath = resolveScenePath(projectPath, scenePath)
+  const fullPath = await resolveScenePath(projectPath, scenePath)
   const content = await readSceneFile(fullPath, scenePath)
   const updated = removeNodeFromContent(content, nodeName)
   await writeFile(fullPath, updated, 'utf-8')
@@ -173,7 +173,7 @@ async function handleRenameNode(projectPath: string, args: Record<string, unknow
     throw new GodotMCPError('Invalid node name', 'INVALID_ARGS', 'New node name must not contain quotes or newlines.')
   }
 
-  const fullPath = resolveScenePath(projectPath, scenePath)
+  const fullPath = await resolveScenePath(projectPath, scenePath)
   const content = await readSceneFile(fullPath, scenePath)
   const updated = renameNodeInContent(content, nodeName, newName)
   await writeFile(fullPath, updated, 'utf-8')
@@ -185,7 +185,7 @@ async function handleListNodes(projectPath: string, args: Record<string, unknown
   const scenePath = args.scene_path as string
   if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
 
-  const fullPath = resolveScenePath(projectPath, scenePath)
+  const fullPath = await resolveScenePath(projectPath, scenePath)
   const content = await readSceneFile(fullPath, scenePath)
   const scene = parseSceneContent(content)
   // ⚡ Bolt: Removed double .map() passes and expensive object spread (...node.properties) in mapToSceneNode.
@@ -224,7 +224,7 @@ async function handleSetNodeProperty(projectPath: string, args: Record<string, u
     throw new GodotMCPError('Invalid property value', 'INVALID_ARGS', 'Property values must not contain newlines.')
   }
 
-  const fullPath = resolveScenePath(projectPath, scenePath)
+  const fullPath = await resolveScenePath(projectPath, scenePath)
   const content = await readSceneFile(fullPath, scenePath)
   const updated = setNodePropertyInContent(content, nodeName, property, value)
   await writeFile(fullPath, updated, 'utf-8')
@@ -241,7 +241,7 @@ async function handleGetNodeProperty(projectPath: string, args: Record<string, u
     throw new GodotMCPError('name and property required', 'INVALID_ARGS', 'Provide name and property.')
   }
 
-  const fullPath = resolveScenePath(projectPath, scenePath)
+  const fullPath = await resolveScenePath(projectPath, scenePath)
   const content = await readSceneFile(fullPath, scenePath)
   const scene = parseSceneContent(content)
   const val = getNodeProperty(scene, nodeName, property)
@@ -266,7 +266,9 @@ const NODE_ACTIONS: Record<
 
 export async function handleNodes(action: string, args: Record<string, unknown>, config: GodotConfig) {
   const baseProjectPath = config.projectPath || process.cwd()
-  const projectPath = args.project_path ? safeResolve(baseProjectPath, args.project_path as string) : baseProjectPath
+  const projectPath = args.project_path
+    ? await safeResolve(baseProjectPath, args.project_path as string)
+    : baseProjectPath
 
   if (Object.hasOwn(NODE_ACTIONS, action)) {
     const handler = NODE_ACTIONS[action]

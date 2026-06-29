@@ -13,11 +13,11 @@ import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
  * Helper to resolve the default bus layout path.
  * Throws GodotMCPError if project path is missing.
  */
-function resolveBusLayoutPath(projectPath: string | null | undefined, baseDir: string): string {
+async function resolveBusLayoutPath(projectPath: string | null | undefined, baseDir: string): Promise<string> {
   if (!projectPath) {
     throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
   }
-  return join(safeResolve(baseDir, projectPath), 'default_bus_layout.tres')
+  return join(await safeResolve(baseDir, projectPath), 'default_bus_layout.tres')
 }
 
 /**
@@ -80,7 +80,7 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
 
   switch (action) {
     case 'list_buses': {
-      const busLayoutPath = resolveBusLayoutPath(projectPath, baseDir)
+      const busLayoutPath = await resolveBusLayoutPath(projectPath, baseDir)
 
       let content: string
       try {
@@ -104,7 +104,7 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
     }
 
     case 'add_bus': {
-      const busLayoutPath = resolveBusLayoutPath(projectPath, baseDir)
+      const busLayoutPath = await resolveBusLayoutPath(projectPath, baseDir)
       const busName = args.bus_name as string
       if (!busName) throw new GodotMCPError('No bus_name specified', 'INVALID_ARGS', 'Provide bus name.')
       const sendTo = (args.send_to as string) || 'Master'
@@ -164,7 +164,7 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
     }
 
     case 'add_effect': {
-      const busLayoutPath = resolveBusLayoutPath(projectPath, baseDir)
+      const busLayoutPath = await resolveBusLayoutPath(projectPath, baseDir)
       const busName = args.bus_name as string
       const effectType = args.effect_type as string
       if (!busName || !effectType) {
@@ -279,7 +279,7 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       }
 
       // Confine caller project_path to the trusted base before resolving the scene.
-      const fullPath = safeResolve(resolveProjectRoot(args.project_path, config.projectPath), scenePath)
+      const fullPath = await safeResolve(await resolveProjectRoot(args.project_path, config.projectPath), scenePath)
       let content: string
       try {
         content = await readFile(fullPath, 'utf-8')

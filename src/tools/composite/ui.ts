@@ -67,7 +67,7 @@ const CONTROL_TYPES = new Set([
 ])
 
 async function resolveScene(projectRoot: string, scenePath: string): Promise<string> {
-  const fullPath = safeResolve(projectRoot, scenePath)
+  const fullPath = await safeResolve(projectRoot, scenePath)
   if (!(await pathExists(fullPath)))
     throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
   return fullPath
@@ -148,7 +148,7 @@ async function handleSetTheme(projectPath: string, args: Record<string, unknown>
   if (!themePath)
     throw new GodotMCPError('No theme_path specified', 'INVALID_ARGS', 'Provide theme_path (e.g., "themes/main.tres").')
 
-  const fullPath = safeResolve(projectPath || process.cwd(), themePath)
+  const fullPath = await safeResolve(projectPath || process.cwd(), themePath)
 
   const fontSize = (args.font_size as number) || 16
 
@@ -272,7 +272,7 @@ async function handleListControls(projectPath: string, args: Record<string, unkn
 export async function handleUI(action: string, args: Record<string, unknown>, config: GodotConfig) {
   // project_path is caller-controlled and untrusted; confine it to the trusted
   // project root before any handler uses it as a file-resolution base.
-  const projectPath = resolveProjectRoot(args.project_path, config.projectPath)
+  const projectPath = await resolveProjectRoot(args.project_path, config.projectPath)
 
   switch (action) {
     case 'create_control':

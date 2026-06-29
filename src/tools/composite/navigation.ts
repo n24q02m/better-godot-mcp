@@ -9,7 +9,7 @@ import { formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/err
 import { pathExists, resolveProjectRoot, safeResolve } from '../helpers/paths.js'
 
 async function resolveScene(projectRoot: string, scenePath: string): Promise<string> {
-  const fullPath = safeResolve(projectRoot, scenePath)
+  const fullPath = await safeResolve(projectRoot, scenePath)
   if (!(await pathExists(fullPath)))
     throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
   return fullPath
@@ -23,7 +23,7 @@ function appendNode(content: string, name: string, type: string, parent: string,
 }
 
 export async function handleNavigation(action: string, args: Record<string, unknown>, config: GodotConfig) {
-  const projectPath = resolveProjectRoot(args.project_path, config.projectPath)
+  const projectPath = await resolveProjectRoot(args.project_path, config.projectPath)
 
   switch (action) {
     case 'create_region': {

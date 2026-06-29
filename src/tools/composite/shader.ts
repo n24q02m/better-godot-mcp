@@ -82,7 +82,7 @@ export async function handleShader(action: string, args: Record<string, unknown>
   const baseDir = config.projectPath || process.cwd()
   // Confined trusted project root for per-file actions (create/read/write/get_params):
   // the caller-supplied project_path must stay within baseDir (path-traversal guard).
-  const projectRoot = resolveProjectRoot(args.project_path, config.projectPath)
+  const projectRoot = await resolveProjectRoot(args.project_path, config.projectPath)
 
   switch (action) {
     case 'create': {
@@ -96,7 +96,7 @@ export async function handleShader(action: string, args: Record<string, unknown>
       const shaderType = (args.shader_type as string) || 'canvas_item'
       const content = (args.content as string) || SHADER_TEMPLATES[shaderType] || SHADER_TEMPLATES.canvas_item
 
-      const fullPath = safeResolve(projectRoot, shaderPath)
+      const fullPath = await safeResolve(projectRoot, shaderPath)
 
       // Ensure directory exists
       await mkdir(dirname(fullPath), { recursive: true })
@@ -118,7 +118,7 @@ export async function handleShader(action: string, args: Record<string, unknown>
       const shaderPath = args.shader_path as string
       if (!shaderPath) throw new GodotMCPError('No shader_path specified', 'INVALID_ARGS', 'Provide shader_path.')
 
-      const fullPath = safeResolve(projectRoot, shaderPath)
+      const fullPath = await safeResolve(projectRoot, shaderPath)
 
       try {
         const content = await readFile(fullPath, 'utf-8')
@@ -137,7 +137,7 @@ export async function handleShader(action: string, args: Record<string, unknown>
       const content = args.content as string
       if (!content) throw new GodotMCPError('No content specified', 'INVALID_ARGS', 'Provide shader content.')
 
-      const fullPath = safeResolve(projectRoot, shaderPath)
+      const fullPath = await safeResolve(projectRoot, shaderPath)
       await mkdir(dirname(fullPath), { recursive: true })
       await writeFile(fullPath, content, 'utf-8')
       return formatSuccess(`Written: ${shaderPath} (${content.length} chars)`)
@@ -147,7 +147,7 @@ export async function handleShader(action: string, args: Record<string, unknown>
       const shaderPath = args.shader_path as string
       if (!shaderPath) throw new GodotMCPError('No shader_path specified', 'INVALID_ARGS', 'Provide shader_path.')
 
-      const fullPath = safeResolve(projectRoot, shaderPath)
+      const fullPath = await safeResolve(projectRoot, shaderPath)
 
       try {
         const content = await readFile(fullPath, 'utf-8')
@@ -180,7 +180,7 @@ export async function handleShader(action: string, args: Record<string, unknown>
     case 'list': {
       if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
 
-      const resolvedPath = safeResolve(baseDir, projectPath)
+      const resolvedPath = await safeResolve(baseDir, projectPath)
       const shaders = await findShaderFiles(resolvedPath)
 
       // OPTIMIZATION: Use substring and a pre-allocated array instead of .map() and node:path.relative

@@ -49,3 +49,7 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## 2025-02-12 - [FIX] Extract string trim logic to helper
 **Learning:** Manual string trimming loops (`while (charCodeAt(i) <= 32)`) were duplicated across multiple structural parsers (`input-map.ts`, `project-settings.ts`, `scene-parser.ts`, `project.ts`). Centralizing this into a `fastTrimRange` helper reduces code duplication and ensures consistent whitespace handling across the codebase while maintaining zero-allocation performance.
 **Action:** Use `fastTrimRange(str, start, end)` in `src/tools/helpers/strings.ts` for any future structural parsers that need to handle Godot-style whitespace trimming within string ranges.
+
+## 2024-05-20 - [Replace synchronous realpathSync with asynchronous realpath]
+**Learning:** Using `realpathSync` in path resolution helpers blocks the event loop, which can degrade performance in an MCP server that handles multiple concurrent requests or large file operations. Canonicalization is necessary for security (path traversal prevention), but it doesn't need to be synchronous.
+**Action:** Replaced `realpathSync` from `node:fs` with `await realpath` from `node:fs/promises` in `src/tools/helpers/paths.ts`. This required making `canonicalize`, `safeResolve`, and `resolveProjectRoot` asynchronous, and subsequently updating all call sites in `src/tools/composite/` to use `await`.

@@ -109,7 +109,7 @@ async function handleListResources(projectRoot: string, args: Record<string, unk
 async function handleResourceInfo(projectRoot: string, args: Record<string, unknown>) {
   const resPath = args.resource_path as string
   if (!resPath) throw new GodotMCPError('No resource_path specified', 'INVALID_ARGS', 'Provide resource_path.')
-  const fullPath = safeResolve(projectRoot, resPath)
+  const fullPath = await safeResolve(projectRoot, resPath)
 
   try {
     const fileStat = await stat(fullPath)
@@ -141,7 +141,7 @@ async function handleResourceInfo(projectRoot: string, args: Record<string, unkn
 async function handleDeleteResource(projectRoot: string, args: Record<string, unknown>) {
   const resPath = args.resource_path as string
   if (!resPath) throw new GodotMCPError('No resource_path specified', 'INVALID_ARGS', 'Provide resource_path.')
-  const fullPath = safeResolve(projectRoot, resPath)
+  const fullPath = await safeResolve(projectRoot, resPath)
 
   try {
     await unlink(fullPath)
@@ -165,7 +165,7 @@ async function handleImportConfig(projectRoot: string, args: Record<string, unkn
   const resPath = args.resource_path as string
   if (!resPath) throw new GodotMCPError('No resource_path specified', 'INVALID_ARGS', 'Provide resource_path.')
 
-  const importPath = safeResolve(projectRoot, `${resPath}.import`)
+  const importPath = await safeResolve(projectRoot, `${resPath}.import`)
 
   try {
     const content = await readFile(importPath, 'utf-8')
@@ -192,7 +192,7 @@ const RESOURCE_ACTIONS: Record<
 }
 
 export async function handleResources(action: string, args: Record<string, unknown>, config: GodotConfig) {
-  const projectRoot = resolveProjectRoot(args.project_path, config.projectPath)
+  const projectRoot = await resolveProjectRoot(args.project_path, config.projectPath)
 
   if (action === 'list' && !args.project_path && !config.projectPath) {
     throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')

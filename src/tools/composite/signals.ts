@@ -39,7 +39,7 @@ async function readSceneContent(fullPath: string, scenePath: string) {
 async function handleListSignals(projectPath: string, args: Record<string, unknown>) {
   const scenePath = args.scene_path as string
   if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
-  const fullPath = safeResolve(projectPath, scenePath)
+  const fullPath = await safeResolve(projectPath, scenePath)
 
   const content = await readSceneContent(fullPath, scenePath)
   const scene = parseSceneContent(content)
@@ -54,7 +54,7 @@ async function handleListSignals(projectPath: string, args: Record<string, unkno
 async function handleConnectSignal(projectPath: string, args: Record<string, unknown>) {
   const scenePath = args.scene_path as string
   if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
-  const fullPath = safeResolve(projectPath, scenePath)
+  const fullPath = await safeResolve(projectPath, scenePath)
 
   const signal = args.signal as string
   const from = args.from as string
@@ -96,7 +96,7 @@ async function handleConnectSignal(projectPath: string, args: Record<string, unk
 async function handleDisconnectSignal(projectPath: string, args: Record<string, unknown>) {
   const scenePath = args.scene_path as string
   if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
-  const fullPath = safeResolve(projectPath, scenePath)
+  const fullPath = await safeResolve(projectPath, scenePath)
 
   const signal = args.signal as string
   const from = args.from as string
@@ -161,7 +161,7 @@ const SIGNAL_ACTIONS: Record<
 }
 
 export async function handleSignals(action: string, args: Record<string, unknown>, config: GodotConfig) {
-  const projectPath = resolveProjectRoot(args.project_path, config.projectPath)
+  const projectPath = await resolveProjectRoot(args.project_path, config.projectPath)
 
   if (Object.hasOwn(SIGNAL_ACTIONS, action)) {
     const handler = SIGNAL_ACTIONS[action]

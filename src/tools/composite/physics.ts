@@ -19,7 +19,7 @@ export async function handlePhysics(action: string, args: Record<string, unknown
   switch (action) {
     case 'layers': {
       if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
-      const configPath = join(safeResolve(config.projectPath || process.cwd(), projectPath), 'project.godot')
+      const configPath = join(await safeResolve(config.projectPath || process.cwd(), projectPath), 'project.godot')
 
       const settings = await parseProjectSettingsAsync(configPath).catch((err) => {
         if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -53,7 +53,7 @@ export async function handlePhysics(action: string, args: Record<string, unknown
       const collisionLayer = args.collision_layer
       const collisionMask = args.collision_mask
 
-      const fullPath = safeResolve(safeResolve(config.projectPath || process.cwd(), projectPath), scenePath)
+      const fullPath = await safeResolve(await safeResolve(config.projectPath || process.cwd(), projectPath), scenePath)
 
       let content: string
       try {
@@ -94,7 +94,7 @@ export async function handlePhysics(action: string, args: Record<string, unknown
 
       validateNoNewlines(undefined, scenePath, nodeName)
 
-      const fullPath = safeResolve(safeResolve(config.projectPath || process.cwd(), projectPath), scenePath)
+      const fullPath = await safeResolve(await safeResolve(config.projectPath || process.cwd(), projectPath), scenePath)
 
       let content: string
       try {
@@ -137,7 +137,7 @@ export async function handlePhysics(action: string, args: Record<string, unknown
         throw new GodotMCPError('Invalid layer_number: must be a number', 'INVALID_ARGS')
       }
 
-      const configPath = join(safeResolve(config.projectPath || process.cwd(), projectPath), 'project.godot')
+      const configPath = join(await safeResolve(config.projectPath || process.cwd(), projectPath), 'project.godot')
 
       let content: string
       try {

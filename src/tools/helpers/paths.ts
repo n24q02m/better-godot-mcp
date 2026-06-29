@@ -1,4 +1,4 @@
-import { realpathSync } from 'node:fs'
+import { access, realpath } from 'node:fs/promises'
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
 import { GodotMCPError } from './errors.js'
 
@@ -8,17 +8,17 @@ import { GodotMCPError } from './errors.js'
  *
  * A plain lexical `resolve()` cannot see through symlinks or the macOS firmlink
  * layout (e.g. `/tmp` -> `/private/tmp`), so a containment check on lexical
- * paths alone can be bypassed. `realpathSync` would throw for paths that do not
+ * paths alone can be bypassed. `realpath` would throw for paths that do not
  * exist yet (the common "create a new file" case), so we canonicalize only the
  * portion that exists on disk and keep the rest lexical.
  */
-function canonicalize(targetPath: string): string {
+async function canonicalize(targetPath: string): Promise<string> {
   let current = resolve(targetPath)
   const tail: string[] = []
   // Walk up until we hit a component that exists on disk (or the filesystem root).
   for (;;) {
     try {
-      const real = realpathSync(current)
+      const real = await realpath(current)
       // Re-attach the non-existent remainder (if any) to the real prefix.
       return tail.length > 0 ? resolve(real, ...tail.reverse()) : real
     } catch {
@@ -46,7 +46,7 @@ function canonicalize(targetPath: string): string {
  * @returns The resolved absolute path
  * @throws GodotMCPError if the path attempts to traverse outside the base directory
  */
-export function safeResolve(baseDir: string, targetPath: string): string {
+export async function safeResolve(baseDir: string, targetPath: string): Promise<string> {
   // Lexically resolve the requested target first; this is what callers expect
   // back (it keeps not-yet-created paths intact for downstream file writes).
   const resolvedBase = resolve(baseDir)
@@ -54,8 +54,8 @@ export function safeResolve(baseDir: string, targetPath: string): string {
 
   // Canonicalize BOTH sides (realpath the existing portions) so the containment
   // check sees through symlinks/firmlinks rather than trusting lexical strings.
-  const canonicalBase = canonicalize(resolvedBase)
-  const canonicalTarget = canonicalize(resolvedTarget)
+  const canonicalBase = await canonicalize(resolvedBase)
+  const canonicalTarget = await canonicalize(resolvedTarget)
 
   // Calculate relative path from canonical base to canonical target.
   const relativePath = relative(canonicalBase, canonicalTarget)
@@ -91,15 +91,16 @@ export function safeResolve(baseDir: string, targetPath: string): string {
  *          subsequent per-file `safeResolve` calls
  * @throws GodotMCPError if `projectPathArg` escapes the trusted base
  */
-export function resolveProjectRoot(projectPathArg: unknown, trustedBase: string | null | undefined): string {
+export async function resolveProjectRoot(
+  projectPathArg: unknown,
+  trustedBase: string | null | undefined,
+): Promise<string> {
   const base = trustedBase || process.cwd()
   if (typeof projectPathArg === 'string' && projectPathArg.length > 0) {
-    return safeResolve(base, projectPathArg)
+    return await safeResolve(base, projectPathArg)
   }
   return resolve(base)
 }
-
-import { access } from 'node:fs/promises'
 
 /**
  * Asynchronously checks if a file or directory exists.

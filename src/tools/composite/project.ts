@@ -5,7 +5,6 @@
 
 import { execFileSync } from 'node:child_process'
 import { readFile, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
 import { execGodotAsync, runGodotProject } from '../../godot/headless.js'
 import type { GodotConfig, ProjectInfo } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
@@ -20,7 +19,7 @@ import { isValidPid, validatePid } from '../helpers/security.js'
 import { fastTrimRange, parseCommaSeparatedList } from '../helpers/strings.js'
 
 async function parseProjectGodot(projectPath: string): Promise<ProjectInfo> {
-  const configPath = join(projectPath, 'project.godot')
+  const configPath = safeResolve(projectPath, 'project.godot')
 
   let content: string
   try {
@@ -197,7 +196,7 @@ export async function handleProject(action: string, args: Record<string, unknown
       if (!key)
         throw new GodotMCPError('No key specified', 'INVALID_ARGS', 'Provide key (e.g., "application/config/name").')
 
-      const configPath = join(safeResolve(config.projectPath || process.cwd(), projectPath), 'project.godot')
+      const configPath = safeResolve(safeResolve(config.projectPath || process.cwd(), projectPath), 'project.godot')
 
       let settings: ProjectSettings
       try {
@@ -232,7 +231,7 @@ export async function handleProject(action: string, args: Record<string, unknown
         throw new GodotMCPError('Invalid value format', 'INVALID_ARGS', 'Value must not contain newlines.')
       }
 
-      const configPath = join(safeResolve(config.projectPath || process.cwd(), projectPath), 'project.godot')
+      const configPath = safeResolve(safeResolve(config.projectPath || process.cwd(), projectPath), 'project.godot')
 
       let content: string
       try {

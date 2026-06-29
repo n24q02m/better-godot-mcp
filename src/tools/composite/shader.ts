@@ -4,7 +4,7 @@
  */
 
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import { dirname } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
@@ -59,7 +59,7 @@ async function findShaderFiles(dir: string, results: string[] = []): Promise<str
       const name = entry.name
       if (name.startsWith('.') || name === 'node_modules' || name === 'build') continue
 
-      const fullPath = join(dir, name)
+      const fullPath = safeResolve(dir, name)
       if (entry.isDirectory()) {
         promises.push(findShaderFiles(fullPath, results))
       } else if (entry.isFile() && (name.endsWith('.gdshader') || name.endsWith('.gdshaderinc'))) {

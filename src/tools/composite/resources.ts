@@ -4,7 +4,7 @@
  */
 
 import { readdir, readFile, stat, unlink } from 'node:fs/promises'
-import { extname, join } from 'node:path'
+import { extname } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
@@ -51,7 +51,7 @@ async function findResourceFiles(
       const name = entry.name
       if (name.startsWith('.') || name === 'node_modules' || name === 'build') continue
 
-      const fullPath = join(dir, name)
+      const fullPath = safeResolve(dir, name)
       if (entry.isDirectory()) {
         promises.push(findResourceFiles(fullPath, exts, results).then(() => {}))
       } else if (name.includes('.') && exts.has(name.slice(name.lastIndexOf('.')).toLowerCase())) {

@@ -12,3 +12,7 @@
 **Vulnerability:** Action dispatchers in composite tools (e.g. `nodes.ts`, `signals.ts`) were using plain object lookups (e.g. `const handler = NODE_ACTIONS[action]`) without `Object.hasOwn()` checks.
 **Learning:** This exposes the server to prototype pollution or property injection, where an attacker could provide an `action` string like `toString` or `constructor`, causing the server to incorrectly evaluate `Object.prototype` methods as valid tool handlers, potentially leading to errors or crashes.
 **Prevention:** Always use `Object.hasOwn(ACTIONS, action)` to verify that the `action` is a direct property of the mapping object, rather than relying on standard property access or the `in` operator, before accessing the handler.
+## 2025-05-14 - Path Traversal Risk via Unsafe 'join' Usage
+**Vulnerability:** Path Traversal and Symlink Escape
+**Learning:** Using standard node:path `join()` on user-provided path components or during recursive directory traversal can be bypassed using symlinks or traversal characters.
+**Prevention:** Always use a canonicalizing and containment-checking resolver like `safeResolve()` for any path construction involving external input or recursive operations.

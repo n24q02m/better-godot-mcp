@@ -4,7 +4,7 @@
  */
 
 import { copyFile, mkdir, readdir, readFile, unlink, writeFile } from 'node:fs/promises'
-import { basename, dirname, join } from 'node:path'
+import { basename, dirname } from 'node:path'
 import type { GodotConfig, SceneInfo } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
@@ -21,7 +21,7 @@ async function findSceneFiles(dir: string, results: string[] = []): Promise<stri
       const name = entry.name
       if (name.startsWith('.') || name === 'node_modules' || name === 'build') continue
 
-      const fullPath = join(dir, name)
+      const fullPath = safeResolve(dir, name)
       if (entry.isDirectory()) {
         promises.push(findSceneFiles(fullPath, results))
       } else if (name.endsWith('.tscn')) {
@@ -217,7 +217,8 @@ export async function handleScenes(action: string, args: Record<string, unknown>
         throw new GodotMCPError('Invalid scene path', 'INVALID_ARGS', 'Scene path must not contain quotes or newlines.')
       }
 
-      const configPath = join(safeResolve(baseDir, projectPath as string), 'project.godot')
+      safeResolve(projectPath as string, scenePath)
+      const configPath = safeResolve(safeResolve(baseDir, projectPath as string), 'project.godot')
 
       // ⚡ Bolt: Using replaceAll('\\', '/') avoids RegExp allocation overhead
       const resPath = `res://${scenePath.replaceAll('\\', '/')}`

@@ -4,7 +4,6 @@
  */
 
 import { readFile, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
@@ -17,7 +16,7 @@ function resolveBusLayoutPath(projectPath: string | null | undefined, baseDir: s
   if (!projectPath) {
     throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
   }
-  return join(safeResolve(baseDir, projectPath), 'default_bus_layout.tres')
+  return safeResolve(safeResolve(baseDir, projectPath), 'default_bus_layout.tres')
 }
 
 /**

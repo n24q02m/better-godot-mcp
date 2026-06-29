@@ -3,11 +3,10 @@
  * Actions: status | set | detect_godot | check
  */
 
-import { join } from 'node:path'
 import { detectGodot, isExecutable, isVersionSupported, tryGetVersion } from '../../godot/detector.js'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
-import { pathExists } from '../helpers/paths.js'
+import { pathExists, safeResolve } from '../helpers/paths.js'
 
 // Mutable runtime config
 const runtimeConfig: Record<string, string> = {}
@@ -55,7 +54,7 @@ export async function handleConfig(action: string, args: Record<string, unknown>
 
       // Validate before updating runtimeConfig to avoid storing invalid values
       if (key === 'project_path') {
-        if (!(await pathExists(join(value, 'project.godot')))) {
+        if (!(await pathExists(safeResolve(value, 'project.godot')))) {
           throw new GodotMCPError(
             'Invalid project path',
             'INVALID_ARGS',
@@ -131,7 +130,7 @@ export async function handleConfig(action: string, args: Record<string, unknown>
               path: projectPath,
               // Performance optimization: using async pathExists instead of existsSync
               // to avoid blocking the Node.js event loop during I/O operations
-              valid: await pathExists(join(projectPath, 'project.godot')),
+              valid: await pathExists(safeResolve(projectPath, 'project.godot')),
             }
           : { path: null },
       }

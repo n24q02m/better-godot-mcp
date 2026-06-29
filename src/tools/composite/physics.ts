@@ -4,7 +4,6 @@
  */
 
 import { readFile, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { toGodotValue } from '../helpers/godot-types.js'
@@ -19,7 +18,7 @@ export async function handlePhysics(action: string, args: Record<string, unknown
   switch (action) {
     case 'layers': {
       if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
-      const configPath = join(safeResolve(config.projectPath || process.cwd(), projectPath), 'project.godot')
+      const configPath = safeResolve(safeResolve(config.projectPath || process.cwd(), projectPath), 'project.godot')
 
       const settings = await parseProjectSettingsAsync(configPath).catch((err) => {
         if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -137,7 +136,7 @@ export async function handlePhysics(action: string, args: Record<string, unknown
         throw new GodotMCPError('Invalid layer_number: must be a number', 'INVALID_ARGS')
       }
 
-      const configPath = join(safeResolve(config.projectPath || process.cwd(), projectPath), 'project.godot')
+      const configPath = safeResolve(safeResolve(config.projectPath || process.cwd(), projectPath), 'project.godot')
 
       let content: string
       try {

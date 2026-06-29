@@ -77,4 +77,54 @@ describe('logger', () => {
     logger.info('message', data, 123)
     expect(spy).toHaveBeenCalledWith(expect.stringContaining('message'), data, 123)
   })
+
+  it('should be case-sensitive for DEBUG environment variable', async () => {
+    vi.stubEnv('DEBUG', 'TRUE')
+    vi.stubEnv('NODE_ENV', 'production')
+
+    const { logger } = await import('../../src/tools/helpers/logger.js')
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    logger.debug('test debug message')
+    expect(spy).not.toHaveBeenCalled()
+  })
+
+  it('should not enable debug for numeric strings like "1"', async () => {
+    vi.stubEnv('DEBUG', '1')
+    vi.stubEnv('NODE_ENV', 'production')
+
+    const { logger } = await import('../../src/tools/helpers/logger.js')
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    logger.debug('test debug message')
+    expect(spy).not.toHaveBeenCalled()
+  })
+
+  it('should handle undefined environment variables gracefully', async () => {
+    // biome-ignore lint/suspicious/noExplicitAny: needed to test undefined env vars
+    vi.stubEnv('DEBUG', undefined as any)
+    // biome-ignore lint/suspicious/noExplicitAny: needed to test undefined env vars
+    vi.stubEnv('NODE_ENV', undefined as any)
+
+    const { logger } = await import('../../src/tools/helpers/logger.js')
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    logger.debug('test debug message')
+    expect(spy).not.toHaveBeenCalled()
+
+    logger.info('still works')
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining('still works'))
+  })
+
+  it('should handle circular references in arguments', async () => {
+    const { logger } = await import('../../src/tools/helpers/logger.js')
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const circular: Record<string, unknown> = { name: 'circular' }
+    circular.self = circular
+
+    // console.error handles this, we just want to ensure our wrapper doesn't throw
+    expect(() => logger.info('circular test', circular)).not.toThrow()
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining('circular test'), circular)
+  })
 })

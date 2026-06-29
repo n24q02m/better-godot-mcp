@@ -153,20 +153,45 @@ export async function handleShader(action: string, args: Record<string, unknown>
         const content = await readFile(fullPath, 'utf-8')
         const params: { name: string; type: string; hint?: string; default?: string }[] = []
 
-        const uniformRegex = /uniform\s+(\w+)\s+(\w+)(?:\s*:\s*(\w+(?:\([^)]*\))?))?(?:\s*=\s*([^;]+))?;/g
-        for (const match of content.matchAll(uniformRegex)) {
-          params.push({
-            type: match[1],
-            name: match[2],
-            hint: match[3],
-            default: match[4]?.trim(),
-          })
+        // ⚡ Bolt: Using a single-pass loop with indexOf to find uniforms and shader_type.
+        // This avoids redundant full-file scans by the regex engine.
+        let shaderType = 'unknown'
+        const typeIdx = content.indexOf('shader_type')
+        if (typeIdx !== -1) {
+          const typeLineEnd = content.indexOf(';', typeIdx)
+          if (typeLineEnd !== -1) {
+            const typeMatch = content.substring(typeIdx, typeLineEnd).match(/shader_type\s+(\w+)/)
+            if (typeMatch) shaderType = typeMatch[1]
+          }
         }
 
-        const typeMatch = content.match(/shader_type\s+(\w+);/)
+        const uniformRegex = /uniform\s+(\w+)\s+(\w+)(?:\s*:\s*(\w+(?:\([^)]*\))?))?(?:\s*=\s*([^;]+))?;/
+        let pos = 0
+        while (true) {
+          const uniformIdx = content.indexOf('uniform', pos)
+          if (uniformIdx === -1) break
+
+          const nextSemicolon = content.indexOf(';', uniformIdx)
+          if (nextSemicolon === -1) break
+
+          const segment = content.substring(uniformIdx, nextSemicolon + 1)
+          const match = segment.match(uniformRegex)
+
+          if (match) {
+            params.push({
+              type: match[1],
+              name: match[2],
+              hint: match[3],
+              default: match[4]?.trim(),
+            })
+          }
+
+          pos = nextSemicolon + 1
+        }
+
         return formatJSON({
           shader: shaderPath,
-          shaderType: typeMatch?.[1] || 'unknown',
+          shaderType,
           params,
         })
       } catch (error: unknown) {

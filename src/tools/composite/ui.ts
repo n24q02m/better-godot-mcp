@@ -8,7 +8,7 @@ import { dirname } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists, resolveProjectRoot, safeResolve } from '../helpers/paths.js'
-import { parseScene, updateNodeInScene } from '../helpers/scene-parser.js'
+import { parseScene, updateNodeInScene, validateAndFormatTscnProperties } from '../helpers/scene-parser.js'
 
 const CONTROL_TEMPLATES: Record<string, Record<string, string>> = {
   Button: { text: '"Click"' },
@@ -115,27 +115,7 @@ async function handleCreateControl(projectPath: string, args: Record<string, unk
   }
 
   // Add custom properties
-  if (args.properties !== undefined) {
-    if (typeof args.properties !== 'object' || args.properties === null || Array.isArray(args.properties)) {
-      throw new GodotMCPError(
-        'Invalid properties format',
-        'INVALID_ARGS',
-        'properties must be an object with string keys and values.',
-      )
-    }
-    for (const [key, value] of Object.entries(args.properties)) {
-      if (typeof key !== 'string' || typeof value !== 'string') {
-        throw new GodotMCPError('Invalid property value', 'INVALID_ARGS', 'Property keys and values must be strings.')
-      }
-      if (key.includes('=') || key.includes('\n') || key.includes('\r')) {
-        throw new GodotMCPError('Invalid property key', 'INVALID_ARGS', 'Property keys must not contain "=", newlines.')
-      }
-      if (value.includes('\n') || value.includes('\r')) {
-        throw new GodotMCPError('Invalid property value', 'INVALID_ARGS', 'Property values must not contain newlines.')
-      }
-      nodeDecl += `${key} = ${value}\n`
-    }
-  }
+  nodeDecl += validateAndFormatTscnProperties(args.properties)
 
   content = `${content.trimEnd()}\n${nodeDecl}`
   await writeFile(fullPath, content, 'utf-8')

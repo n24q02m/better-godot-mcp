@@ -12,6 +12,7 @@
  */
 
 import { readFile } from 'node:fs/promises'
+import { GodotMCPError } from './errors.js'
 import { fastTrimRange, parseCommaSeparatedList } from './strings.js'
 
 /**
@@ -542,4 +543,35 @@ export function setNodePropertyInContent(content: string, nodeName: string, prop
 export function getNodeProperty(scene: ParsedScene, nodeName: string, property: string): string | undefined {
   const node = findNode(scene, nodeName)
   return node?.properties[property]
+}
+
+/**
+ * Validates and formats properties for inclusion in a .tscn or .tres file.
+ * Used by tools that add nodes or resources with custom properties.
+ */
+export function validateAndFormatTscnProperties(properties: unknown): string {
+  if (properties === undefined) return ''
+
+  if (typeof properties !== 'object' || properties === null || Array.isArray(properties)) {
+    throw new GodotMCPError(
+      'Invalid properties format',
+      'INVALID_ARGS',
+      'properties must be an object with string keys and values.',
+    )
+  }
+
+  let result = ''
+  for (const [key, value] of Object.entries(properties)) {
+    if (typeof key !== 'string' || typeof value !== 'string') {
+      throw new GodotMCPError('Invalid property value', 'INVALID_ARGS', 'Property keys and values must be strings.')
+    }
+    if (key.includes('=') || key.includes('\n') || key.includes('\r')) {
+      throw new GodotMCPError('Invalid property key', 'INVALID_ARGS', 'Property keys must not contain "=", newlines.')
+    }
+    if (value.includes('\n') || value.includes('\r')) {
+      throw new GodotMCPError('Invalid property value', 'INVALID_ARGS', 'Property values must not contain newlines.')
+    }
+    result += `${key} = ${value}\n`
+  }
+  return result
 }

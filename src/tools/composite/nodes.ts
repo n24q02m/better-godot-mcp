@@ -13,6 +13,7 @@ import {
   removeNodeFromContent,
   renameNodeInContent,
   setNodePropertyInContent,
+  validateAndFormatTscnProperties,
 } from '../helpers/scene-parser.js'
 
 function resolveScenePath(projectPath: string, scenePath: string): string {
@@ -115,30 +116,9 @@ async function handleAddNode(projectPath: string, args: Record<string, unknown>)
   }
 
   const parentAttr = parent === '.' ? '' : ` parent="${parent}"`
-  let nodeDecl = `\n[node name="${nodeName}" type="${nodeType}"${parentAttr}]\n`
-
-  // Handle properties parsing
-  if (args.properties !== undefined) {
-    if (typeof args.properties !== 'object' || args.properties === null || Array.isArray(args.properties)) {
-      throw new GodotMCPError(
-        'Invalid properties format',
-        'INVALID_ARGS',
-        'properties must be an object with string keys and values.',
-      )
-    }
-    for (const [key, value] of Object.entries(args.properties)) {
-      if (typeof key !== 'string' || typeof value !== 'string') {
-        throw new GodotMCPError('Invalid property value', 'INVALID_ARGS', 'Property keys and values must be strings.')
-      }
-      if (key.includes('=') || key.includes('\n') || key.includes('\r')) {
-        throw new GodotMCPError('Invalid property key', 'INVALID_ARGS', 'Property keys must not contain "=", newlines.')
-      }
-      if (value.includes('\n') || value.includes('\r')) {
-        throw new GodotMCPError('Invalid property value', 'INVALID_ARGS', 'Property values must not contain newlines.')
-      }
-      nodeDecl += `${key} = ${value}\n`
-    }
-  }
+  const nodeDecl = `\n[node name="${nodeName}" type="${nodeType}"${parentAttr}]\n${validateAndFormatTscnProperties(
+    args.properties,
+  )}`
 
   const updated = `${content.trimEnd()}\n${nodeDecl}`
   await writeFile(fullPath, updated, 'utf-8')

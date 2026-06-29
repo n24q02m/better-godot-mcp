@@ -49,3 +49,6 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## 2025-02-12 - [FIX] Extract string trim logic to helper
 **Learning:** Manual string trimming loops (`while (charCodeAt(i) <= 32)`) were duplicated across multiple structural parsers (`input-map.ts`, `project-settings.ts`, `scene-parser.ts`, `project.ts`). Centralizing this into a `fastTrimRange` helper reduces code duplication and ensures consistent whitespace handling across the codebase while maintaining zero-allocation performance.
 **Action:** Use `fastTrimRange(str, start, end)` in `src/tools/helpers/strings.ts` for any future structural parsers that need to handle Godot-style whitespace trimming within string ranges.
+## 2025-05-14 - Centralized Godot property validation
+**Learning:** Duplicated property validation for Godot .tscn/.tres files across multiple tools (nodes, ui) increases maintenance risk and potential for inconsistent validation rules.
+**Action:** Centralized .tscn property validation and formatting into a shared helper `validateAndFormatTscnProperties` in `scene-parser.ts` to ensure consistent security (newline/equals injection prevention) and reduce code churn.

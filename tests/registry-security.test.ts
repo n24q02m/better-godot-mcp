@@ -144,6 +144,19 @@ describe('registerTools security integration', () => {
     expect(result.content[0].text).not.toContain('<untrusted_godot_content>')
   })
 
+  it('should reject Object.prototype properties as unknown tools', async () => {
+    const maliciousNames = ['toString', 'valueOf', 'constructor', '__proto__']
+    for (const name of maliciousNames) {
+      const result = (await callToolHandler?.({
+        params: { name, arguments: {} },
+      })) as { isError: boolean; content: Array<{ text: string }> }
+
+      expect(result.isError).toBe(true)
+      expect(result.content[0].text).toContain(`Unknown tool: ${name}`)
+      expect(result.content[0].text).not.toContain('<untrusted_godot_content>')
+    }
+  })
+
   it('should suggest closest match for unknown tool', async () => {
     const result = (await callToolHandler?.({
       params: { name: 'scrip', arguments: {} },

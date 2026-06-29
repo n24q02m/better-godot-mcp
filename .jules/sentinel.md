@@ -17,3 +17,7 @@
 **Vulnerability:** Inadequate PID validation could lead to argument injection or errors when interacting with system processes.
 **Learning:** Checking only for type 'number' is insufficient as it includes NaN, Infinity, and non-integers. Godot process management requires safe, positive integers.
 **Prevention:** Use `Number.isSafeInteger(pid) && pid > 0` and verify the type is strictly `number` to ensure system stability and security.
+## 2024-10-24 - Prototype Pollution in Tool Registry
+**Vulnerability:** The central `TOOL_HANDLERS` object mapping in `src/tools/registry.ts` accessed handler objects using plain object lookup (`const handler = TOOL_HANDLERS[name]`).
+**Learning:** Plain property accesses on objects expose them to prototype pollution attacks, where input representing an action or tool matching an `Object.prototype` key (like `toString` or `constructor`) can result in the lookup successfully returning a built-in method rather than throwing an unknown tool error. This bypasses validation logic and may lead to crashes if the runtime attempts to invoke `toString` as if it were a tool handler function.
+**Prevention:** Always wrap key lookups on unverified user input against plain object maps using `Object.hasOwn(obj, key)` before accessing and invoking values as functions.

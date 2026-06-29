@@ -604,7 +604,7 @@ export function registerTools(server: Server, config: GodotConfig): void {
           args as Record<string, unknown>,
         )
       } else {
-        const handler = TOOL_HANDLERS[name]
+        const handler = Object.hasOwn(TOOL_HANDLERS, name) ? TOOL_HANDLERS[name] : undefined
         if (!handler) {
           const validTools = TOOLS.map((t) => t.name)
           const closest = findClosestMatch(name, validTools)

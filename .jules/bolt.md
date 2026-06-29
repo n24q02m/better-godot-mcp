@@ -49,3 +49,7 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## 2025-02-12 - [FIX] Extract string trim logic to helper
 **Learning:** Manual string trimming loops (`while (charCodeAt(i) <= 32)`) were duplicated across multiple structural parsers (`input-map.ts`, `project-settings.ts`, `scene-parser.ts`, `project.ts`). Centralizing this into a `fastTrimRange` helper reduces code duplication and ensures consistent whitespace handling across the codebase while maintaining zero-allocation performance.
 **Action:** Use `fastTrimRange(str, start, end)` in `src/tools/helpers/strings.ts` for any future structural parsers that need to handle Godot-style whitespace trimming within string ranges.
+
+## 2025-06-25 - [Optimize redundant pathExists checks in scripts tool]
+**Learning:** Sequential `pathExists` followed by I/O operations like `readFile`, `writeFile`, or `unlink` causes redundant filesystem calls, which can impact performance. Additionally, checking `pathExists` before creating a file is not atomic.
+**Action:** Replaced `pathExists` followed by `readFile`/`unlink` with direct `readFile`/`unlink` wrapped in a `try...catch` handling `ENOENT`. Replaced `pathExists` + `writeFile` with `writeFile` using `flag: 'wx'` to atomically check for existence and create the file, catching `EEXIST`. Applied in `src/tools/composite/scripts.ts`.

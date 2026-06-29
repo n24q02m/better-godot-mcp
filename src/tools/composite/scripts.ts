@@ -7,7 +7,7 @@ import { mkdir, readdir, readFile, unlink, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
-import { pathExists, safeResolve } from '../helpers/paths.js'
+import { safeResolve } from '../helpers/paths.js'
 import { parseSceneContent, updateNodeInScene } from '../helpers/scene-parser.js'
 
 const SCRIPT_TEMPLATES: Record<string, string> = {
@@ -134,16 +134,20 @@ async function createScript(args: Record<string, unknown>, resolvePath: (path: s
   const content = (args.content as string) || getTemplate(extendsType)
 
   const fullPath = resolvePath(scriptPath)
-  if (await pathExists(fullPath)) {
-    throw new GodotMCPError(
-      `Script already exists: ${scriptPath}`,
-      'SCRIPT_ERROR',
-      'Use write action to modify existing scripts.',
-    )
-  }
-
   await mkdir(dirname(fullPath), { recursive: true })
-  await writeFile(fullPath, content, 'utf-8')
+  try {
+    // ⚡ Bolt: Using 'wx' flag to atomically check for existence and create file, reducing redundant I/O calls
+    await writeFile(fullPath, content, { encoding: 'utf-8', flag: 'wx' })
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+      throw new GodotMCPError(
+        `Script already exists: ${scriptPath}`,
+        'SCRIPT_ERROR',
+        'Use write action to modify existing scripts.',
+      )
+    }
+    throw error
+  }
   return formatSuccess(`Created script: ${scriptPath}\nExtends: ${extendsType}`)
 }
 
@@ -152,10 +156,16 @@ async function readScript(args: Record<string, unknown>, resolvePath: (path: str
   if (!scriptPath) throw new GodotMCPError('No script_path specified', 'INVALID_ARGS', 'Provide script_path.')
 
   const fullPath = resolvePath(scriptPath)
-  if (!(await pathExists(fullPath)))
-    throw new GodotMCPError(`Script not found: ${scriptPath}`, 'SCRIPT_ERROR', 'Check the file path.')
-
-  const content = await readFile(fullPath, 'utf-8')
+  let content: string
+  try {
+    // ⚡ Bolt: Using try-to-perform instead of pathExists to reduce redundant I/O calls
+    content = await readFile(fullPath, 'utf-8')
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new GodotMCPError(`Script not found: ${scriptPath}`, 'SCRIPT_ERROR', 'Check the file path.')
+    }
+    throw error
+  }
   return formatSuccess(`File: ${scriptPath}\n\n${content}`)
 }
 
@@ -200,10 +210,16 @@ async function attachScript(args: Record<string, unknown>, resolvePath: (path: s
   }
 
   const sceneFullPath = resolvePath(scenePath)
-  if (!(await pathExists(sceneFullPath)))
-    throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Create the scene first.')
-
-  const content = await readFile(sceneFullPath, 'utf-8')
+  let content: string
+  try {
+    // ⚡ Bolt: Using try-to-perform instead of pathExists to reduce redundant I/O calls
+    content = await readFile(sceneFullPath, 'utf-8')
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Create the scene first.')
+    }
+    throw error
+  }
   // ⚡ Bolt: Using replaceAll('\\', '/') avoids RegExp allocation overhead
   const resPath = `res://${scriptPath.replaceAll('\\', '/')}`
 
@@ -255,10 +271,15 @@ async function deleteScript(args: Record<string, unknown>, resolvePath: (path: s
   if (!scriptPath) throw new GodotMCPError('No script_path specified', 'INVALID_ARGS', 'Provide script_path to delete.')
 
   const fullPath = resolvePath(scriptPath)
-  if (!(await pathExists(fullPath)))
-    throw new GodotMCPError(`Script not found: ${scriptPath}`, 'SCRIPT_ERROR', 'Check the file path.')
-
-  await unlink(fullPath)
+  try {
+    // ⚡ Bolt: Using try-to-perform instead of pathExists to reduce redundant I/O calls
+    await unlink(fullPath)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new GodotMCPError(`Script not found: ${scriptPath}`, 'SCRIPT_ERROR', 'Check the file path.')
+    }
+    throw error
+  }
   return formatSuccess(`Deleted script: ${scriptPath}`)
 }
 

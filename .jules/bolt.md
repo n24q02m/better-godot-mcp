@@ -49,3 +49,7 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## 2025-02-12 - [FIX] Extract string trim logic to helper
 **Learning:** Manual string trimming loops (`while (charCodeAt(i) <= 32)`) were duplicated across multiple structural parsers (`input-map.ts`, `project-settings.ts`, `scene-parser.ts`, `project.ts`). Centralizing this into a `fastTrimRange` helper reduces code duplication and ensures consistent whitespace handling across the codebase while maintaining zero-allocation performance.
 **Action:** Use `fastTrimRange(str, start, end)` in `src/tools/helpers/strings.ts` for any future structural parsers that need to handle Godot-style whitespace trimming within string ranges.
+
+## 2025-05-14 - Asynchronous Godot binary detection
+**Learning:** Synchronous file access and process execution in the Godot binary detector can block the Node.js event loop, especially when checking multiple potential paths or reading large binaries for signatures.
+**Action:** Use `node:fs/promises` and `promisify(execFile)` to make the entire detection chain asynchronous. This allows the MCP server to remain responsive during the initialization and configuration phases.

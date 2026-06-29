@@ -11,6 +11,15 @@ const DEFAULT_TIMEOUT_MS = 30_000
 const execFileAsync = promisify(execFile)
 
 /**
+ * Validates that an argument does not start with a hyphen to prevent flag injection.
+ */
+function validateArg(name: string, value: string | undefined): void {
+  if (value?.trim().startsWith('-')) {
+    throw new Error(`Invalid ${name}: must not start with a hyphen to prevent argument injection.`)
+  }
+}
+
+/**
  * Execute a Godot command and capture output
  */
 export function execGodotSync(
@@ -18,6 +27,7 @@ export function execGodotSync(
   args: string[],
   options?: { timeout?: number; cwd?: string },
 ): HeadlessResult {
+  validateArg('godotPath', godotPath)
   const timeout = options?.timeout ?? DEFAULT_TIMEOUT_MS
 
   const result = spawnSync(godotPath, args, {
@@ -58,6 +68,7 @@ export async function execGodotAsync(
   args: string[],
   options?: { timeout?: number; cwd?: string },
 ): Promise<HeadlessResult> {
+  validateArg('godotPath', godotPath)
   const timeout = options?.timeout ?? DEFAULT_TIMEOUT_MS
 
   try {
@@ -98,6 +109,12 @@ export function runGodotProject(
   projectPath: string,
   scenePath?: string,
 ): { pid: number | undefined } {
+  validateArg('godotPath', godotPath)
+  validateArg('projectPath', projectPath)
+  if (scenePath) {
+    validateArg('scenePath', scenePath)
+  }
+
   const args = ['--path', projectPath]
   if (scenePath) {
     args.push(scenePath)
@@ -117,6 +134,9 @@ export function runGodotProject(
  * Launch Godot editor (non-blocking)
  */
 export function launchGodotEditor(godotPath: string, projectPath: string): { pid: number | undefined } {
+  validateArg('godotPath', godotPath)
+  validateArg('projectPath', projectPath)
+
   const child = spawn(godotPath, ['--editor', '--path', projectPath], {
     detached: true,
     stdio: 'ignore',

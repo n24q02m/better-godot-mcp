@@ -109,37 +109,112 @@ export async function parseScene(filePath: string): Promise<ParsedScene> {
 }
 
 /**
+ * Internal state for the scene parser
+ */
+interface ParseContext {
+  header: TscnHeader
+  extResources: ExtResource[]
+  subResources: SubResource[]
+  nodes: SceneNodeInfo[]
+  connections: SignalConnection[]
+  nodesByPath: Map<string, SceneNodeInfo>
+  nodesByName: Map<string, SceneNodeInfo>
+  connectionsKeyed: Map<string, SignalConnection>
+  currentSection: 'header' | 'ext_resource' | 'sub_resource' | 'node' | 'connection' | null
+  currentNode: SceneNodeInfo | null
+  currentSubResource: SubResource | null
+}
+
+/**
+ * Save the currently pending node or sub-resource to the context
+ */
+function savePendingSection(ctx: ParseContext): void {
+  if (ctx.currentNode) {
+    ctx.nodes.push(ctx.currentNode)
+    // Populate maps
+    const pathKey = `${ctx.currentNode.parent || '.'}:${ctx.currentNode.name}`
+    ctx.nodesByPath.set(pathKey, ctx.currentNode)
+    if (!ctx.nodesByName.has(ctx.currentNode.name)) {
+      ctx.nodesByName.set(ctx.currentNode.name, ctx.currentNode)
+    }
+    ctx.currentNode = null
+  }
+  if (ctx.currentSubResource) {
+    ctx.subResources.push(ctx.currentSubResource)
+    ctx.currentSubResource = null
+  }
+}
+
+/**
+ * Handle a section header line [section_name ...]
+ */
+function handleSectionHeader(line: string, ctx: ParseContext): void {
+  savePendingSection(ctx)
+
+  const secondChar = line.charCodeAt(1)
+
+  if (secondChar === 103) {
+    // 'g' -> [gd_scene
+    ctx.currentSection = 'header'
+    parseHeader(line, ctx.header)
+  } else if (secondChar === 101) {
+    // 'e' -> [ext_resource
+    ctx.currentSection = 'ext_resource'
+    const res = parseExtResource(line)
+    if (res) ctx.extResources.push(res)
+  } else if (secondChar === 115) {
+    // 's' -> [sub_resource
+    ctx.currentSection = 'sub_resource'
+    ctx.currentSubResource = parseSubResource(line)
+  } else if (secondChar === 110) {
+    // 'n' -> [node
+    ctx.currentSection = 'node'
+    ctx.currentNode = parseNode(line)
+  } else if (secondChar === 99) {
+    // 'c' -> [connection
+    ctx.currentSection = 'connection'
+    const conn = parseConnection(line)
+    if (conn) {
+      ctx.connections.push(conn)
+      // Populate connections map
+      const connKey = `${conn.signal}:${conn.from}:${conn.to}:${conn.method}`
+      ctx.connectionsKeyed.set(connKey, conn)
+    }
+  }
+}
+
+/**
+ * Handle a property line (key = value) within a section
+ */
+function handlePropertyLine(content: string, start: number, end: number, ctx: ParseContext): void {
+  if (ctx.currentSection === 'node' || ctx.currentSection === 'sub_resource') {
+    const target = ctx.currentSection === 'node' ? ctx.currentNode?.properties : ctx.currentSubResource?.properties
+    if (target) {
+      parseProperty(content, start, end, target)
+    }
+  }
+}
+
+/**
  * Parse .tscn content string into structured data
  */
 export function parseSceneContent(content: string): ParsedScene {
-  const header: TscnHeader = { format: 3, loadSteps: 1 }
-  const extResources: ExtResource[] = []
-  const subResources: SubResource[] = []
-  const nodes: SceneNodeInfo[] = []
-  const connections: SignalConnection[] = []
-  const nodesByPath = new Map<string, SceneNodeInfo>()
-  const nodesByName = new Map<string, SceneNodeInfo>()
-  const connectionsKeyed = new Map<string, SignalConnection>()
-
-  let currentSection: 'header' | 'ext_resource' | 'sub_resource' | 'node' | 'connection' | null = null
-  let currentNode: SceneNodeInfo | null = null
-  let currentSubResource: SubResource | null = null
+  const ctx: ParseContext = {
+    header: { format: 3, loadSteps: 1 },
+    extResources: [],
+    subResources: [],
+    nodes: [],
+    connections: [],
+    nodesByPath: new Map(),
+    nodesByName: new Map(),
+    connectionsKeyed: new Map(),
+    currentSection: null,
+    currentNode: null,
+    currentSubResource: null,
+  }
 
   let startIndex = 0
   const len = content.length
-
-  const saveCurrentNode = () => {
-    if (currentNode) {
-      nodes.push(currentNode)
-      // Populate maps
-      const pathKey = `${currentNode.parent || '.'}:${currentNode.name}`
-      nodesByPath.set(pathKey, currentNode)
-      if (!nodesByName.has(currentNode.name)) {
-        nodesByName.set(currentNode.name, currentNode)
-      }
-      currentNode = null
-    }
-  }
 
   while (startIndex < len) {
     let endIndex = content.indexOf('\n', startIndex)
@@ -153,48 +228,10 @@ export function parseSceneContent(content: string): ParsedScene {
       // Skip comments starting with ';'
       if (firstChar !== 59) {
         if (firstChar === 91) {
-          // '[' character indicates a new section
-          // Save previous node/sub_resource
-          saveCurrentNode()
-          if (currentSubResource) subResources.push(currentSubResource)
-          currentSubResource = null
-
-          const secondChar = content.charCodeAt(start + 1)
           const line = content.slice(start, end)
-
-          if (secondChar === 103) {
-            // 'g' -> [gd_scene
-            currentSection = 'header'
-            parseHeader(line, header)
-          } else if (secondChar === 101) {
-            // 'e' -> [ext_resource
-            currentSection = 'ext_resource'
-            const res = parseExtResource(line)
-            if (res) extResources.push(res)
-          } else if (secondChar === 115) {
-            // 's' -> [sub_resource
-            currentSection = 'sub_resource'
-            currentSubResource = parseSubResource(line)
-          } else if (secondChar === 110) {
-            // 'n' -> [node
-            currentSection = 'node'
-            currentNode = parseNode(line)
-          } else if (secondChar === 99) {
-            // 'c' -> [connection
-            currentSection = 'connection'
-            const conn = parseConnection(line)
-            if (conn) {
-              connections.push(conn)
-              // Populate connections map
-              const connKey = `${conn.signal}:${conn.from}:${conn.to}:${conn.method}`
-              connectionsKeyed.set(connKey, conn)
-            }
-          }
-        } else if (currentSection === 'node' || currentSection === 'sub_resource') {
-          const target = currentSection === 'node' ? currentNode?.properties : currentSubResource?.properties
-          if (target) {
-            parseProperty(content, start, end, target)
-          }
+          handleSectionHeader(line, ctx)
+        } else {
+          handlePropertyLine(content, start, end, ctx)
         }
       }
     }
@@ -203,19 +240,18 @@ export function parseSceneContent(content: string): ParsedScene {
   }
 
   // Save last pending section
-  saveCurrentNode()
-  if (currentSubResource) subResources.push(currentSubResource)
+  savePendingSection(ctx)
 
   return {
-    header,
-    extResources,
-    subResources,
-    nodes,
-    connections,
+    header: ctx.header,
+    extResources: ctx.extResources,
+    subResources: ctx.subResources,
+    nodes: ctx.nodes,
+    connections: ctx.connections,
     raw: content,
-    nodesByPath,
-    nodesByName,
-    connectionsKeyed,
+    nodesByPath: ctx.nodesByPath,
+    nodesByName: ctx.nodesByName,
+    connectionsKeyed: ctx.connectionsKeyed,
   }
 }
 

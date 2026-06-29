@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { validateNoNewlines, wrapToolResult } from '../../src/tools/helpers/security.js'
+import { isValidPid, validateNoNewlines, validatePid, wrapToolResult } from '../../src/tools/helpers/security.js'
 
 describe('security', () => {
   // ==========================================
@@ -108,6 +108,58 @@ describe('security', () => {
 
     it('should use custom message when provided', () => {
       expect(() => validateNoNewlines('Custom error message', 'has\nnewline')).toThrow('Custom error message')
+    })
+  })
+
+  // ==========================================
+  // isValidPid
+  // ==========================================
+  describe('isValidPid', () => {
+    it('should return true for positive safe integers', () => {
+      expect(isValidPid(1)).toBe(true)
+      expect(isValidPid(1234)).toBe(true)
+      expect(isValidPid(Number.MAX_SAFE_INTEGER)).toBe(true)
+    })
+
+    it('should return false for zero and negative numbers', () => {
+      expect(isValidPid(0)).toBe(false)
+      expect(isValidPid(-1)).toBe(false)
+    })
+
+    it('should return false for non-integers', () => {
+      expect(isValidPid(1.5)).toBe(false)
+      expect(isValidPid(Math.PI)).toBe(false)
+    })
+
+    it('should return false for non-number types', () => {
+      expect(isValidPid('123')).toBe(false)
+      expect(isValidPid(true)).toBe(false)
+      expect(isValidPid({})).toBe(false)
+      expect(isValidPid(null)).toBe(false)
+      expect(isValidPid(undefined)).toBe(false)
+    })
+
+    it('should return false for NaN and Infinity', () => {
+      expect(isValidPid(Number.NaN)).toBe(false)
+      expect(isValidPid(Number.POSITIVE_INFINITY)).toBe(false)
+    })
+  })
+
+  // ==========================================
+  // validatePid
+  // ==========================================
+  describe('validatePid', () => {
+    it('should not throw for valid PIDs', () => {
+      expect(() => validatePid(123)).not.toThrow()
+    })
+
+    it('should throw for invalid PIDs with default message', () => {
+      expect(() => validatePid(0)).toThrow('Invalid PID: 0')
+      expect(() => validatePid('not a pid')).toThrow('Invalid PID: not a pid')
+    })
+
+    it('should throw for invalid PIDs with custom message', () => {
+      expect(() => validatePid(-5, 'Bad PID')).toThrow('Bad PID')
     })
   })
 })

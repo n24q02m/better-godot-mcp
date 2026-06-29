@@ -12,3 +12,8 @@
 **Vulnerability:** Action dispatchers in composite tools (e.g. `nodes.ts`, `signals.ts`) were using plain object lookups (e.g. `const handler = NODE_ACTIONS[action]`) without `Object.hasOwn()` checks.
 **Learning:** This exposes the server to prototype pollution or property injection, where an attacker could provide an `action` string like `toString` or `constructor`, causing the server to incorrectly evaluate `Object.prototype` methods as valid tool handlers, potentially leading to errors or crashes.
 **Prevention:** Always use `Object.hasOwn(ACTIONS, action)` to verify that the `action` is a direct property of the mapping object, rather than relying on standard property access or the `in` operator, before accessing the handler.
+
+## 2025-05-15 - [PID Validation Security]
+**Vulnerability:** Inadequate PID validation could lead to argument injection or errors when interacting with system processes.
+**Learning:** Checking only for type 'number' is insufficient as it includes NaN, Infinity, and non-integers. Godot process management requires safe, positive integers.
+**Prevention:** Use `Number.isSafeInteger(pid) && pid > 0` and verify the type is strictly `number` to ensure system stability and security.

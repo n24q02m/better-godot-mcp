@@ -260,9 +260,18 @@ async function handleListControls(projectPath: string, args: Record<string, unkn
 
   const controls: { name: string; type: string; parent: string }[] = []
 
-  for (const node of scene.nodes) {
-    if (node.type && CONTROL_TYPES.has(node.type)) {
-      controls.push({ name: node.name, type: node.type, parent: node.parent || '(root)' })
+  // ⚡ Bolt: Optimized lookup using nodesByType index instead of linear scan.
+  // This reduces search space from O(N) to O(C), where C is the number of Control nodes.
+  for (const type of CONTROL_TYPES) {
+    const nodes = scene.nodesByType.get(type)
+    if (nodes) {
+      for (const node of nodes) {
+        controls.push({
+          name: node.name,
+          type: node.type as string,
+          parent: node.parent || '(root)',
+        })
+      }
     }
   }
 

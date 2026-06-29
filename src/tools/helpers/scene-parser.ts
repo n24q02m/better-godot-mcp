@@ -96,6 +96,8 @@ export interface ParsedScene {
   nodesByPath: Map<string, SceneNodeInfo>
   /** ⚡ Bolt: Fast lookup for the first node matching a given name */
   nodesByName: Map<string, SceneNodeInfo>
+  /** ⚡ Bolt: Fast lookup for nodes by their type */
+  nodesByType: Map<string, SceneNodeInfo[]>
   /** ⚡ Bolt: Fast lookup for signal connections by key (signal:from:to:method) */
   connectionsKeyed: Map<string, SignalConnection>
 }
@@ -119,6 +121,7 @@ export function parseSceneContent(content: string): ParsedScene {
   const connections: SignalConnection[] = []
   const nodesByPath = new Map<string, SceneNodeInfo>()
   const nodesByName = new Map<string, SceneNodeInfo>()
+  const nodesByType = new Map<string, SceneNodeInfo[]>()
   const connectionsKeyed = new Map<string, SignalConnection>()
 
   let currentSection: 'header' | 'ext_resource' | 'sub_resource' | 'node' | 'connection' | null = null
@@ -136,6 +139,14 @@ export function parseSceneContent(content: string): ParsedScene {
       nodesByPath.set(pathKey, currentNode)
       if (!nodesByName.has(currentNode.name)) {
         nodesByName.set(currentNode.name, currentNode)
+      }
+      if (currentNode.type) {
+        let typeNodes = nodesByType.get(currentNode.type)
+        if (!typeNodes) {
+          typeNodes = []
+          nodesByType.set(currentNode.type, typeNodes)
+        }
+        typeNodes.push(currentNode)
       }
       currentNode = null
     }
@@ -202,7 +213,7 @@ export function parseSceneContent(content: string): ParsedScene {
     startIndex = endIndex + 1
   }
 
-  // Save last pending section
+  // Final saves
   saveCurrentNode()
   if (currentSubResource) subResources.push(currentSubResource)
 
@@ -215,6 +226,7 @@ export function parseSceneContent(content: string): ParsedScene {
     raw: content,
     nodesByPath,
     nodesByName,
+    nodesByType,
     connectionsKeyed,
   }
 }
@@ -326,6 +338,7 @@ function parseProperty(content: string, start: number, end: number, target: Reco
     target[key] = value
   }
 }
+
 /**
  * Internal utility to transform scene content line by line with node tracking
  */
@@ -388,6 +401,7 @@ function transformSceneContent(
 
   return result.join('\n')
 }
+
 /**
  * Update multiple properties on a node in scene content
  */

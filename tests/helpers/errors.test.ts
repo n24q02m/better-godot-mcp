@@ -260,5 +260,18 @@ describe('errors', () => {
         expect(error.message.length).toBeLessThan(250)
       }
     })
+
+    it('should truncate validActions list to 20 items and show remaining count', () => {
+      const manyActions = Array.from({ length: 25 }, (_, i) => `action${i}`)
+      try {
+        throwUnknownAction('unknown', manyActions)
+      } catch (err) {
+        const error = err as GodotMCPError
+        expect(error.suggestion).toContain('action0, action1')
+        expect(error.suggestion).toContain('action19')
+        expect(error.suggestion).not.toContain('action20')
+        expect(error.suggestion).toContain('... and 5 more')
+      }
+    })
   })
 })

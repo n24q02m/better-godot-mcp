@@ -89,60 +89,67 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
   const safeInput = input.length > 100 ? input.slice(0, 100) : input
   const lower = safeInput.toLowerCase()
 
-  // 1. Priority: Exact match (case-insensitive)
-  for (const option of validOptions) {
-    if (option.toLowerCase() === lower) {
-      return option
-    }
-  }
+  let bestLevel = 6 // 1: Exact, 2: StartsWith, 3: Includes, 4: InputStartsWith, 5: Fuzzy, 6: None
+  let bestMatch: string | null = null
+  let minLenDiff = Number.POSITIVE_INFINITY
+  let bestFuzzyScore = 0
 
-  // 2-4. Priority: Prefix and containment matches
-  let bestStartsWith: string | null = null
-  let minLenDiffStartsWith = Number.POSITIVE_INFINITY
-
-  let bestIncludes: string | null = null
-  let minLenDiffIncludes = Number.POSITIVE_INFINITY
-
-  let bestInputStartsWith: string | null = null
-  let minLenDiffInputStartsWith = Number.POSITIVE_INFINITY
+  let inputBigrams: Set<string> | null = null
 
   for (const option of validOptions) {
     const optionLower = option.toLowerCase()
+
+    // Level 1: Exact match (case-insensitive)
+    if (optionLower === lower) return option
+
     const lenDiff = Math.abs(optionLower.length - lower.length)
 
+    // Level 2: Option starts with input
     if (optionLower.startsWith(lower)) {
-      if (lenDiff < minLenDiffStartsWith) {
-        minLenDiffStartsWith = lenDiff
-        bestStartsWith = option
+      if (bestLevel > 2 || (bestLevel === 2 && lenDiff < minLenDiff)) {
+        bestLevel = 2
+        bestMatch = option
+        minLenDiff = lenDiff
       }
-    } else if (optionLower.includes(lower)) {
-      if (lenDiff < minLenDiffIncludes) {
-        minLenDiffIncludes = lenDiff
-        bestIncludes = option
+      continue
+    }
+
+    if (bestLevel <= 2) continue
+
+    // Level 3: Option includes input
+    if (optionLower.includes(lower)) {
+      if (bestLevel > 3 || (bestLevel === 3 && lenDiff < minLenDiff)) {
+        bestLevel = 3
+        bestMatch = option
+        minLenDiff = lenDiff
       }
-    } else if (lower.startsWith(optionLower)) {
-      if (lenDiff < minLenDiffInputStartsWith) {
-        minLenDiffInputStartsWith = lenDiff
-        bestInputStartsWith = option
+      continue
+    }
+
+    if (bestLevel <= 3) continue
+
+    // Level 4: Input starts with option
+    if (lower.startsWith(optionLower)) {
+      if (bestLevel > 4 || (bestLevel === 4 && lenDiff < minLenDiff)) {
+        bestLevel = 4
+        bestMatch = option
+        minLenDiff = lenDiff
+      }
+      continue
+    }
+
+    if (bestLevel <= 4) continue
+
+    // Level 5: Fuzzy matching (Dice Coefficient)
+    if (inputBigrams === null) {
+      inputBigrams = new Set<string>()
+      for (let i = 0; i < lower.length - 1; i++) {
+        inputBigrams.add(lower.slice(i, i + 2))
       }
     }
-  }
 
-  if (bestStartsWith !== null) return bestStartsWith
-  if (bestIncludes !== null) return bestIncludes
-  if (bestInputStartsWith !== null) return bestInputStartsWith
+    if (inputBigrams.size === 0) continue
 
-  // 5. Fallback: Fuzzy matching using bigram similarity
-  let bestFuzzyMatch: string | null = null
-  let bestScore = 0
-
-  const inputBigrams = new Set<string>()
-  for (let i = 0; i < lower.length - 1; i++) {
-    inputBigrams.add(lower.slice(i, i + 2))
-  }
-
-  for (const option of validOptions) {
-    const optionLower = option.toLowerCase()
     const optionBigrams = new Set<string>()
     for (let i = 0; i < optionLower.length - 1; i++) {
       optionBigrams.add(optionLower.slice(i, i + 2))
@@ -154,16 +161,15 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
     }
 
     const total = inputBigrams.size + optionBigrams.size
-    if (total === 0) continue
-
-    const score = (2 * overlap) / total
-    if (score > bestScore && score > 0.4) {
-      bestScore = score
-      bestFuzzyMatch = option
+    const score = total === 0 ? 0 : (2 * overlap) / total
+    if (score > 0.4 && score > bestFuzzyScore) {
+      bestFuzzyScore = score
+      bestMatch = option
+      bestLevel = 5
     }
   }
 
-  return bestFuzzyMatch
+  return bestMatch
 }
 
 /**
@@ -174,9 +180,16 @@ export function throwUnknownAction(action: string, validActions: string[]): neve
   const safeAction = action.length > 100 ? `${action.slice(0, 100)}...` : action
   const closest = findClosestMatch(safeAction, validActions)
   const suggestion = closest ? ` Did you mean '${closest}'?` : ''
+
+  const displayedActions = validActions.slice(0, 20)
+  const remainingCount = validActions.length - 20
+  const actionsList = remainingCount > 0
+    ? `${displayedActions.join(', ')}... and ${remainingCount} more`
+    : displayedActions.join(', ')
+
   throw new GodotMCPError(
     `Unknown action: ${safeAction}.${suggestion}`,
     'INVALID_ACTION',
-    `Valid actions: ${validActions.join(', ')}. Use help tool for full docs.`,
+    `Valid actions: ${actionsList}. Use help tool for full docs.`,
   )
 }

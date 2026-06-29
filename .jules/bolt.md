@@ -49,3 +49,7 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## 2025-02-12 - [FIX] Extract string trim logic to helper
 **Learning:** Manual string trimming loops (`while (charCodeAt(i) <= 32)`) were duplicated across multiple structural parsers (`input-map.ts`, `project-settings.ts`, `scene-parser.ts`, `project.ts`). Centralizing this into a `fastTrimRange` helper reduces code duplication and ensures consistent whitespace handling across the codebase while maintaining zero-allocation performance.
 **Action:** Use `fastTrimRange(str, start, end)` in `src/tools/helpers/strings.ts` for any future structural parsers that need to handle Godot-style whitespace trimming within string ranges.
+
+## 2025-07-15 - [Refactor findClosestMatch to single-pass O(N)]
+**Learning:** Using multiple loops for different priority matching levels (Exact > StartsWith > Includes > InputStartsWith > Fuzzy) results in multiple passes over the options list and redundant `toLowerCase()` calls.
+**Action:** Consolidated all matching logic into a single loop over `validOptions`. Use a `bestLevel` tracker to skip lower-priority checks if a higher-priority match is already found for the current or previous options. Konsolidated `toLowerCase()` calls to once per option and lazy-initialized `inputBigrams` only if Level 5 (Fuzzy) checks are reached. This significantly reduces CPU cycles and string allocations for large tool/action lists.

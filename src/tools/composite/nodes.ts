@@ -33,44 +33,83 @@ async function readSceneFile(fullPath: string, scenePath: string): Promise<strin
 
 /**
  * Normalize node path: strip common LLM mistakes like "/root/SceneName/" prefix.
- * Handles backslashes, case-insensitivity, and absolute vs relative paths.
+ * Handles backslashes, case-insensitivity, absolute vs relative paths, and Godot markers (^, $, NodePath).
  * Returns the corrected path and whether it was auto-corrected.
  */
-function normalizeNodePath(path: string): { path: string; corrected: boolean } {
+export function normalizeNodePath(path: string): { path: string; corrected: boolean } {
   if (!path || path === '.') return { path, corrected: false }
 
-  // Normalize backslashes to forward slashes
-  const normalized = path.replace(/\\/g, '/')
-  const corrected = path.includes('\\')
+  let current = path
+  let corrected = false
 
-  // Case-insensitive check for /root/ or root/ prefix
-  // These are common LLM mistakes when they try to use absolute paths.
-  const rootMatch = normalized.match(/^\/?root\/(.+)$/i)
+  // 1. Normalize backslashes to forward slashes
+  if (current.includes('\\')) {
+    current = current.replace(/\\/g, '/')
+    corrected = true
+  }
+
+  // 2. Unwrap Godot wrappers: NodePath("..."), ^"...", $"..."
+  if (current.startsWith('NodePath("') && current.endsWith('")')) {
+    current = current.slice(10, -2)
+    corrected = true
+  } else if ((current.startsWith('^"') || current.startsWith('$"')) && current.endsWith('"')) {
+    current = current.slice(2, -1)
+    corrected = true
+  }
+
+  // 3. Strip Godot location prefixes: res://, user://
+  if (current.startsWith('res://')) {
+    current = current.slice(6)
+    corrected = true
+  } else if (current.startsWith('user://')) {
+    current = current.slice(7)
+    corrected = true
+  }
+
+  // 4. Strip leading markers: ^, $
+  if (current.startsWith('^') || current.startsWith('$')) {
+    current = current.slice(1)
+    corrected = true
+  }
+
+  // 5. Collapse redundant slashes (e.g. Player//Head -> Player/Head)
+  if (current.includes('//')) {
+    current = current.replace(/\/+/g, '/')
+    corrected = true
+  }
+
+  // 6. Handle /root/ or root/ prefix (LLM absolute path mistakes)
+  // Case-insensitive check.
+  // We strictly require a leading slash or a trailing slash to avoid stripping a standalone "root" node name.
+  const rootMatch = current.match(/^(\/root\/|root\/|\/root$)(.*)$/i)
   if (rootMatch) {
-    const afterRoot = rootMatch[1]
-    const segments = afterRoot.split('/').filter(Boolean)
-    if (segments.length <= 1) {
-      return { path: '.', corrected: true }
+    const afterRoot = rootMatch[2]
+    if (!afterRoot) {
+      current = '.'
+    } else {
+      const segments = afterRoot.split('/').filter(Boolean)
+      // If it's /root/SceneName, it refers to the scene root ('.')
+      // If it's /root/SceneName/Node, it refers to 'Node'
+      if (segments.length <= 1) {
+        current = '.'
+      } else {
+        current = segments.slice(1).join('/')
+      }
     }
-    const remaining = segments.slice(1).join('/')
-    return { path: remaining, corrected: true }
+    corrected = true
+  } else if (current.startsWith('/')) {
+    // Strip other leading slashes
+    current = current.slice(1)
+    corrected = true
   }
 
-  // Handle /root or root (exact match)
-  // We only treat it as the scene root if it's explicitly "/root" or "root" (case-insensitive)
-  // But wait, if someone has a node named "Root" that is NOT the scene root?
-  // In Godot, the root of the scene being edited is often named after the scene or "Root".
-  // LLMs often use "/root/SceneName/..."
-  if (normalized.toLowerCase() === '/root') {
-    return { path: '.', corrected: true }
+  // Final cleanup: if empty or just a slash, it's the root
+  if (!current || current === '/') {
+    current = '.'
+    corrected = true
   }
 
-  // Strip leading slash
-  if (normalized.startsWith('/')) {
-    return { path: normalized.slice(1), corrected: true }
-  }
-
-  return { path: normalized, corrected }
+  return { path: current, corrected: corrected || current !== path }
 }
 
 async function handleAddNode(projectPath: string, args: Record<string, unknown>) {

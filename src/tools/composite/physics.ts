@@ -30,13 +30,21 @@ export async function handlePhysics(action: string, args: Record<string, unknown
       const layers2d: Record<string, string> = {}
       const layers3d: Record<string, string> = {}
 
-      for (const [key, value] of settings.sections.get('layer_names') || []) {
-        // ⚡ Bolt: Use .replaceAll('"', '') instead of .replace(/"/g, '') to avoid RegExp compilation overhead
-        if (key.startsWith('2d_physics/layer_')) {
-          layers2d[key] = value.replaceAll('"', '')
-        } else if (key.startsWith('3d_physics/layer_')) {
-          layers3d[key] = value.replaceAll('"', '')
-        }
+      const layerNames = settings.sections.get('layer_names')
+      if (layerNames) {
+        // ⚡ Bolt: Use .forEach() to avoid entry array allocations and perform faster unquoting
+        layerNames.forEach((value, key) => {
+          const unquoted =
+            value.length >= 2 && value.charCodeAt(0) === 34 && value.charCodeAt(value.length - 1) === 34
+              ? value.slice(1, -1)
+              : value
+
+          if (key.startsWith('2d_physics/layer_')) {
+            layers2d[key] = unquoted
+          } else if (key.startsWith('3d_physics/layer_')) {
+            layers3d[key] = unquoted
+          }
+        })
       }
 
       return formatJSON({ layers2d, layers3d })

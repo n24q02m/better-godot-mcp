@@ -49,3 +49,7 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## 2025-02-12 - [FIX] Extract string trim logic to helper
 **Learning:** Manual string trimming loops (`while (charCodeAt(i) <= 32)`) were duplicated across multiple structural parsers (`input-map.ts`, `project-settings.ts`, `scene-parser.ts`, `project.ts`). Centralizing this into a `fastTrimRange` helper reduces code duplication and ensures consistent whitespace handling across the codebase while maintaining zero-allocation performance.
 **Action:** Use `fastTrimRange(str, start, end)` in `src/tools/helpers/strings.ts` for any future structural parsers that need to handle Godot-style whitespace trimming within string ranges.
+
+## 2025-04-03 - [Optimize Map iteration and string unquoting in Physics tool]
+**Learning:** Iterating over Map entries via `for...of settings.sections.get('layer_names')` allocates a new `[key, value]` array for every entry. Additionally, using `.replaceAll('"', '')` for simple unquoting is inefficient as it searches the entire string and always allocates a new string.
+**Action:** Replace `for...of` iteration on Map entries with `Map.prototype.forEach((value, key) => { ... })` to avoid entry array allocations. Implement a faster manual unquoting check by verifying `charCodeAt(0) === 34` and `slice(1, -1)` only if quotes are present. Applied in `src/tools/composite/physics.ts`.

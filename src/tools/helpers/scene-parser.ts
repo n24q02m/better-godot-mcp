@@ -98,6 +98,8 @@ export interface ParsedScene {
   nodesByName: Map<string, SceneNodeInfo>
   /** ⚡ Bolt: Fast lookup for signal connections by key (signal:from:to:method) */
   connectionsKeyed: Map<string, SignalConnection>
+  /** ⚡ Bolt: Fast lookup for nodes by type */
+  nodesByType: Map<string, SceneNodeInfo[]>
 }
 
 /**
@@ -120,6 +122,7 @@ export function parseSceneContent(content: string): ParsedScene {
   const nodesByPath = new Map<string, SceneNodeInfo>()
   const nodesByName = new Map<string, SceneNodeInfo>()
   const connectionsKeyed = new Map<string, SignalConnection>()
+  const nodesByType = new Map<string, SceneNodeInfo[]>()
 
   let currentSection: 'header' | 'ext_resource' | 'sub_resource' | 'node' | 'connection' | null = null
   let currentNode: SceneNodeInfo | null = null
@@ -136,6 +139,13 @@ export function parseSceneContent(content: string): ParsedScene {
       nodesByPath.set(pathKey, currentNode)
       if (!nodesByName.has(currentNode.name)) {
         nodesByName.set(currentNode.name, currentNode)
+      }
+      const type = currentNode.type || 'Node'
+      const typeList = nodesByType.get(type)
+      if (typeList) {
+        typeList.push(currentNode)
+      } else {
+        nodesByType.set(type, [currentNode])
       }
       currentNode = null
     }
@@ -216,6 +226,7 @@ export function parseSceneContent(content: string): ParsedScene {
     nodesByPath,
     nodesByName,
     connectionsKeyed,
+    nodesByType,
   }
 }
 

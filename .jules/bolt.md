@@ -53,3 +53,11 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## 2025-06-25 - [Optimize redundant pathExists checks in scripts tool]
 **Learning:** Sequential `pathExists` followed by I/O operations like `readFile`, `writeFile`, or `unlink` causes redundant filesystem calls, which can impact performance. Additionally, checking `pathExists` before creating a file is not atomic.
 **Action:** Replaced `pathExists` followed by `readFile`/`unlink` with direct `readFile`/`unlink` wrapped in a `try...catch` handling `ENOENT`. Replaced `pathExists` + `writeFile` with `writeFile` using `flag: 'wx'` to atomically check for existence and create the file, catching `EEXIST`. Applied in `src/tools/composite/scripts.ts`.
+
+## 2025-06-25 - [Optimize node filtering by type]
+**Learning:** Iterating over `scene.nodes` (which can contain tens of thousands of elements in large scenes) just to filter out specific node types (e.g. `Control` or `AnimationPlayer`) causes unnecessary O(N) array traversals on every tool invocation.
+**Action:** Introduced a `nodesByType` Map in `ParsedScene` that groups nodes by their type during the initial, single-pass string parsing. This allows for O(1) retrieval of node arrays by type, speeding up type-specific operations.
+
+## 2025-06-25 - [Optimize scene info extraction]
+**Learning:** Using `scene.nodes.map` constructs an intermediate array dynamically, triggering repeated memory allocations when parsing scenes with tens of thousands of nodes. This adds significant garbage collection overhead compared to pre-allocating an array.
+**Action:** Replace `scene.nodes.map(...)` in `src/tools/composite/scenes.ts` with a direct loop over a pre-allocated array (`new Array(scene.nodes.length)`). This avoids intermediary allocation overhead and significantly speeds up scene info extraction.

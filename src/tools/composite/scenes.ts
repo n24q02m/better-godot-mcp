@@ -156,6 +156,8 @@ export async function handleScenes(action: string, args: Record<string, unknown>
       }
       const scene = parseSceneContent(rawContent)
       // ⚡ Bolt: Use pre-allocated arrays and for loops to prevent .map() allocation overhead during hot-path execution
+      // ⚡ Bolt: Removed double .map() passes and expensive object spread.
+      // Iterating scene.nodes directly in a single pass reduces O(N) allocation overhead for scenes with many nodes.
       const nodes = new Array(scene.nodes.length)
       for (let i = 0; i < scene.nodes.length; i++) {
         const n = scene.nodes[i]
@@ -181,6 +183,7 @@ export async function handleScenes(action: string, args: Record<string, unknown>
         nodeCount: scene.nodes.length,
         nodes,
         resources,
+        resources: scene.extResources.map((r) => `[ext_resource type="${r.type}" path="${r.path}" id="${r.id}"]`),
       }
       return formatJSON(info)
     }

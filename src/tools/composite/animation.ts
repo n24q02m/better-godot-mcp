@@ -44,6 +44,9 @@ async function handleAddAnimation(projectPath: string, args: Record<string, unkn
   if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
   const animName = args.anim_name as string
   if (!animName) throw new GodotMCPError('No anim_name specified', 'INVALID_ARGS', 'Provide animation name.')
+  if (args.duration !== undefined && typeof args.duration !== 'number') {
+    throw new GodotMCPError('duration must be a number', 'INVALID_ARGS')
+  }
   const duration = (args.duration as number) || 1.0
   const loop = args.loop !== false
 

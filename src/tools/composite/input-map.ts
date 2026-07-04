@@ -352,6 +352,9 @@ export async function handleInputMap(action: string, args: Record<string, unknow
           'Action names must contain only alphanumeric characters, underscores, and hyphens.',
         )
       }
+      if (args.deadzone !== undefined && typeof args.deadzone !== 'number') {
+        throw new GodotMCPError('deadzone must be a number', 'INVALID_ARGS')
+      }
       const deadzone = (args.deadzone as number) || 0.5
 
       let content = await readFile(configPath, 'utf-8')

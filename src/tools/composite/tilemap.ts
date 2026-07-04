@@ -22,6 +22,9 @@ export async function handleTilemap(action: string, args: Record<string, unknown
           'INVALID_ARGS',
           'Provide tileset_path (e.g., "tilesets/main.tres").',
         )
+      if (args.tile_size !== undefined && typeof args.tile_size !== 'number') {
+        throw new GodotMCPError('tile_size must be a number', 'INVALID_ARGS')
+      }
       const tileSize = (args.tile_size as number) || 16
 
       const fullPath = safeResolve(projectPath, tilesetPath)

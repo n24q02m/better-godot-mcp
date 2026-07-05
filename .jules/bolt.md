@@ -61,3 +61,7 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## 2025-06-25 - [Optimize scene info extraction]
 **Learning:** Using `scene.nodes.map` constructs an intermediate array dynamically, triggering repeated memory allocations when parsing scenes with tens of thousands of nodes. This adds significant garbage collection overhead compared to pre-allocating an array.
 **Action:** Replace `scene.nodes.map(...)` in `src/tools/composite/scenes.ts` with a direct loop over a pre-allocated array (`new Array(scene.nodes.length)`). This avoids intermediary allocation overhead and significantly speeds up scene info extraction.
+
+## 2025-06-25 - [Optimize redundant pathExists checks in scenes tool]
+**Learning:** Sequential `pathExists` followed by I/O operations like `writeFile` or `copyFile` causes redundant filesystem calls, which can impact performance. Additionally, checking `pathExists` before creating or copying a file is not thread-safe/atomic.
+**Action:** Replaced `pathExists` + `writeFile` with `writeFile` using `flag: 'wx'` to atomically check for existence and create the file, catching `EEXIST`. Replaced `pathExists` + `copyFile` with `copyFile` using `constants.COPYFILE_EXCL` flag from `node:fs` to atomically check for existence and copy the file, catching `EEXIST`. Applied in `src/tools/composite/scenes.ts`.

@@ -3,6 +3,7 @@
  * Actions: create | list | info | delete | duplicate | set_main
  */
 
+import { constants } from 'node:fs'
 import { copyFile, mkdir, readdir, readFile, unlink, writeFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import type { GodotConfig, SceneInfo } from '../../godot/types.js'
@@ -106,17 +107,24 @@ export async function handleScenes(action: string, args: Record<string, unknown>
       }
 
       const fullPath = safeResolve(projectPath as string, scenePath)
-      if (await pathExists(fullPath)) {
-        throw new GodotMCPError(
-          `Scene already exists: ${scenePath}`,
-          'SCENE_ERROR',
-          'Use a different path or delete the existing scene first.',
-        )
-      }
 
       const content = generateTscnContent(rootName, rootType)
       await mkdir(dirname(fullPath), { recursive: true })
-      await writeFile(fullPath, content, 'utf-8')
+
+      // ⚡ Bolt: Using try-to-perform instead of pathExists to reduce redundant I/O calls
+      // Use 'wx' flag to fail atomically if the file already exists
+      try {
+        await writeFile(fullPath, content, { encoding: 'utf-8', flag: 'wx' })
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+          throw new GodotMCPError(
+            `Scene already exists: ${scenePath}`,
+            'SCENE_ERROR',
+            'Use a different path or delete the existing scene first.',
+          )
+        }
+        throw error
+      }
 
       return formatSuccess(`Created scene: ${scenePath}\nRoot: ${rootName} (${rootType})`)
     }
@@ -206,18 +214,20 @@ export async function handleScenes(action: string, args: Record<string, unknown>
       const srcFull = resolvePath(projectPath, scenePath)
       const dstFull = resolvePath(projectPath, newPath as string)
 
-      if (await pathExists(dstFull)) {
-        throw new GodotMCPError(
-          `Destination already exists: ${newPath}`,
-          'SCENE_ERROR',
-          'Choose a different destination.',
-        )
-      }
-
       await mkdir(dirname(dstFull), { recursive: true })
+
+      // ⚡ Bolt: Using try-to-perform instead of pathExists to reduce redundant I/O calls
+      // Use COPYFILE_EXCL to fail atomically if the destination already exists
       try {
-        await copyFile(srcFull, dstFull)
+        await copyFile(srcFull, dstFull, constants.COPYFILE_EXCL)
       } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+          throw new GodotMCPError(
+            `Destination already exists: ${newPath}`,
+            'SCENE_ERROR',
+            'Choose a different destination.',
+          )
+        }
         if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
           throw new GodotMCPError(`Source scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the source path.')
         }

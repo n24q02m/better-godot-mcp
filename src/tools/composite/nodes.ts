@@ -39,21 +39,47 @@ async function readSceneFile(fullPath: string, scenePath: string): Promise<strin
 function normalizeNodePath(path: string): { path: string; corrected: boolean } {
   if (!path || path === '.') return { path, corrected: false }
 
-  // Normalize backslashes to forward slashes
-  const normalized = path.replace(/\\/g, '/')
-  const corrected = path.includes('\\')
+  // ⚡ Bolt: Use replaceAll instead of regexp overhead
+  const normalized = path.replaceAll('\\', '/')
+  let corrected = false
+  if (path.includes('\\')) corrected = true
 
   // Case-insensitive check for /root/ or root/ prefix
   // These are common LLM mistakes when they try to use absolute paths.
-  const rootMatch = normalized.match(/^\/?root\/(.+)$/i)
-  if (rootMatch) {
-    const afterRoot = rootMatch[1]
-    const segments = afterRoot.split('/').filter(Boolean)
-    if (segments.length <= 1) {
-      return { path: '.', corrected: true }
+  // ⚡ Bolt: Replace regex matching and array allocations (split/filter) with manual string traversal
+  const lower = normalized.toLowerCase()
+  if (lower.startsWith('/root/') || lower.startsWith('root/')) {
+    const prefixLen = lower.charCodeAt(0) === 47 ? 6 : 5 // 47 is '/'
+
+    let segmentCount = 0
+    let pos = prefixLen
+    const len = normalized.length
+    let result = ''
+
+    while (pos < len) {
+      // Skip consecutive slashes
+      while (pos < len && normalized.charCodeAt(pos) === 47) {
+        pos++
+      }
+
+      if (pos < len) {
+        segmentCount++
+        const start = pos
+
+        // Find end of segment
+        while (pos < len && normalized.charCodeAt(pos) !== 47) {
+          pos++
+        }
+
+        // Skip the first segment (which is the root scene name in LLM hallucinations)
+        if (segmentCount > 1) {
+          if (result.length > 0) result += '/'
+          result += normalized.slice(start, pos)
+        }
+      }
     }
-    const remaining = segments.slice(1).join('/')
-    return { path: remaining, corrected: true }
+
+    return { path: segmentCount <= 1 ? '.' : result, corrected: true }
   }
 
   // Handle /root or root (exact match)

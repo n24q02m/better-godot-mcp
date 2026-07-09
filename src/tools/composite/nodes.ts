@@ -189,15 +189,16 @@ async function handleListNodes(projectPath: string, args: Record<string, unknown
   const content = await readSceneFile(fullPath, scenePath)
   const scene = parseSceneContent(content)
   // ⚡ Bolt: Removed double .map() passes and expensive object spread (...node.properties) in mapToSceneNode.
-  // Iterating scene.nodes directly in a single pass reduces O(N) allocation overhead for scenes with many nodes.
-  const nodes = []
-  for (const n of scene.nodes) {
-    nodes.push({
+  // ⚡ Bolt: Pre-allocate array to avoid dynamic resizing overhead for scenes with many nodes.
+  const nodes = new Array(scene.nodes.length)
+  for (let i = 0; i < scene.nodes.length; i++) {
+    const n = scene.nodes[i]
+    nodes[i] = {
       name: n.name,
       type: n.type || 'Node',
       parent: n.parent || '(root)',
       hasScript: !!n.properties.script,
-    })
+    }
   }
 
   return formatJSON({

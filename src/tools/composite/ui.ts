@@ -264,9 +264,15 @@ async function handleListControls(projectPath: string, args: Record<string, unkn
 
   const controls: { name: string; type: string; parent: string }[] = []
 
-  for (const node of scene.nodes) {
-    if (node.type && CONTROL_TYPES.has(node.type)) {
-      controls.push({ name: node.name, type: node.type, parent: node.parent || '(root)' })
+  // ⚡ Bolt: Query by pre-indexed types (O(K)) instead of iterating all N nodes.
+  // This drastically speeds up filtering in complex scenes with many non-Control nodes.
+  for (const type of CONTROL_TYPES) {
+    const typeNodes = scene.nodesByType.get(type)
+    if (typeNodes) {
+      for (let i = 0; i < typeNodes.length; i++) {
+        const node = typeNodes[i]
+        controls.push({ name: node.name, type: node.type || type, parent: node.parent || '(root)' })
+      }
     }
   }
 

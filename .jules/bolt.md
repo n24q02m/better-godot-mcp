@@ -65,3 +65,10 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## 2025-06-25 - [Optimize redundant pathExists checks in scenes tool]
 **Learning:** Sequential `pathExists` followed by I/O operations like `writeFile` or `copyFile` causes redundant filesystem calls, which can impact performance. Additionally, checking `pathExists` before creating or copying a file is not thread-safe/atomic.
 **Action:** Replaced `pathExists` + `writeFile` with `writeFile` using `flag: 'wx'` to atomically check for existence and create the file, catching `EEXIST`. Replaced `pathExists` + `copyFile` with `copyFile` using `constants.COPYFILE_EXCL` flag from `node:fs` to atomically check for existence and copy the file, catching `EEXIST`. Applied in `src/tools/composite/scenes.ts`.
+## 2025-03-10 - [O(K) Filtering by type using nodesByType]
+**Learning:** Iterating through `scene.nodes` to find nodes of specific types (e.g. `CONTROL_TYPES`) is an O(N) operation that scales poorly with large scenes. The previously introduced `nodesByType` index in `ParsedScene` was not fully utilized for multi-type queries.
+**Action:** When filtering a subset of node types, iterate through the allowed types (e.g., `for (const type of CONTROL_TYPES)`) and fetch from the O(1) `nodesByType` index, reducing the operation complexity from O(N) to O(K) where K is the number of queried types.
+
+## 2025-03-10 - [Pre-allocate arrays for node listing]
+**Learning:** Dynamically growing arrays using `.push()` inside an O(N) traversal (like listing all nodes in a scene) causes resizing overhead in the V8 engine, which accumulates heavily in scenes with tens of thousands of nodes.
+**Action:** Always use a pre-allocated array (`new Array(scene.nodes.length)`) for 1:1 mapping operations during O(N) loops, avoiding V8 array resizing penalties.

@@ -54,6 +54,66 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
           fetch-depth: 0
 
+      # Dry-run PSR (no_operation_mode => --noop: no commit/tag/push/release) purely to
+      # learn the version it WOULD publish, so the npm-collision guard below can fire
+      # BEFORE the real run creates a git tag or GitHub Release. Same action + SHA and
+      # same prerelease inputs as the real step, run against the same untouched checkout,
+      # so the computed version is identical.
+      - uses: python-semantic-release/python-semantic-release@350c48fcb3ffcdfd2e0a235206bc2ecea6b69df0 # v10
+        id: dryrun
+        with:
+          github_token: ${{ steps.app-token.outputs.token }}
+          config_file: semantic-release.toml
+          prerelease: ${{ inputs.release_type == 'beta' }}
+          prerelease_token: beta
+          no_operation_mode: true
+
+      # Fail early and loudly if the version PSR intends to publish already exists on
+      # npm. npm never allows reusing a version number, so a hit here means the git
+      # history has diverged from the registry. Catching it here converts two nasty
+      # failure modes -- PSR silently setting released=false on a matching tag (every
+      # publish job skipped) and an opaque npm 409 deep inside `npm publish` -- into one
+      # explicit, actionable error, before any tag or Release is created.
+      - name: Guard against re-publishing an already-published npm version
+        if: steps.dryrun.outputs.released == 'true'
+        env:
+          COMPUTED_VERSION: ${{ steps.dryrun.outputs.version }}
+        run: |
+          set -uo pipefail
+          PKG='@n24q02m/better-godot-mcp'
+          echo "Checking npm for ${PKG}@${COMPUTED_VERSION} before semantic-release tags anything..."
+
+          # npm view against the live registry (behaviour verified unauthenticated):
+          #   version exists        -> exit 0, prints the version on stdout  => COLLISION
+          #   version/package 404   -> exit non-zero, output contains 'E404' => FREE
+          #   network/registry error-> exit non-zero, output has NO 'E404'   => UNKNOWN
+          # A transient error must NEVER be read as "free": that could let a real
+          # collision slip through, which is worse than the bug this guard prevents.
+          if output="$(npm view "${PKG}@${COMPUTED_VERSION}" version 2>&1)"; then
+            status=0
+          else
+            status=$?
+          fi
+
+          # COLLISION: registry returned a concrete version -> already published.
+          if [ "${status}" -eq 0 ] && [ -n "${output}" ]; then
+            echo "::error::Computed release version ${COMPUTED_VERSION} already exists on npm as ${PKG}@${COMPUTED_VERSION}. npm NEVER allows re-publishing a version number, even one later unpublished or deprecated. This almost always means the git history diverged from what was published to npm -- tags/commits were rewritten while the registry kept the original releases. Do NOT retry the same version: bump PAST the already-published range (higher than any version ever published) and dispatch the release again."
+            exit 1
+          fi
+
+          # FREE: an E404 (missing version, or missing package) means this exact
+          # coordinate is not on the registry -> safe to publish.
+          if printf '%s\n' "${output}" | grep -q 'E404'; then
+            echo "OK: ${PKG}@${COMPUTED_VERSION} is not on npm (E404) -- safe to publish."
+            exit 0
+          fi
+
+          # UNKNOWN: npm view failed without an E404 (network/registry outage, rate
+          # limit, auth). Refuse to proceed so a genuine collision cannot be mistaken
+          # for "free".
+          echo "::error::Could not verify whether ${PKG}@${COMPUTED_VERSION} exists on npm: 'npm view' failed without an E404 (likely a transient registry/network error, rate limit, or outage). Refusing to proceed so a genuine collision cannot slip through as a false 'free'. Re-run the release once the registry is reachable. npm output: ${output}"
+          exit 1
+
       - uses: python-semantic-release/python-semantic-release@350c48fcb3ffcdfd2e0a235206bc2ecea6b69df0 # v10
         id: release
         with:

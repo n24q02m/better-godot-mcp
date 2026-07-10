@@ -9,28 +9,45 @@
   "rangeStrategy": "bump",
   "lockFileMaintenance": {
     "enabled": true,
-    "schedule": ["before 5am"]
+    "schedule": ["before 5am"],
+    "automerge": true,
+    "automergeType": "pr"
   },
   "packageRules": [
     {
-      "description": "Auto-merge non-major devDependencies",
-      "matchDepTypes": ["devDependencies"],
-      "matchUpdateTypes": ["minor", "patch"],
-      "automerge": true,
-      "automergeType": "pr"
+      "description": "Group minor updates for review (prod scope by default)",
+      "matchUpdateTypes": ["minor"],
+      "groupName": "minor dependencies",
+      "groupSlug": "all-minor"
     },
     {
-      "description": "Auto-merge patch production dependencies",
-      "matchDepTypes": ["dependencies"],
+      "description": "Auto-merge dev-scope minor updates after cooldown",
+      "matchUpdateTypes": ["minor"],
+      "matchDepTypes": ["devDependencies", "dependency-groups", "tool.uv.dev-dependencies", "tool.pdm.dev-dependencies"],
+      "groupName": "non-major dev dependencies",
+      "groupSlug": "non-major-dev",
+      "automerge": true,
+      "automergeType": "pr",
+      "minimumReleaseAge": "7 days"
+    },
+    {
+      "description": "Auto-merge patch updates after cooldown",
       "matchUpdateTypes": ["patch"],
+      "groupName": "patch dependencies",
+      "groupSlug": "all-patch",
       "automerge": true,
-      "automergeType": "pr"
+      "automergeType": "pr",
+      "minimumReleaseAge": "7 days"
     },
     {
-      "description": "Group all non-major updates",
-      "matchUpdateTypes": ["minor", "patch"],
-      "groupName": "non-major dependencies",
-      "groupSlug": "non-major"
+      "description": "Auto-merge GitHub Actions digest updates after cooldown",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["digest", "pinDigest"],
+      "groupName": "github-actions digests",
+      "groupSlug": "gha-digests",
+      "automerge": true,
+      "automergeType": "pr",
+      "minimumReleaseAge": "7 days"
     },
     {
       "description": "Pin GitHub Actions to SHA for security",

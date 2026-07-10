@@ -23,7 +23,12 @@
     {
       "description": "Auto-merge dev-scope minor updates after cooldown",
       "matchUpdateTypes": ["minor"],
-      "matchDepTypes": ["devDependencies", "dependency-groups", "tool.uv.dev-dependencies", "tool.pdm.dev-dependencies"],
+      "matchDepTypes": [
+        "devDependencies",
+        "dependency-groups",
+        "tool.uv.dev-dependencies",
+        "tool.pdm.dev-dependencies"
+      ],
       "groupName": "non-major dev dependencies",
       "groupSlug": "non-major-dev",
       "automerge": true,

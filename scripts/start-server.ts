@@ -21,4 +21,13 @@ async function startServer() {
   }
 }
 
-startServer()
+async function main() {
+  const sub = process.argv[2]
+  if (sub === 'detect' || sub === 'doctor') {
+    const { runGodotCli } = await import('../src/godot-cli.js')
+    process.exit(await runGodotCli(sub))
+  }
+  await startServer()
+}
+
+main()

@@ -6,13 +6,11 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
-import { pathExists, resolveProjectRoot, safeResolve } from '../helpers/paths.js'
+import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
 
-async function resolveScene(projectRoot: string, scenePath: string): Promise<string> {
-  const fullPath = safeResolve(projectRoot, scenePath)
-  if (!(await pathExists(fullPath)))
-    throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
-  return fullPath
+// ⚡ Bolt: Removed redundant pathExists. Instead return resolved path and use try/catch in handlers where needed.
+function resolveScene(projectRoot: string, scenePath: string): string {
+  return safeResolve(projectRoot, scenePath)
 }
 
 function appendNode(content: string, name: string, type: string, parent: string, extraProps?: string): string {
@@ -51,8 +49,17 @@ export async function handleNavigation(action: string, args: Record<string, unkn
         )
       }
 
-      const fullPath = await resolveScene(projectPath, scenePath)
-      let content = await readFile(fullPath, 'utf-8')
+      const fullPath = resolveScene(projectPath, scenePath)
+      let content: string
+      try {
+        // ⚡ Bolt: Using try-to-perform instead of pathExists to reduce redundant I/O calls
+        content = await readFile(fullPath, 'utf-8')
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+          throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
+        }
+        throw err
+      }
 
       const nodeType = dimension === '2D' ? 'NavigationRegion2D' : 'NavigationRegion3D'
       content = appendNode(content, regionName, nodeType, parent)
@@ -86,8 +93,17 @@ export async function handleNavigation(action: string, args: Record<string, unkn
         )
       }
 
-      const fullPath = await resolveScene(projectPath, scenePath)
-      let content = await readFile(fullPath, 'utf-8')
+      const fullPath = resolveScene(projectPath, scenePath)
+      let content: string
+      try {
+        // ⚡ Bolt: Using try-to-perform instead of pathExists to reduce redundant I/O calls
+        content = await readFile(fullPath, 'utf-8')
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+          throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
+        }
+        throw err
+      }
 
       const nodeType = dimension === '2D' ? 'NavigationAgent2D' : 'NavigationAgent3D'
       let extraProps = ''
@@ -127,8 +143,17 @@ export async function handleNavigation(action: string, args: Record<string, unkn
         )
       }
 
-      const fullPath = await resolveScene(projectPath, scenePath)
-      let content = await readFile(fullPath, 'utf-8')
+      const fullPath = resolveScene(projectPath, scenePath)
+      let content: string
+      try {
+        // ⚡ Bolt: Using try-to-perform instead of pathExists to reduce redundant I/O calls
+        content = await readFile(fullPath, 'utf-8')
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+          throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
+        }
+        throw err
+      }
 
       const nodeType = dimension === '2D' ? 'NavigationObstacle2D' : 'NavigationObstacle3D'
       let extraProps = ''

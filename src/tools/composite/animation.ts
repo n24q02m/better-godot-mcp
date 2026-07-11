@@ -6,15 +6,13 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
-import { pathExists, resolveProjectRoot, safeResolve } from '../helpers/paths.js'
+import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
 import { parseSceneContent } from '../helpers/scene-parser.js'
 import { validateNoNewlines } from '../helpers/security.js'
 
-async function resolveScene(projectRoot: string, scenePath: string): Promise<string> {
-  const fullPath = safeResolve(projectRoot, scenePath)
-  if (!(await pathExists(fullPath)))
-    throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
-  return fullPath
+// ⚡ Bolt: Removed redundant pathExists. Instead return resolved path and use try/catch in handlers where needed.
+function resolveScene(projectRoot: string, scenePath: string): string {
+  return safeResolve(projectRoot, scenePath)
 }
 
 async function handleCreatePlayer(projectPath: string, args: Record<string, unknown>) {
@@ -28,8 +26,17 @@ async function handleCreatePlayer(projectPath: string, args: Record<string, unkn
     throw new GodotMCPError('Invalid characters in parameters', 'INVALID_ARGS', 'Parameters must not contain quotes.')
   }
 
-  const fullPath = await resolveScene(projectPath, scenePath)
-  let content = await readFile(fullPath, 'utf-8')
+  const fullPath = resolveScene(projectPath, scenePath)
+  let content: string
+  try {
+    // ⚡ Bolt: Using try-to-perform instead of pathExists to reduce redundant I/O calls
+    content = await readFile(fullPath, 'utf-8')
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
+    }
+    throw err
+  }
 
   const parentAttr = parent === '.' ? '' : ` parent="${parent}"`
   const nodeDecl = `\n[node name="${playerName}" type="AnimationPlayer"${parentAttr}]\n`
@@ -55,8 +62,17 @@ async function handleAddAnimation(projectPath: string, args: Record<string, unkn
     throw new GodotMCPError('Invalid characters in anim_name', 'INVALID_ARGS', 'Parameters must not contain quotes.')
   }
 
-  const fullPath = await resolveScene(projectPath, scenePath)
-  let content = await readFile(fullPath, 'utf-8')
+  const fullPath = resolveScene(projectPath, scenePath)
+  let content: string
+  try {
+    // ⚡ Bolt: Using try-to-perform instead of pathExists to reduce redundant I/O calls
+    content = await readFile(fullPath, 'utf-8')
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
+    }
+    throw err
+  }
 
   // Add sub_resource for animation
   const animId = `Animation_${animName}`
@@ -91,8 +107,17 @@ async function handleAddTrack(projectPath: string, args: Record<string, unknown>
     throw new GodotMCPError('Invalid characters in parameters', 'INVALID_ARGS', 'Parameters must not contain quotes.')
   }
 
-  const fullPath = await resolveScene(projectPath, scenePath)
-  const content = await readFile(fullPath, 'utf-8')
+  const fullPath = resolveScene(projectPath, scenePath)
+  let content: string
+  try {
+    // ⚡ Bolt: Using try-to-perform instead of pathExists to reduce redundant I/O calls
+    content = await readFile(fullPath, 'utf-8')
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
+    }
+    throw err
+  }
 
   const trackPath = `${nodePath}:${property}`
   const trackInfo = `tracks/${trackType}/type = "${trackType}"\ntracks/${trackType}/path = NodePath("${trackPath}")\n`
@@ -128,8 +153,17 @@ async function handleListAnimations(projectPath: string, args: Record<string, un
   const scenePath = args.scene_path as string
   if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
 
-  const fullPath = await resolveScene(projectPath, scenePath)
-  const content = await readFile(fullPath, 'utf-8')
+  const fullPath = resolveScene(projectPath, scenePath)
+  let content: string
+  try {
+    // ⚡ Bolt: Using try-to-perform instead of pathExists to reduce redundant I/O calls
+    content = await readFile(fullPath, 'utf-8')
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new GodotMCPError(`Scene not found: ${scenePath}`, 'SCENE_ERROR', 'Check the file path.')
+    }
+    throw err
+  }
 
   // ⚡ Bolt: Replace RegExp.matchAll() with a centralized structural parser (parseSceneContent)
   // to avoid repeatedly parsing the file and creating intermediate arrays for matches and slicing.

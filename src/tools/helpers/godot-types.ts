@@ -151,31 +151,39 @@ export function parseGodotValue(expr: string, _depth = 0): unknown {
     const results: unknown[] = []
     let bracketLevel = 0
     let parenLevel = 0
-    let inQuote: string | null = null
+    let inQuote = 0 // 0 = none, 34 = ", 39 = '
     let start = 0
+    const len = inner.length
 
-    for (let i = 0; i <= inner.length; i++) {
-      const char = i < inner.length ? inner[i] : ','
+    for (let i = 0; i <= len; i++) {
+      const charCode = i < len ? inner.charCodeAt(i) : 44 // 44 = ,
 
       if (inQuote) {
-        if (char === inQuote && inner[i - 1] !== '\\') {
-          inQuote = null
+        if (charCode === inQuote && inner.charCodeAt(i - 1) !== 92) {
+          // 92 = \\
+          inQuote = 0
         }
         continue
       }
 
-      if (char === '"' || char === "'") {
-        inQuote = char
+      if (charCode === 34 || charCode === 39) {
+        // " or '
+        inQuote = charCode
         continue
       }
 
-      if (char === '[') bracketLevel++
-      else if (char === ']') bracketLevel--
-      else if (char === '(') parenLevel++
-      else if (char === ')') parenLevel--
-      else if (char === ',' && bracketLevel === 0 && parenLevel === 0) {
+      if (charCode === 91) {
+        bracketLevel++ // [
+      } else if (charCode === 93) {
+        bracketLevel-- // ]
+      } else if (charCode === 40) {
+        parenLevel++ // (
+      } else if (charCode === 41) {
+        parenLevel-- // )
+      } else if (charCode === 44 && bracketLevel === 0 && parenLevel === 0) {
+        // ,
         const item = inner.slice(start, i).trim()
-        if (item || results.length > 0 || i < inner.length) {
+        if (item || results.length > 0 || i < len) {
           results.push(parseGodotValue(item, _depth + 1))
         }
         start = i + 1

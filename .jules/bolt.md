@@ -72,3 +72,7 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## 2025-03-10 - [Pre-allocate arrays for node listing]
 **Learning:** Dynamically growing arrays using `.push()` inside an O(N) traversal (like listing all nodes in a scene) causes resizing overhead in the V8 engine, which accumulates heavily in scenes with tens of thousands of nodes.
 **Action:** Always use a pre-allocated array (`new Array(scene.nodes.length)`) for 1:1 mapping operations during O(N) loops, avoiding V8 array resizing penalties.
+
+## 2023-10-25 - [Optimize Character Code Lookups]
+**Learning:** Inside tight string-parsing loops (e.g., Godot array parsing), using bracket notation (like `str[i]`) and string comparison (`char === '"'`) allocates thousands of small single-character string objects. This puts unnecessary strain on the garbage collector in V8.
+**Action:** Always prefer using `str.charCodeAt(i)` and integer comparisons (e.g. `charCode === 34` for `"`) when looping over characters inside a hot-path parser to avoid string allocations entirely.

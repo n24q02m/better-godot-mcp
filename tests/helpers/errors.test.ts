@@ -58,6 +58,11 @@ describe('errors', () => {
       expect(result.content[0].text).toContain('Something failed')
     })
 
+    it('should never emit structuredContent on the error path', () => {
+      const result = formatError(new GodotMCPError('Something failed', 'EXECUTION_ERROR'))
+      expect((result as Record<string, unknown>).structuredContent).toBeUndefined()
+    })
+
     it('should include suggestion in formatted output', () => {
       const err = new GodotMCPError('msg', 'SCRIPT_ERROR', 'Install Godot')
       const result = formatError(err)
@@ -99,6 +104,11 @@ describe('errors', () => {
       expect(result.content[0].text).toBe('Operation complete')
       expect((result as Record<string, unknown>).isError).toBeUndefined()
     })
+
+    it('should wrap the message in structuredContent so it satisfies a {type: object} outputSchema', () => {
+      const result = formatSuccess('Operation complete')
+      expect(result.structuredContent).toEqual({ message: 'Operation complete' })
+    })
   })
 
   // ==========================================
@@ -116,6 +126,12 @@ describe('errors', () => {
     it('should format with indentation', () => {
       const result = formatJSON({ a: 1 })
       expect(result.content[0].text).toContain('  ')
+    })
+
+    it('should emit the same object as structuredContent (dual-emit)', () => {
+      const data = { name: 'test', count: 5 }
+      const result = formatJSON(data)
+      expect(result.structuredContent).toEqual(data)
     })
   })
 

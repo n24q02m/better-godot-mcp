@@ -5,7 +5,7 @@
 
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { formatSuccess, GodotMCPError } from '../helpers/errors.js'
+import { GodotMCPError } from '../helpers/errors.js'
 import { pathExists } from '../helpers/paths.js'
 
 const VALID_TOPICS = [
@@ -89,5 +89,7 @@ export async function handleHelp(action: string, args: Record<string, unknown>) 
   }
 
   const doc = await loadDoc(toolName)
-  return formatSuccess(doc)
+  // help stays markdown-only by design (no outputSchema) -- do not route through
+  // formatSuccess, which now always emits structuredContent for domain tools.
+  return { content: [{ type: 'text', text: doc }] }
 }

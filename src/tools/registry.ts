@@ -558,13 +558,24 @@ const P3_TOOLS = [
   },
 ]
 
-const TOOLS = [...P0_TOOLS, ...P1_TOOLS, ...P2_TOOLS, ...P3_TOOLS]
+// Envelope-loose output schema (spec 2025-11-25): domain tools return free-form
+// structured data, not a per-action strict schema (mega-tool action-dispatch
+// doesn't map naturally onto one). help is excluded -- it stays markdown-only.
+const DOMAIN_OUTPUT_SCHEMA = { type: 'object' as const, additionalProperties: true }
+
+const TOOLS = [...P0_TOOLS, ...P1_TOOLS, ...P2_TOOLS, ...P3_TOOLS].map((tool) =>
+  tool.name === 'help' ? tool : { ...tool, outputSchema: DOMAIN_OUTPUT_SCHEMA },
+)
 
 type ToolHandler = (
   action: string,
   args: Record<string, unknown>,
   config: GodotConfig,
-) => Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }>
+) => Promise<{
+  content: Array<{ type: string; text: string }>
+  structuredContent?: Record<string, unknown>
+  isError?: boolean
+}>
 
 const TOOL_HANDLERS: Record<string, ToolHandler> = {
   project: handleProject,
@@ -597,7 +608,11 @@ export function registerTools(server: Server, config: GodotConfig): void {
     const { name, arguments: args = {} } = request.params
 
     try {
-      let result: { content: Array<{ type: string; text: string }>; isError?: boolean }
+      let result: {
+        content: Array<{ type: string; text: string }>
+        structuredContent?: Record<string, unknown>
+        isError?: boolean
+      }
       if (name === 'help') {
         result = await handleHelp(
           (args.action as string) || (args.tool_name as string),

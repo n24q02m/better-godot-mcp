@@ -31,6 +31,14 @@ describe('handleHelp', () => {
     expect(readFile).toHaveBeenCalled()
   })
 
+  it('should never emit structuredContent -- help stays markdown-only, no outputSchema declared', async () => {
+    vi.mocked(readFile).mockResolvedValue('# Test Documentation')
+
+    const result = await handleHelp('project', {})
+
+    expect((result as Record<string, unknown>).structuredContent).toBeUndefined()
+  })
+
   it('should use tool_name from arguments if provided', async () => {
     vi.mocked(readFile).mockResolvedValue('# Scenes Documentation')
 

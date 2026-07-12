@@ -100,6 +100,24 @@ describe('registerTools handler routing', () => {
     expect(result.tools).toHaveLength(17)
   })
 
+  it('should declare an envelope-loose outputSchema on every domain+config tool but not on help', async () => {
+    const result = await listToolsHandler?.()
+    const tools = result?.tools as Array<{
+      name: string
+      outputSchema?: { type: string; additionalProperties?: boolean }
+    }>
+    for (const tool of tools) {
+      if (tool.name === 'help') {
+        expect(tool.outputSchema, 'help must not declare outputSchema').toBeUndefined()
+      } else {
+        expect(tool.outputSchema, `${tool.name} should declare outputSchema`).toEqual({
+          type: 'object',
+          additionalProperties: true,
+        })
+      }
+    }
+  })
+
   // Test routing for all tools
   const toolCases = [
     { name: 'project', action: 'info' },
@@ -161,5 +179,46 @@ describe('registerTools handler routing', () => {
       params: { name: 'help', arguments: undefined },
     })
     expect(result).toBeDefined()
+  })
+
+  // structuredContent dual-emit, 2 representative tools: 'project' (external-content, XPIA
+  // marker applies) and 'config' (internal, no XPIA marker).
+  describe('structuredContent dual-emit (tools/call)', () => {
+    it('should pass through structuredContent and add the XPIA marker for an external-content tool (project)', async () => {
+      const { handleProject } = await import('../src/tools/composite/project.js')
+      vi.mocked(handleProject).mockResolvedValueOnce({
+        content: [{ type: 'text', text: '{"version":"4.3"}' }],
+        structuredContent: { version: '4.3' },
+      })
+
+      const result = (await callToolHandler?.({
+        params: { name: 'project', arguments: { action: 'version' } },
+      })) as { structuredContent?: Record<string, unknown> }
+
+      expect(result.structuredContent).toMatchObject({ version: '4.3' })
+      expect(result.structuredContent?._untrusted_source).toBe('godot_project')
+    })
+
+    it('should pass through structuredContent unmarked for an internal tool (config)', async () => {
+      const { handleConfig } = await import('../src/tools/composite/config.js')
+      vi.mocked(handleConfig).mockResolvedValueOnce({
+        content: [{ type: 'text', text: '{"godot_path":"not detected"}' }],
+        structuredContent: { godot_path: 'not detected' },
+      })
+
+      const result = (await callToolHandler?.({
+        params: { name: 'config', arguments: { action: 'status' } },
+      })) as { structuredContent?: Record<string, unknown> }
+
+      expect(result.structuredContent).toEqual({ godot_path: 'not detected' })
+    })
+
+    it('should NOT include structuredContent for help', async () => {
+      const result = (await callToolHandler?.({
+        params: { name: 'help', arguments: { tool_name: 'project' } },
+      })) as { structuredContent?: Record<string, unknown> }
+
+      expect(result.structuredContent).toBeUndefined()
+    })
   })
 })

@@ -70,6 +70,66 @@ describe('security', () => {
       expect(wrapped.content[1].text).toContain('<untrusted_godot_content>')
       expect(wrapped.content[1].text).toContain('script2')
     })
+
+    // structuredContent bypasses the <untrusted_godot_content> text marker above (a client
+    // reading structuredContent instead of text would see project-file content with no XPIA
+    // warning), so the marker must be mirrored into structuredContent for the same tool set.
+    describe('structuredContent envelope marker (XPIA)', () => {
+      it('should add _untrusted_source/_untrusted_warning to structuredContent for tracked tools', () => {
+        const result = {
+          content: [{ type: 'text', text: 'some content' }],
+          structuredContent: { files: ['player.gd'] },
+        }
+        const wrapped = wrapToolResult('scripts', result)
+        expect(wrapped.structuredContent).toMatchObject({ files: ['player.gd'] })
+        expect(wrapped.structuredContent?._untrusted_source).toBe('godot_project')
+        expect(wrapped.structuredContent?._untrusted_warning).toContain('UNTRUSTED')
+      })
+
+      it('marker fields must win over a colliding payload key (spread payload before marker)', () => {
+        const result = {
+          content: [{ type: 'text', text: 'some content' }],
+          structuredContent: { _untrusted_source: 'attacker-controlled', files: [] },
+        }
+        const wrapped = wrapToolResult('scripts', result)
+        expect(wrapped.structuredContent?._untrusted_source).toBe('godot_project')
+      })
+
+      it('should NOT add marker fields for untracked tools', () => {
+        const result = {
+          content: [{ type: 'text', text: 'some content' }],
+          structuredContent: { message: 'no file content here' },
+        }
+        const wrapped = wrapToolResult('list_files', result)
+        expect(wrapped.structuredContent).toEqual({ message: 'no file content here' })
+      })
+
+      it('should NOT add marker fields for internal (non-tracked) tools like config', () => {
+        const result = {
+          content: [{ type: 'text', text: 'status text' }],
+          structuredContent: { godot_path: 'not detected' },
+        }
+        const wrapped = wrapToolResult('config', result)
+        expect(wrapped.structuredContent).toEqual({ godot_path: 'not detected' })
+      })
+
+      it('should NOT add marker fields to an error result even for a tracked tool', () => {
+        const result = {
+          isError: true,
+          content: [{ type: 'text', text: 'File not found' }],
+          structuredContent: { should: 'not appear marked' },
+        }
+        const wrapped = wrapToolResult('scripts', result)
+        expect(wrapped).toBe(result)
+        expect(wrapped.structuredContent).toEqual({ should: 'not appear marked' })
+      })
+
+      it('should NOT invent structuredContent for a tracked tool result that has none', () => {
+        const result = { content: [{ type: 'text', text: 'some content' }] }
+        const wrapped = wrapToolResult('scripts', result)
+        expect(wrapped.structuredContent).toBeUndefined()
+      })
+    })
   })
 
   // ==========================================

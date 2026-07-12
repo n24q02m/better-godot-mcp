@@ -60,17 +60,31 @@ export function formatError(error: unknown): { content: Array<{ type: 'text'; te
 }
 
 /**
- * Format successful MCP response
+ * Format successful MCP response.
+ * structuredContent wraps the message so it satisfies the declared
+ * `{type: "object"}` outputSchema (a bare string does not).
  */
-export function formatSuccess(text: string): { content: Array<{ type: 'text'; text: string }> } {
-  return { content: [{ type: 'text', text }] }
+export function formatSuccess(text: string): {
+  content: Array<{ type: 'text'; text: string }>
+  structuredContent: { message: string }
+} {
+  return { content: [{ type: 'text', text }], structuredContent: { message: text } }
 }
 
 /**
- * Format successful JSON MCP response
+ * Format successful JSON MCP response.
+ * Callers always pass a plain object (verified across all call sites); the cast
+ * to Record<string, unknown> reflects that invariant without forcing every
+ * named interface (ProjectInfo, SceneInfo, ...) to declare an index signature.
  */
-export function formatJSON(data: unknown): { content: Array<{ type: 'text'; text: string }> } {
-  return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] }
+export function formatJSON(data: unknown): {
+  content: Array<{ type: 'text'; text: string }>
+  structuredContent: Record<string, unknown>
+} {
+  return {
+    content: [{ type: 'text', text: JSON.stringify(data, null, 2) }],
+    structuredContent: data as Record<string, unknown>,
+  }
 }
 
 /**

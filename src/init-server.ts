@@ -14,6 +14,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import pkg from '../package.json' with { type: 'json' }
 import { detectGodot } from './godot/detector.js'
+import { getTrackedPids } from './godot/headless.js'
 import type { GodotConfig } from './godot/types.js'
 import { logger } from './tools/helpers/logger.js'
 import { registerTools } from './tools/registry.js'
@@ -96,6 +97,15 @@ export async function initServer(): Promise<void> {
       // Keep process alive until SIGINT/SIGTERM.
       await new Promise<void>((resolve) => {
         const shutdown = async (): Promise<void> => {
+          // Godot processes started via `project run` are detached; without this,
+          // they outlive the server on shutdown (see spec: "highest-value item").
+          for (const pid of getTrackedPids()) {
+            try {
+              process.kill(pid)
+            } catch {
+              // Already exited or inaccessible; best-effort cleanup only.
+            }
+          }
           await handle.close()
           resolve()
         }

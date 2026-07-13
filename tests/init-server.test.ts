@@ -40,6 +40,10 @@ vi.mock('../src/godot/detector.js', () => ({
   detectGodot: vi.fn(),
 }))
 
+vi.mock('../src/godot/headless.js', () => ({
+  getTrackedPids: vi.fn().mockReturnValue([]),
+}))
+
 vi.mock('../src/tools/registry.js', () => ({
   registerTools: vi.fn(),
 }))
@@ -210,6 +214,46 @@ describe('initServer', () => {
           },
         },
       )
+    })
+  })
+
+  describe('HTTP shutdown process cleanup', () => {
+    it('kills tracked Godot pids before closing the HTTP handle on SIGINT', async () => {
+      const { detectGodot } = await import('../src/godot/detector.js')
+      vi.mocked(detectGodot).mockReturnValue(null)
+      process.env.MCP_TRANSPORT = 'http'
+
+      const { getTrackedPids } = await import('../src/godot/headless.js')
+      vi.mocked(getTrackedPids).mockReturnValue([111, 222])
+      const killSpy = vi.spyOn(process, 'kill').mockImplementation(() => true)
+
+      const { initServer } = await import('../src/init-server.js')
+      await runHttpInit(initServer)
+
+      expect(killSpy).toHaveBeenCalledWith(111)
+      expect(killSpy).toHaveBeenCalledWith(222)
+      killSpy.mockRestore()
+    })
+
+    it('closes the HTTP handle even if killing a stale pid throws', async () => {
+      const { detectGodot } = await import('../src/godot/detector.js')
+      vi.mocked(detectGodot).mockReturnValue(null)
+      process.env.MCP_TRANSPORT = 'http'
+
+      const { getTrackedPids } = await import('../src/godot/headless.js')
+      vi.mocked(getTrackedPids).mockReturnValue([333])
+      const killSpy = vi.spyOn(process, 'kill').mockImplementation(() => {
+        throw new Error('ESRCH: no such process')
+      })
+
+      const closeSpy = vi.fn().mockResolvedValue(undefined)
+      mockStartHttp.mockResolvedValue({ host: '127.0.0.1', port: 12345, close: closeSpy })
+
+      const { initServer } = await import('../src/init-server.js')
+      await expect(runHttpInit(initServer)).resolves.not.toThrow()
+
+      expect(closeSpy).toHaveBeenCalledOnce()
+      killSpy.mockRestore()
     })
   })
 

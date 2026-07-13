@@ -3,8 +3,18 @@
  */
 
 import * as child_process from 'node:child_process'
+import { EventEmitter } from 'node:events'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { execGodotAsync, execGodotSync, launchGodotEditor, runGodotProject } from '../../src/godot/headless.js'
+import {
+  clearProjectLogs,
+  execGodotAsync,
+  execGodotSync,
+  getProjectLogs,
+  getTrackedPids,
+  launchGodotEditor,
+  runGodotProject,
+  spawnCaptured,
+} from '../../src/godot/headless.js'
 
 // execFileAsyncMock is hoisted so it is available inside the vi.mock factory.
 // We attach it as [promisify.custom] on execFile so that promisify(execFile)
@@ -285,7 +295,7 @@ describe('headless', () => {
       expect(result.pid).toBe(42)
       expect(child_process.spawn).toHaveBeenCalledWith('/usr/bin/godot', ['--path', '/tmp/project'], {
         detached: true,
-        stdio: 'ignore',
+        stdio: ['ignore', 'pipe', 'pipe'],
       })
       expect(mockChild.unref).toHaveBeenCalled()
     })
@@ -301,7 +311,7 @@ describe('headless', () => {
         ['--path', '/tmp/project', 'res://main.tscn'],
         {
           detached: true,
-          stdio: 'ignore',
+          stdio: ['ignore', 'pipe', 'pipe'],
         },
       )
     })
@@ -320,6 +330,122 @@ describe('headless', () => {
       })
 
       expect(() => runGodotProject('/usr/bin/godot', '/tmp/project')).toThrow('Spawn failed')
+    })
+  })
+
+  // ==========================================
+  // spawnCaptured / project logs ring buffer
+  // ==========================================
+  describe('spawnCaptured', () => {
+    function mockChildWithStreams(pid: number | undefined) {
+      const stdout = Object.assign(new EventEmitter(), { unref: vi.fn() })
+      const stderr = Object.assign(new EventEmitter(), { unref: vi.fn() })
+      const child = Object.assign(new EventEmitter(), { unref: vi.fn(), pid, stdout, stderr })
+      vi.mocked(child_process.spawn).mockReturnValue(child as never)
+      return { child, stdout, stderr }
+    }
+
+    it('spawns with piped stdio (not ignore) so output can be captured', () => {
+      const { child } = mockChildWithStreams(100)
+
+      spawnCaptured('/usr/bin/godot', ['--path', '/tmp/project'])
+
+      expect(child_process.spawn).toHaveBeenCalledWith('/usr/bin/godot', ['--path', '/tmp/project'], {
+        detached: true,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      })
+      expect(child.unref).toHaveBeenCalled()
+    })
+
+    it('captures stdout and stderr chunks into the per-pid ring buffer', () => {
+      const { stdout, stderr } = mockChildWithStreams(101)
+
+      spawnCaptured('/usr/bin/godot', ['--path', '/tmp/project'])
+      stdout.emit('data', Buffer.from('line1\n'))
+      stderr.emit('data', Buffer.from('line2\n'))
+      stdout.emit('data', Buffer.from('line3'))
+
+      const logs = getProjectLogs(101)
+      expect(logs?.lines).toEqual(['line1', 'line2', 'line3'])
+      expect(logs?.truncated).toBe(false)
+    })
+
+    it('unrefs the stdout/stderr streams so a live child does not block process exit', () => {
+      const { stdout, stderr } = mockChildWithStreams(102)
+
+      spawnCaptured('/usr/bin/godot', ['--path', '/tmp/project'])
+
+      expect(stdout.unref).toHaveBeenCalled()
+      expect(stderr.unref).toHaveBeenCalled()
+    })
+
+    it('drops empty lines produced by trailing newlines', () => {
+      const { stdout } = mockChildWithStreams(103)
+
+      spawnCaptured('/usr/bin/godot', ['--path', '/tmp/project'])
+      stdout.emit('data', Buffer.from('only\n\n'))
+
+      expect(getProjectLogs(103)?.lines).toEqual(['only'])
+    })
+
+    it('keeps only the last 400 lines and marks the buffer truncated', () => {
+      const { stdout } = mockChildWithStreams(104)
+
+      spawnCaptured('/usr/bin/godot', ['--path', '/tmp/project'])
+      for (let i = 0; i < 410; i++) {
+        stdout.emit('data', Buffer.from(`line${i}\n`))
+      }
+
+      const logs = getProjectLogs(104)
+      expect(logs?.lines).toHaveLength(400)
+      expect(logs?.lines[0]).toBe('line10')
+      expect(logs?.lines[399]).toBe('line409')
+      expect(logs?.truncated).toBe(true)
+    })
+
+    it('does not register a ring buffer entry when spawn fails to assign a pid', () => {
+      mockChildWithStreams(undefined)
+
+      const result = spawnCaptured('/usr/bin/godot', ['--path', '/tmp/project'])
+
+      expect(result.pid).toBeUndefined()
+    })
+
+    it('getProjectLogs returns undefined for an unknown pid', () => {
+      expect(getProjectLogs(999999)).toBeUndefined()
+    })
+
+    it('clearProjectLogs removes the ring buffer entry for a pid', () => {
+      mockChildWithStreams(105)
+      spawnCaptured('/usr/bin/godot', ['--path', '/tmp/project'])
+      expect(getProjectLogs(105)).toBeDefined()
+
+      clearProjectLogs(105)
+
+      expect(getProjectLogs(105)).toBeUndefined()
+    })
+
+    it('runGodotProject output flows through the same ring buffer as spawnCaptured', () => {
+      const { stdout } = mockChildWithStreams(106)
+
+      runGodotProject('/usr/bin/godot', '/tmp/project')
+      stdout.emit('data', Buffer.from('hello from game\n'))
+
+      expect(getProjectLogs(106)?.lines).toEqual(['hello from game'])
+    })
+
+    it('getTrackedPids reflects pids currently registered in the ring buffer', () => {
+      mockChildWithStreams(201)
+      spawnCaptured('/usr/bin/godot', ['--path', '/tmp/project'])
+      mockChildWithStreams(202)
+      spawnCaptured('/usr/bin/godot', ['--path', '/tmp/project'])
+
+      const tracked = getTrackedPids()
+      expect(tracked).toContain(201)
+      expect(tracked).toContain(202)
+
+      clearProjectLogs(201)
+      clearProjectLogs(202)
     })
   })
 

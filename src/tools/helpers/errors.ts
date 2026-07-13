@@ -6,6 +6,7 @@ export type GodotMCPErrorCode =
   | 'GODOT_NOT_FOUND'
   | 'VERSION_MISMATCH'
   | 'PROJECT_NOT_FOUND'
+  | 'PROCESS_NOT_FOUND'
   | 'SCENE_ERROR'
   | 'SCRIPT_ERROR'
   | 'NODE_ERROR'

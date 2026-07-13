@@ -15,6 +15,8 @@ vi.mock('../../src/godot/headless.js', () => ({
   execGodotAsync: vi.fn().mockResolvedValue({ success: true, stdout: '', stderr: '', exitCode: 0 }),
   execGodotSync: vi.fn(),
   runGodotProject: vi.fn(),
+  getProjectLogs: vi.fn(),
+  clearProjectLogs: vi.fn(),
 }))
 
 // Mock child_process for stop command
@@ -22,7 +24,7 @@ vi.mock('node:child_process', () => ({
   execFileSync: vi.fn(),
 }))
 
-import { execGodotAsync, runGodotProject } from '../../src/godot/headless.js'
+import { clearProjectLogs, execGodotAsync, getProjectLogs, runGodotProject } from '../../src/godot/headless.js'
 
 describe('project', () => {
   let projectPath: string
@@ -122,6 +124,13 @@ describe('project', () => {
       const noProjectConfig = makeConfig({ godotPath: '/usr/bin/godot' })
       await expect(handleProject('run', {}, noProjectConfig)).rejects.toThrow('No project path specified')
     })
+
+    it('should include a hint to use logs/stop after starting', async () => {
+      vi.mocked(runGodotProject).mockReturnValue({ pid: 12345 })
+
+      const result = await handleProject('run', { project_path: projectPath }, config)
+      expect(result.content[0].text).toContain('Use project logs to see output, project stop to terminate.')
+    })
   })
 
   // ==========================================
@@ -144,9 +153,22 @@ describe('project', () => {
       processKillSpy.mockRestore()
     })
 
+    it('should clear ring-buffered logs for every tracked pid', async () => {
+      config.activePids = [1234, 5678]
+      const processKillSpy = vi.spyOn(process, 'kill').mockImplementation(() => true)
+
+      await handleProject('stop', {}, config)
+
+      expect(clearProjectLogs).toHaveBeenCalledWith(1234)
+      expect(clearProjectLogs).toHaveBeenCalledWith(5678)
+
+      processKillSpy.mockRestore()
+    })
+
     it('should handle no running processes gracefully', async () => {
       const result = await handleProject('stop', {}, config)
       expect(result.content[0].text).toContain('No running Godot processes found (tracked by this server)')
+      expect(clearProjectLogs).not.toHaveBeenCalled()
     })
 
     it('should continue if process is already dead on win32', async () => {
@@ -173,6 +195,53 @@ describe('project', () => {
 
       processKillSpy.mockRestore()
       Object.defineProperty(process, 'platform', { value: originalPlatform })
+    })
+  })
+
+  // ==========================================
+  // logs
+  // ==========================================
+  describe('logs', () => {
+    it('should throw when no project has been started', async () => {
+      await expect(handleProject('logs', {}, config)).rejects.toThrow('No running project')
+    })
+
+    it('should throw for an explicit pid that was never tracked', async () => {
+      vi.mocked(getProjectLogs).mockReturnValue(undefined)
+      await expect(handleProject('logs', { pid: 999 }, config)).rejects.toThrow('No logs for PID 999')
+    })
+
+    it('should throw for a non-positive-integer pid', async () => {
+      await expect(handleProject('logs', { pid: -1 }, config)).rejects.toThrow('Invalid PID')
+      await expect(handleProject('logs', { pid: 'nope' }, config)).rejects.toThrow('Invalid PID')
+    })
+
+    it('should default to the most recently started pid when none is given', async () => {
+      config.activePids = [111, 222]
+      vi.mocked(getProjectLogs).mockReturnValue({ lines: ['hello'], truncated: false })
+
+      const result = await handleProject('logs', {}, config)
+
+      expect(getProjectLogs).toHaveBeenCalledWith(222)
+      expect(result.content[0].text).toContain('hello')
+    })
+
+    it('should return the ring-buffered lines for an explicit pid', async () => {
+      vi.mocked(getProjectLogs).mockReturnValue({ lines: ['line1', 'line2'], truncated: false })
+
+      const result = await handleProject('logs', { pid: 42 }, config)
+
+      expect(getProjectLogs).toHaveBeenCalledWith(42)
+      expect(result.content[0].text).toContain('Last 2 line(s):')
+      expect(result.content[0].text).toContain('line1\nline2')
+    })
+
+    it('should note when older lines were dropped due to truncation', async () => {
+      vi.mocked(getProjectLogs).mockReturnValue({ lines: Array(400).fill('x'), truncated: true })
+
+      const result = await handleProject('logs', { pid: 42 }, config)
+
+      expect(result.content[0].text).toContain('Last 400 line(s) (older lines dropped):')
     })
   })
 

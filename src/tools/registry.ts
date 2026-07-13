@@ -64,6 +64,7 @@ const P0_TOOLS = [
       '- info (-> project_path): project metadata',
       '- version: Godot engine version',
       '- run (-> scene_path, project_path): launch game',
+      '- logs (-> pid): last captured stdout/stderr lines from a run (default: most recently started)',
       '- stop: stop running game',
       '- settings_get (key -> project_path): read project setting',
       '- settings_set (key, value -> project_path): write project setting',
@@ -75,11 +76,12 @@ const P0_TOOLS = [
       properties: {
         action: {
           type: 'string',
-          enum: ['info', 'version', 'run', 'stop', 'settings_get', 'settings_set', 'export'],
+          enum: ['info', 'version', 'run', 'logs', 'stop', 'settings_get', 'settings_set', 'export'],
           description: 'Action to perform',
         },
         project_path: { type: 'string', description: 'Path to Godot project directory' },
         scene_path: { type: 'string', description: 'Path to a specific scene to run (optional)' },
+        pid: { type: 'number', description: 'PID to read logs for (for logs; default: most recently started)' },
         key: { type: 'string', description: 'Settings key (for settings_get/set)' },
         value: { type: 'string', description: 'Settings value (for settings_set)' },
         preset: { type: 'string', description: 'Export preset name (for export)' },

@@ -7,8 +7,15 @@ import { promisify } from 'node:util'
 import type { HeadlessResult } from './types.js'
 
 const DEFAULT_TIMEOUT_MS = 30_000
+const RING_MAX = 400
 
 const execFileAsync = promisify(execFile)
+
+/** Last RING_MAX stdout/stderr lines per spawned PID, for the `project logs` action. */
+const projectLogs = new Map<number, string[]>()
+
+/** child.stdout/stderr are typed as plain `Readable`, but the underlying pipe handle exposes `unref()`. */
+type UnrefableStream = { unref?: () => void }
 
 /**
  * Execute a Godot command and capture output
@@ -90,6 +97,45 @@ export async function execGodotAsync(
   }
 }
 
+function pushLog(pid: number, chunk: Buffer): void {
+  const lines = projectLogs.get(pid)
+  if (!lines) return
+  for (const line of chunk.toString('utf8').split(/\r?\n/)) {
+    if (line === '') continue
+    lines.push(line)
+    if (lines.length > RING_MAX) lines.shift()
+  }
+}
+
+/**
+ * Spawn a detached, non-blocking process and capture its stdout/stderr into a
+ * per-pid ring buffer (see getProjectLogs). Shared by runGodotProject; exported
+ * separately so it can be unit-tested without a real Godot binary.
+ */
+export function spawnCaptured(bin: string, args: string[]): { pid: number | undefined } {
+  const child = spawn(bin, args, {
+    detached: true,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  })
+
+  if (child.pid !== undefined) {
+    const pid = child.pid
+    projectLogs.set(pid, [])
+    child.stdout?.on('data', (chunk: Buffer) => pushLog(pid, chunk))
+    child.stderr?.on('data', (chunk: Buffer) => pushLog(pid, chunk))
+    // child.unref() alone does not release the event loop: the piped stdout/stderr
+    // handles stay ref'd for as long as the (detached) child keeps running, which
+    // would keep this server process alive too. Unref them explicitly. The `Readable`
+    // type doesn't declare `unref` but the underlying pipe handle supports it at runtime.
+    ;(child.stdout as UnrefableStream | null)?.unref?.()
+    ;(child.stderr as UnrefableStream | null)?.unref?.()
+  }
+
+  child.unref()
+
+  return { pid: child.pid }
+}
+
 /**
  * Run Godot project (non-blocking)
  */
@@ -103,14 +149,24 @@ export function runGodotProject(
     args.push(scenePath)
   }
 
-  const child = spawn(godotPath, args, {
-    detached: true,
-    stdio: 'ignore',
-  })
+  return spawnCaptured(godotPath, args)
+}
 
-  child.unref()
+/** Last captured output lines for a PID started via runGodotProject/spawnCaptured. */
+export function getProjectLogs(pid: number): { lines: string[]; truncated: boolean } | undefined {
+  const lines = projectLogs.get(pid)
+  if (!lines) return undefined
+  return { lines: [...lines], truncated: lines.length >= RING_MAX }
+}
 
-  return { pid: child.pid }
+/** Drop the ring buffer entry for a PID (call once the process is no longer tracked). */
+export function clearProjectLogs(pid: number): void {
+  projectLogs.delete(pid)
+}
+
+/** PIDs with a live ring buffer entry, i.e. spawned and not yet cleared. Used for best-effort cleanup on shutdown. */
+export function getTrackedPids(): number[] {
+  return [...projectLogs.keys()]
 }
 
 /**

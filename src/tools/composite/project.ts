@@ -6,7 +6,7 @@
 import { execFileSync } from 'node:child_process'
 import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { execGodotAsync, runGodotProject } from '../../godot/headless.js'
+import { clearProjectLogs, execGodotAsync, getProjectLogs, runGodotProject } from '../../godot/headless.js'
 import type { GodotConfig, ProjectInfo } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
@@ -149,7 +149,39 @@ export async function handleProject(action: string, args: Record<string, unknown
         validatePid(pid)
         config.activePids.push(pid)
       }
-      return formatSuccess(`Godot project started (PID: ${pid})${scenePath ? ` for scene ${scenePath}` : ''}`)
+      return formatSuccess(
+        `Godot project started (PID: ${pid})${scenePath ? ` for scene ${scenePath}` : ''}. ` +
+          'Use project logs to see output, project stop to terminate.',
+      )
+    }
+
+    case 'logs': {
+      let pid: number | undefined
+      if (args.pid !== undefined) {
+        if (typeof args.pid !== 'number' || !isValidPid(args.pid)) {
+          throw new GodotMCPError('Invalid PID', 'INVALID_ARGS', 'pid must be a positive integer.')
+        }
+        pid = args.pid
+      } else {
+        pid = config.activePids[config.activePids.length - 1]
+      }
+
+      if (pid === undefined) {
+        throw new GodotMCPError('No running project', 'PROCESS_NOT_FOUND', 'Use project run first.')
+      }
+
+      const logs = getProjectLogs(pid)
+      if (!logs) {
+        throw new GodotMCPError(
+          `No logs for PID ${pid}`,
+          'PROCESS_NOT_FOUND',
+          'This process was not started by this server, or its logs were already cleared by project stop.',
+        )
+      }
+
+      return formatSuccess(
+        `Last ${logs.lines.length} line(s)${logs.truncated ? ' (older lines dropped)' : ''}:\n${logs.lines.join('\n')}`,
+      )
     }
 
     case 'stop': {
@@ -183,6 +215,9 @@ export async function handleProject(action: string, args: Record<string, unknown
         }
       }
 
+      for (const pid of config.activePids) {
+        clearProjectLogs(pid)
+      }
       config.activePids = []
       return formatSuccess(`Godot processes stopped (Stopped ${stoppedCount} tracked processes)`)
     }

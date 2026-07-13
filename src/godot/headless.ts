@@ -2,17 +2,31 @@
  * Run Godot in headless mode for CLI operations
  */
 
-import { execFile, spawn, spawnSync } from 'node:child_process'
+import { execFile, execFileSync, spawn, spawnSync } from 'node:child_process'
 import { promisify } from 'node:util'
 import type { HeadlessResult } from './types.js'
 
 const DEFAULT_TIMEOUT_MS = 30_000
 const RING_MAX = 400
+/** Cap on how many *exited* processes' logs are retained (bounds memory). Live processes are never evicted. */
+const MAX_EXITED_LOGS = 10
 
 const execFileAsync = promisify(execFile)
 
+interface LogBuffer {
+  lines: string[]
+  /** True once at least one line was dropped from the front of the ring buffer. */
+  dropped: boolean
+}
+
 /** Last RING_MAX stdout/stderr lines per spawned PID, for the `project logs` action. */
-const projectLogs = new Map<number, string[]>()
+const projectLogs = new Map<number, LogBuffer>()
+
+/** Pids with a process currently running -- added at spawn, removed on exit or explicit clear. */
+const liveProcessPids = new Set<number>()
+
+/** FIFO of exited pids whose logs are still retained (oldest first); bounds `projectLogs` for finished/crashed runs. */
+const exitedPidOrder: number[] = []
 
 /** child.stdout/stderr are typed as plain `Readable`, but the underlying pipe handle exposes `unref()`. */
 type UnrefableStream = { unref?: () => void }
@@ -98,12 +112,33 @@ export async function execGodotAsync(
 }
 
 function pushLog(pid: number, chunk: Buffer): void {
-  const lines = projectLogs.get(pid)
-  if (!lines) return
+  const buf = projectLogs.get(pid)
+  if (!buf) return
   for (const line of chunk.toString('utf8').split(/\r?\n/)) {
     if (line === '') continue
-    lines.push(line)
-    if (lines.length > RING_MAX) lines.shift()
+    buf.lines.push(line)
+    if (buf.lines.length > RING_MAX) {
+      buf.lines.shift()
+      buf.dropped = true
+    }
+  }
+}
+
+/**
+ * Called once a spawned process exits. Moves the pid from "live" to "exited" bookkeeping
+ * and, if that pushes the exited-with-retained-logs count over MAX_EXITED_LOGS, evicts the
+ * oldest exited pid's logs. Logs are kept (not dropped) on exit so `project logs` still
+ * works right after a crash -- only capped in count, and only for pids no longer live.
+ */
+function handleProcessExit(pid: number): void {
+  // If clearProjectLogs already ran for this pid (e.g. `project stop`), there is
+  // nothing left to retain or evict -- avoid resurrecting stale bookkeeping.
+  if (!liveProcessPids.delete(pid)) return
+
+  exitedPidOrder.push(pid)
+  if (exitedPidOrder.length > MAX_EXITED_LOGS) {
+    const oldest = exitedPidOrder.shift()
+    if (oldest !== undefined) projectLogs.delete(oldest)
   }
 }
 
@@ -120,9 +155,11 @@ export function spawnCaptured(bin: string, args: string[]): { pid: number | unde
 
   if (child.pid !== undefined) {
     const pid = child.pid
-    projectLogs.set(pid, [])
+    projectLogs.set(pid, { lines: [], dropped: false })
+    liveProcessPids.add(pid)
     child.stdout?.on('data', (chunk: Buffer) => pushLog(pid, chunk))
     child.stderr?.on('data', (chunk: Buffer) => pushLog(pid, chunk))
+    child.once('exit', () => handleProcessExit(pid))
     // child.unref() alone does not release the event loop: the piped stdout/stderr
     // handles stay ref'd for as long as the (detached) child keeps running, which
     // would keep this server process alive too. Unref them explicitly. The `Readable`
@@ -152,21 +189,53 @@ export function runGodotProject(
   return spawnCaptured(godotPath, args)
 }
 
-/** Last captured output lines for a PID started via runGodotProject/spawnCaptured. */
+/**
+ * Last captured output lines for a PID started via runGodotProject/spawnCaptured.
+ * Works for both live and recently-exited processes (see MAX_EXITED_LOGS), so
+ * `project logs` still works right after a crash.
+ */
 export function getProjectLogs(pid: number): { lines: string[]; truncated: boolean } | undefined {
-  const lines = projectLogs.get(pid)
-  if (!lines) return undefined
-  return { lines: [...lines], truncated: lines.length >= RING_MAX }
+  const buf = projectLogs.get(pid)
+  if (!buf) return undefined
+  return { lines: [...buf.lines], truncated: buf.dropped }
 }
 
-/** Drop the ring buffer entry for a PID (call once the process is no longer tracked). */
+/** Drop the ring buffer entry for a PID (call once the process is no longer tracked, e.g. by `project stop`). */
 export function clearProjectLogs(pid: number): void {
   projectLogs.delete(pid)
+  liveProcessPids.delete(pid)
+  const idx = exitedPidOrder.indexOf(pid)
+  if (idx !== -1) exitedPidOrder.splice(idx, 1)
 }
 
-/** PIDs with a live ring buffer entry, i.e. spawned and not yet cleared. Used for best-effort cleanup on shutdown. */
+/** PIDs with a currently-running process (spawned, not yet exited or explicitly cleared). Used for best-effort cleanup on shutdown. */
 export function getTrackedPids(): number[] {
-  return [...projectLogs.keys()]
+  return [...liveProcessPids]
+}
+
+/**
+ * Best-effort kill of a process, tree-killing on Windows (plain SIGTERM there leaves
+ * children of the target process running -- the exact orphan this module exists to fix).
+ * Shared by `project stop` and the server shutdown handler. Never throws.
+ * Returns true if a kill was actually issued (the process appeared alive), false if it
+ * was already gone.
+ */
+export function killProcessTree(pid: number): boolean {
+  try {
+    if (process.platform === 'win32') {
+      try {
+        process.kill(pid, 0) // liveness probe; throws if the process doesn't exist
+      } catch {
+        return false
+      }
+      execFileSync('taskkill', ['/F', '/PID', pid.toString(), '/T'], { stdio: 'pipe' })
+    } else {
+      process.kill(pid, 'SIGTERM')
+    }
+    return true
+  } catch {
+    return false
+  }
 }
 
 /**

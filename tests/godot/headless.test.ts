@@ -4,13 +4,14 @@
 
 import * as child_process from 'node:child_process'
 import { EventEmitter } from 'node:events'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   clearProjectLogs,
   execGodotAsync,
   execGodotSync,
   getProjectLogs,
   getTrackedPids,
+  killProcessTree,
   launchGodotEditor,
   runGodotProject,
   spawnCaptured,
@@ -32,6 +33,7 @@ vi.mock('node:child_process', async () => {
     spawnSync: vi.fn(),
     spawn: vi.fn(),
     execFile: execFileMock,
+    execFileSync: vi.fn(),
   }
 })
 
@@ -288,7 +290,7 @@ describe('headless', () => {
   // ==========================================
   describe('runGodotProject', () => {
     it('should spawn Godot with correct arguments', () => {
-      const mockChild = { unref: vi.fn(), pid: 42 }
+      const mockChild = { unref: vi.fn(), once: vi.fn(), pid: 42 }
       vi.mocked(child_process.spawn).mockReturnValue(mockChild as never)
 
       const result = runGodotProject('/usr/bin/godot', '/tmp/project')
@@ -301,7 +303,7 @@ describe('headless', () => {
     })
 
     it('should include scenePath in arguments when provided', () => {
-      const mockChild = { unref: vi.fn(), pid: 43 }
+      const mockChild = { unref: vi.fn(), once: vi.fn(), pid: 43 }
       vi.mocked(child_process.spawn).mockReturnValue(mockChild as never)
 
       const result = runGodotProject('/usr/bin/godot', '/tmp/project', 'res://main.tscn')
@@ -403,6 +405,21 @@ describe('headless', () => {
       expect(logs?.truncated).toBe(true)
     })
 
+    it('does not report truncated when exactly 400 lines were captured (no lines actually dropped)', () => {
+      const { stdout } = mockChildWithStreams(150)
+
+      spawnCaptured('/usr/bin/godot', ['--path', '/tmp/project'])
+      for (let i = 0; i < 400; i++) {
+        stdout.emit('data', Buffer.from(`line${i}\n`))
+      }
+
+      const logs = getProjectLogs(150)
+      expect(logs?.lines).toHaveLength(400)
+      expect(logs?.truncated).toBe(false)
+
+      clearProjectLogs(150)
+    })
+
     it('does not register a ring buffer entry when spawn fails to assign a pid', () => {
       mockChildWithStreams(undefined)
 
@@ -434,7 +451,7 @@ describe('headless', () => {
       expect(getProjectLogs(106)?.lines).toEqual(['hello from game'])
     })
 
-    it('getTrackedPids reflects pids currently registered in the ring buffer', () => {
+    it('getTrackedPids reflects currently-live spawned pids', () => {
       mockChildWithStreams(201)
       spawnCaptured('/usr/bin/godot', ['--path', '/tmp/project'])
       mockChildWithStreams(202)
@@ -446,6 +463,132 @@ describe('headless', () => {
 
       clearProjectLogs(201)
       clearProjectLogs(202)
+    })
+
+    it('removes an exited pid from getTrackedPids, but keeps its logs available for post-crash debugging', () => {
+      const { child, stdout } = mockChildWithStreams(301)
+      spawnCaptured('/usr/bin/godot', ['--path', '/tmp/project'])
+      stdout.emit('data', Buffer.from('dying words\n'))
+      expect(getTrackedPids()).toContain(301)
+
+      child.emit('exit', 1, null)
+
+      expect(getTrackedPids()).not.toContain(301)
+      expect(getProjectLogs(301)?.lines).toEqual(['dying words'])
+
+      clearProjectLogs(301)
+    })
+
+    it('evicts the oldest exited pid once more than 10 exited processes have logs retained', () => {
+      const pids = Array.from({ length: 11 }, (_, i) => 400 + i)
+      for (const pid of pids) {
+        const { child } = mockChildWithStreams(pid)
+        spawnCaptured('/usr/bin/godot', ['--path', '/tmp/project'])
+        child.emit('exit', 0, null)
+      }
+
+      // oldest exited pid's logs were evicted to bound memory
+      expect(getProjectLogs(pids[0])).toBeUndefined()
+      // the most recent 10 exited pids are still retained
+      for (const pid of pids.slice(1)) {
+        expect(getProjectLogs(pid)).toBeDefined()
+      }
+
+      for (const pid of pids.slice(1)) clearProjectLogs(pid)
+    })
+
+    it('never evicts a still-live pid, even after 11 other processes have exited', () => {
+      const { stdout } = mockChildWithStreams(500)
+      spawnCaptured('/usr/bin/godot', ['--path', '/tmp/project'])
+      stdout.emit('data', Buffer.from('still running\n'))
+
+      for (let i = 0; i < 11; i++) {
+        const { child } = mockChildWithStreams(600 + i)
+        spawnCaptured('/usr/bin/godot', ['--path', '/tmp/project'])
+        child.emit('exit', 0, null)
+      }
+
+      expect(getProjectLogs(500)?.lines).toEqual(['still running'])
+      expect(getTrackedPids()).toContain(500)
+
+      clearProjectLogs(500)
+      for (let i = 0; i < 11; i++) clearProjectLogs(600 + i)
+    })
+
+    it('does not resurrect eviction bookkeeping for a pid whose logs were already cleared before it exited', () => {
+      const { child, stdout } = mockChildWithStreams(700)
+      spawnCaptured('/usr/bin/godot', ['--path', '/tmp/project'])
+      stdout.emit('data', Buffer.from('line\n'))
+
+      clearProjectLogs(700) // e.g. `project stop` already ran
+      child.emit('exit', 0, null) // async exit event arrives afterward
+
+      expect(getProjectLogs(700)).toBeUndefined()
+      expect(getTrackedPids()).not.toContain(700)
+    })
+  })
+
+  // ==========================================
+  // killProcessTree
+  // ==========================================
+  describe('killProcessTree', () => {
+    const originalPlatform = process.platform
+
+    afterEach(() => {
+      Object.defineProperty(process, 'platform', { value: originalPlatform, configurable: true })
+    })
+
+    it('sends SIGTERM on non-win32 platforms and reports the process was alive', () => {
+      Object.defineProperty(process, 'platform', { value: 'linux', configurable: true })
+      const killSpy = vi.spyOn(process, 'kill').mockImplementation(() => true)
+
+      expect(killProcessTree(1234)).toBe(true)
+      expect(killSpy).toHaveBeenCalledWith(1234, 'SIGTERM')
+      killSpy.mockRestore()
+    })
+
+    it('returns false on non-win32 when the process is already dead', () => {
+      Object.defineProperty(process, 'platform', { value: 'linux', configurable: true })
+      const killSpy = vi.spyOn(process, 'kill').mockImplementation(() => {
+        throw new Error('ESRCH')
+      })
+
+      expect(killProcessTree(1234)).toBe(false)
+      killSpy.mockRestore()
+    })
+
+    it('tree-kills via taskkill on win32 when the liveness probe succeeds', () => {
+      Object.defineProperty(process, 'platform', { value: 'win32', configurable: true })
+      const killSpy = vi.spyOn(process, 'kill').mockImplementation(() => true)
+
+      expect(killProcessTree(4321)).toBe(true)
+      expect(killSpy).toHaveBeenCalledWith(4321, 0)
+      expect(child_process.execFileSync).toHaveBeenCalledWith('taskkill', ['/F', '/PID', '4321', '/T'], {
+        stdio: 'pipe',
+      })
+      killSpy.mockRestore()
+    })
+
+    it('skips taskkill on win32 when the liveness probe fails (already dead)', () => {
+      Object.defineProperty(process, 'platform', { value: 'win32', configurable: true })
+      const killSpy = vi.spyOn(process, 'kill').mockImplementation(() => {
+        throw new Error('already dead')
+      })
+
+      expect(killProcessTree(4321)).toBe(false)
+      expect(child_process.execFileSync).not.toHaveBeenCalled()
+      killSpy.mockRestore()
+    })
+
+    it('returns false and does not throw if taskkill itself throws on win32', () => {
+      Object.defineProperty(process, 'platform', { value: 'win32', configurable: true })
+      const killSpy = vi.spyOn(process, 'kill').mockImplementation(() => true)
+      vi.mocked(child_process.execFileSync).mockImplementationOnce(() => {
+        throw new Error('taskkill failed')
+      })
+
+      expect(killProcessTree(4321)).toBe(false)
+      killSpy.mockRestore()
     })
   })
 

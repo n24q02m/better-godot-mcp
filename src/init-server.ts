@@ -14,7 +14,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import pkg from '../package.json' with { type: 'json' }
 import { detectGodot } from './godot/detector.js'
-import { getTrackedPids } from './godot/headless.js'
+import { getTrackedPids, killProcessTree } from './godot/headless.js'
 import type { GodotConfig } from './godot/types.js'
 import { logger } from './tools/helpers/logger.js'
 import { registerTools } from './tools/registry.js'
@@ -99,9 +99,12 @@ export async function initServer(): Promise<void> {
         const shutdown = async (): Promise<void> => {
           // Godot processes started via `project run` are detached; without this,
           // they outlive the server on shutdown (see spec: "highest-value item").
+          // killProcessTree tree-kills on Windows (matches `project stop`) and is
+          // itself best-effort, but wrap it anyway in case a mocked/future
+          // implementation throws -- a stale pid must never block handle.close().
           for (const pid of getTrackedPids()) {
             try {
-              process.kill(pid)
+              killProcessTree(pid)
             } catch {
               // Already exited or inaccessible; best-effort cleanup only.
             }

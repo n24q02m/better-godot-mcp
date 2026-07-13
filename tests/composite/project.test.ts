@@ -2,12 +2,12 @@
  * Tests for Project tool
  */
 
-import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { GodotConfig } from '../../src/godot/types.js'
 import { handleProject } from '../../src/tools/composite/project.js'
+import type { GodotMCPError } from '../../src/tools/helpers/errors.js'
 import { createTmpProject, makeConfig } from '../fixtures.js'
 
 // Mock headless execution
@@ -17,14 +17,16 @@ vi.mock('../../src/godot/headless.js', () => ({
   runGodotProject: vi.fn(),
   getProjectLogs: vi.fn(),
   clearProjectLogs: vi.fn(),
+  killProcessTree: vi.fn(),
 }))
 
-// Mock child_process for stop command
-vi.mock('node:child_process', () => ({
-  execFileSync: vi.fn(),
-}))
-
-import { clearProjectLogs, execGodotAsync, getProjectLogs, runGodotProject } from '../../src/godot/headless.js'
+import {
+  clearProjectLogs,
+  execGodotAsync,
+  getProjectLogs,
+  killProcessTree,
+  runGodotProject,
+} from '../../src/godot/headless.js'
 
 describe('project', () => {
   let projectPath: string
@@ -139,62 +141,54 @@ describe('project', () => {
   describe('stop', () => {
     it('should stop godot processes', async () => {
       config.activePids = [1234]
-      const processKillSpy = vi.spyOn(process, 'kill').mockImplementation(() => true)
+      vi.mocked(killProcessTree).mockReturnValue(true)
 
       const result = await handleProject('stop', {}, config)
-      expect(result.content[0].text).toContain('Godot processes stopped')
-      if (process.platform === 'win32') {
-        expect(execFileSync).toHaveBeenCalled()
-      } else {
-        expect(processKillSpy).toHaveBeenCalledWith(1234, 'SIGTERM')
-      }
+      expect(result.content[0].text).toContain('Godot processes stopped (Stopped 1 tracked processes)')
+      expect(killProcessTree).toHaveBeenCalledWith(1234)
       expect(config.activePids).toHaveLength(0)
-
-      processKillSpy.mockRestore()
     })
 
     it('should clear ring-buffered logs for every tracked pid', async () => {
       config.activePids = [1234, 5678]
-      const processKillSpy = vi.spyOn(process, 'kill').mockImplementation(() => true)
+      vi.mocked(killProcessTree).mockReturnValue(true)
 
       await handleProject('stop', {}, config)
 
       expect(clearProjectLogs).toHaveBeenCalledWith(1234)
       expect(clearProjectLogs).toHaveBeenCalledWith(5678)
-
-      processKillSpy.mockRestore()
     })
 
     it('should handle no running processes gracefully', async () => {
       const result = await handleProject('stop', {}, config)
       expect(result.content[0].text).toContain('No running Godot processes found (tracked by this server)')
       expect(clearProjectLogs).not.toHaveBeenCalled()
+      expect(killProcessTree).not.toHaveBeenCalled()
     })
 
-    it('should continue if process is already dead on win32', async () => {
-      const originalPlatform = process.platform
-      Object.defineProperty(process, 'platform', { value: 'win32', configurable: true })
-
+    it('should not count an already-dead pid toward stoppedCount, but should still count a live one', async () => {
       config.activePids = [1234, 5678]
-
-      const processKillSpy = vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
-        if (pid === 1234 && (signal === 0 || signal === '0')) {
-          throw new Error('Process already dead')
-        }
-        return true
-      })
+      // killProcessTree itself owns the platform-specific (win32 tree-kill vs SIGTERM) and
+      // already-dead detection -- see headless.test.ts for that behavior. Here we only need
+      // to prove `stop` sums its per-pid boolean return correctly.
+      vi.mocked(killProcessTree).mockImplementation((pid) => pid !== 1234)
 
       const result = await handleProject('stop', {}, config)
       expect(result.content[0].text).toContain('Stopped 1 tracked processes')
-
-      // Should NOT call taskkill for 1234, but SHOULD for 5678
-      expect(execFileSync).not.toHaveBeenCalledWith('taskkill', expect.arrayContaining(['1234']), expect.anything())
-      expect(execFileSync).toHaveBeenCalledWith('taskkill', expect.arrayContaining(['5678']), expect.anything())
-
+      expect(killProcessTree).toHaveBeenCalledWith(1234)
+      expect(killProcessTree).toHaveBeenCalledWith(5678)
       expect(config.activePids).toHaveLength(0)
+    })
 
-      processKillSpy.mockRestore()
-      Object.defineProperty(process, 'platform', { value: originalPlatform })
+    it('should skip invalid pids without calling killProcessTree', async () => {
+      config.activePids = [-1, 1.5, 5678]
+      vi.mocked(killProcessTree).mockReturnValue(true)
+
+      await handleProject('stop', {}, config)
+
+      expect(killProcessTree).not.toHaveBeenCalledWith(-1)
+      expect(killProcessTree).not.toHaveBeenCalledWith(1.5)
+      expect(killProcessTree).toHaveBeenCalledWith(5678)
     })
   })
 
@@ -398,5 +392,19 @@ describe('project', () => {
   // ==========================================
   it('should throw for unknown action', async () => {
     await expect(handleProject('invalid', {}, config)).rejects.toThrow('Unknown action')
+  })
+
+  it('should list every real action, including logs, as a suggestion for an unknown action', async () => {
+    const realActions = ['info', 'version', 'run', 'logs', 'stop', 'settings_get', 'settings_set', 'export']
+
+    try {
+      await handleProject('invalid', {}, config)
+      throw new Error('expected handleProject to reject')
+    } catch (err) {
+      const suggestion = (err as GodotMCPError).suggestion ?? ''
+      for (const action of realActions) {
+        expect(suggestion).toContain(action)
+      }
+    }
   })
 })

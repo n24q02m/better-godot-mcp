@@ -14,7 +14,7 @@ import {
 } from '../../godot/headless.js'
 import type { GodotConfig, ProjectInfo } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError } from '../helpers/errors.js'
-import { safeResolve } from '../helpers/paths.js'
+import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
 import {
   getSetting,
   type ProjectSettings,
@@ -112,7 +112,7 @@ export async function handleProject(action: string, args: Record<string, unknown
       if (typeof args.project_path === 'string' && args.project_path.trim().startsWith('-')) {
         throw new GodotMCPError('Invalid project path', 'INVALID_ARGS', 'Project path must not start with a hyphen.')
       }
-      const info = await parseProjectGodot(safeResolve(config.projectPath || process.cwd(), projectPath))
+      const info = await parseProjectGodot(resolveProjectRoot(projectPath, config.projectPath))
       return formatJSON(info)
     }
 
@@ -145,11 +145,7 @@ export async function handleProject(action: string, args: Record<string, unknown
         throw new GodotMCPError('Invalid scene path', 'INVALID_ARGS', 'Scene path must not start with a hyphen.')
       }
 
-      const { pid } = runGodotProject(
-        config.godotPath,
-        safeResolve(config.projectPath || process.cwd(), projectPath),
-        scenePath,
-      )
+      const { pid } = runGodotProject(config.godotPath, resolveProjectRoot(projectPath, config.projectPath), scenePath)
       if (pid) {
         validatePid(pid)
         config.activePids.push(pid)
@@ -222,7 +218,7 @@ export async function handleProject(action: string, args: Record<string, unknown
       if (!key)
         throw new GodotMCPError('No key specified', 'INVALID_ARGS', 'Provide key (e.g., "application/config/name").')
 
-      const configPath = join(safeResolve(config.projectPath || process.cwd(), projectPath), 'project.godot')
+      const configPath = join(resolveProjectRoot(projectPath, config.projectPath), 'project.godot')
 
       let settings: ProjectSettings
       try {
@@ -257,7 +253,7 @@ export async function handleProject(action: string, args: Record<string, unknown
         throw new GodotMCPError('Invalid value format', 'INVALID_ARGS', 'Value must not contain newlines.')
       }
 
-      const configPath = join(safeResolve(config.projectPath || process.cwd(), projectPath), 'project.godot')
+      const configPath = join(resolveProjectRoot(projectPath, config.projectPath), 'project.godot')
 
       let content: string
       try {
@@ -304,7 +300,7 @@ export async function handleProject(action: string, args: Record<string, unknown
         )
       }
 
-      const resolvedProjectPath = safeResolve(config.projectPath || process.cwd(), projectPath)
+      const resolvedProjectPath = resolveProjectRoot(projectPath, config.projectPath)
       const result = await execGodotAsync(config.godotPath, [
         '--headless',
         '--path',

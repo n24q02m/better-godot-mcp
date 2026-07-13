@@ -8,7 +8,7 @@ import { join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { toGodotValue } from '../helpers/godot-types.js'
-import { safeResolve } from '../helpers/paths.js'
+import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
 import { parseProjectSettingsAsync, setSettingInContent } from '../helpers/project-settings.js'
 import { updateNodeInScene } from '../helpers/scene-parser.js'
 import { validateNoNewlines } from '../helpers/security.js'
@@ -19,7 +19,7 @@ export async function handlePhysics(action: string, args: Record<string, unknown
   switch (action) {
     case 'layers': {
       if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
-      const configPath = join(safeResolve(config.projectPath || process.cwd(), projectPath), 'project.godot')
+      const configPath = join(resolveProjectRoot(projectPath, config.projectPath), 'project.godot')
 
       const settings = await parseProjectSettingsAsync(configPath).catch((err) => {
         if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -53,7 +53,7 @@ export async function handlePhysics(action: string, args: Record<string, unknown
       const collisionLayer = args.collision_layer
       const collisionMask = args.collision_mask
 
-      const fullPath = safeResolve(safeResolve(config.projectPath || process.cwd(), projectPath), scenePath)
+      const fullPath = safeResolve(resolveProjectRoot(projectPath, config.projectPath), scenePath)
 
       let content: string
       try {
@@ -94,7 +94,7 @@ export async function handlePhysics(action: string, args: Record<string, unknown
 
       validateNoNewlines(undefined, scenePath, nodeName)
 
-      const fullPath = safeResolve(safeResolve(config.projectPath || process.cwd(), projectPath), scenePath)
+      const fullPath = safeResolve(resolveProjectRoot(projectPath, config.projectPath), scenePath)
 
       let content: string
       try {
@@ -137,7 +137,7 @@ export async function handlePhysics(action: string, args: Record<string, unknown
         throw new GodotMCPError('Invalid layer_number: must be a number', 'INVALID_ARGS')
       }
 
-      const configPath = join(safeResolve(config.projectPath || process.cwd(), projectPath), 'project.godot')
+      const configPath = join(resolveProjectRoot(projectPath, config.projectPath), 'project.godot')
 
       let content: string
       try {

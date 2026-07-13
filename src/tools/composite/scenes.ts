@@ -8,7 +8,7 @@ import { copyFile, mkdir, readdir, readFile, unlink, writeFile } from 'node:fs/p
 import { basename, dirname, join } from 'node:path'
 import type { GodotConfig, SceneInfo } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
-import { safeResolve } from '../helpers/paths.js'
+import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
 import { setSettingInContent } from '../helpers/project-settings.js'
 import { parseSceneContent } from '../helpers/scene-parser.js'
 
@@ -48,7 +48,7 @@ function validateSceneArgs(action: string, args: Record<string, unknown>, config
   const baseDir = config.projectPath || process.cwd()
   // Validate args.project_path against the trusted baseDir to prevent path traversal vulnerabilities
   const projectPath = args.project_path
-    ? safeResolve(baseDir, args.project_path as string)
+    ? resolveProjectRoot(args.project_path, baseDir)
     : config.projectPath || undefined
   const scenePath = args.scene_path as string
   const newPath = args.new_path as string
@@ -128,7 +128,7 @@ export async function handleScenes(action: string, args: Record<string, unknown>
 
     case 'list': {
       // projectPath is guaranteed
-      const resolvedPath = safeResolve(baseDir, projectPath as string)
+      const resolvedPath = resolveProjectRoot(projectPath, baseDir)
       const scenes = await findSceneFiles(resolvedPath)
 
       // OPTIMIZATION: Use substring and a pre-allocated array instead of .map() and node:path.relative
@@ -237,7 +237,7 @@ export async function handleScenes(action: string, args: Record<string, unknown>
         throw new GodotMCPError('Invalid scene path', 'INVALID_ARGS', 'Scene path must not contain quotes or newlines.')
       }
 
-      const configPath = join(safeResolve(baseDir, projectPath as string), 'project.godot')
+      const configPath = join(resolveProjectRoot(projectPath, baseDir), 'project.godot')
 
       // ⚡ Bolt: Using replaceAll('\\', '/') avoids RegExp allocation overhead
       const resPath = `res://${scenePath.replaceAll('\\', '/')}`

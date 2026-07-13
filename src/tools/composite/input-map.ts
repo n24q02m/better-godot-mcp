@@ -8,7 +8,7 @@ import { join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { serializeGodotObject } from '../helpers/godot-types.js'
-import { pathExists, safeResolve } from '../helpers/paths.js'
+import { pathExists, resolveProjectRoot } from '../helpers/paths.js'
 import { fastTrimRange } from '../helpers/strings.js'
 
 /**
@@ -167,7 +167,7 @@ function parseEventsList(str: string): string[] {
 
 async function getProjectGodotPath(projectPath: string | null | undefined, baseDir: string): Promise<string> {
   if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
-  const configPath = join(safeResolve(baseDir, projectPath), 'project.godot')
+  const configPath = join(resolveProjectRoot(projectPath, baseDir), 'project.godot')
   if (!(await pathExists(configPath)))
     throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
   return configPath

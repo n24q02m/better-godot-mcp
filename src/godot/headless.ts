@@ -155,6 +155,10 @@ export function spawnCaptured(bin: string, args: string[]): { pid: number | unde
 
   if (child.pid !== undefined) {
     const pid = child.pid
+    // The OS can reuse a pid: if a stale exited-bookkeeping entry for this same pid is
+    // still pending eviction, drop it now so it can never evict *this* live process's logs.
+    const staleIdx = exitedPidOrder.indexOf(pid)
+    if (staleIdx !== -1) exitedPidOrder.splice(staleIdx, 1)
     projectLogs.set(pid, { lines: [], dropped: false })
     liveProcessPids.add(pid)
     child.stdout?.on('data', (chunk: Buffer) => pushLog(pid, chunk))

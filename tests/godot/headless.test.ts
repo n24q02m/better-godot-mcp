@@ -497,6 +497,39 @@ describe('headless', () => {
       for (const pid of pids.slice(1)) clearProjectLogs(pid)
     })
 
+    it('does not let a reused PID stale exited-entry evict a currently-live process with the same PID', () => {
+      const pid = 800
+
+      // First instance of this PID runs and exits -- its stale bookkeeping entry lands
+      // in the exited-pid FIFO (as the oldest entry).
+      const first = mockChildWithStreams(pid)
+      spawnCaptured('/usr/bin/godot', ['--path', '/tmp/project'])
+      first.child.emit('exit', 0, null)
+      expect(getProjectLogs(pid)).toBeDefined()
+
+      // The OS reuses the same PID for a brand-new, currently-live process.
+      const { stdout } = mockChildWithStreams(pid)
+      spawnCaptured('/usr/bin/godot', ['--path', '/tmp/project'])
+      stdout.emit('data', Buffer.from('reused pid output\n'))
+      expect(getTrackedPids()).toContain(pid)
+
+      // Drive 10 unrelated exits -- enough to trigger eviction of the FIFO's oldest entry
+      // if the stale entry for `pid` from the first instance was not de-duplicated on respawn.
+      const otherPids = Array.from({ length: 10 }, (_, i) => 900 + i)
+      for (const otherPid of otherPids) {
+        const { child } = mockChildWithStreams(otherPid)
+        spawnCaptured('/usr/bin/godot', ['--path', '/tmp/project'])
+        child.emit('exit', 0, null)
+      }
+
+      // The reused PID's currently-live process must still have its output -- not silently
+      // wiped out by eviction of the first (exited) instance's stale FIFO entry.
+      expect(getProjectLogs(pid)?.lines).toEqual(['reused pid output'])
+
+      clearProjectLogs(pid)
+      for (const otherPid of otherPids) clearProjectLogs(otherPid)
+    })
+
     it('never evicts a still-live pid, even after 11 other processes have exited', () => {
       const { stdout } = mockChildWithStreams(500)
       spawnCaptured('/usr/bin/godot', ['--path', '/tmp/project'])

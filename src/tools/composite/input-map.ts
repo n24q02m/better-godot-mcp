@@ -12,11 +12,10 @@ import { pathExists, safeResolve } from '../helpers/paths.js'
 import { fastTrimRange } from '../helpers/strings.js'
 
 // ⚡ Bolt: Pre-compile regular expressions to avoid recreation in hot paths
-const EVENTS_REGEX = /"events":\s*\[([^\]]*)\]/;
-const SINGLE_LINE_ACTION_REGEX = /^(\w+)=\{(.+)\}$/;
-const MULTI_LINE_ACTION_START_REGEX = /^(\w+)=\{(.*)$/;
-const EVENTS_TRANSFORM_REGEX = /("events":\s*\[)([^\]]*)\]/;
-
+const EVENTS_REGEX = /"events":\s*\[([^\]]*)\]/
+const SINGLE_LINE_ACTION_REGEX = /^(\w+)=\{(.+)\}$/
+const MULTI_LINE_ACTION_START_REGEX = /^(\w+)=\{(.*)$/
+const EVENTS_TRANSFORM_REGEX = /("events":\s*\[)([^\]]*)\]/
 
 /**
  * Godot 4.x Key enum numeric values (@GlobalScope.Key)

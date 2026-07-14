@@ -17,7 +17,7 @@ import {
 } from '../helpers/scene-parser.js'
 
 // ⚡ Bolt: Pre-compile regular expressions to avoid recreation in hot paths
-const ROOT_PATH_REGEX = /^\/?root\/(.+)$/i;
+const ROOT_PATH_REGEX = /^\/?root\/(.+)$/i
 
 function resolveScenePath(projectPath: string, scenePath: string): string {
   return safeResolve(projectPath, scenePath)

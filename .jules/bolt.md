@@ -72,3 +72,7 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## 2025-03-10 - [Pre-allocate arrays for node listing]
 **Learning:** Dynamically growing arrays using `.push()` inside an O(N) traversal (like listing all nodes in a scene) causes resizing overhead in the V8 engine, which accumulates heavily in scenes with tens of thousands of nodes.
 **Action:** Always use a pre-allocated array (`new Array(scene.nodes.length)`) for 1:1 mapping operations during O(N) loops, avoiding V8 array resizing penalties.
+
+## 2026-07-14 - Pre-compile inline regular expressions
+**Learning:** Initializing regular expressions inline inside parsing hot paths (e.g., inside loops iterating over files like `project.godot`) forces the JS engine to recreate the RegExp object or check cache continually. While modern engines cache regex literals, making them module-level constants definitively avoids potential recreation overhead. Furthermore, `.exec()` avoids the minor overhead of `String.prototype.match()` while providing identical capture group output for non-global regexes.
+**Action:** Extract non-global inline regexes (like `/"events":\s*\[([^\]]*)\]/`) into module-level constants (e.g., `EVENTS_REGEX`) and replace `.match()` calls with `.exec()` in high-frequency parsing paths.

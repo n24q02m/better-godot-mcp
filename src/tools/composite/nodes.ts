@@ -7,6 +7,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
+
 import {
   getNodeProperty,
   parseSceneContent,
@@ -14,6 +15,9 @@ import {
   renameNodeInContent,
   setNodePropertyInContent,
 } from '../helpers/scene-parser.js'
+
+// ⚡ Bolt: Pre-compile regular expressions to avoid recreation in hot paths
+const ROOT_PATH_REGEX = /^\/?root\/(.+)$/i;
 
 function resolveScenePath(projectPath: string, scenePath: string): string {
   return safeResolve(projectPath, scenePath)
@@ -45,7 +49,7 @@ function normalizeNodePath(path: string): { path: string; corrected: boolean } {
 
   // Case-insensitive check for /root/ or root/ prefix
   // These are common LLM mistakes when they try to use absolute paths.
-  const rootMatch = normalized.match(/^\/?root\/(.+)$/i)
+  const rootMatch = ROOT_PATH_REGEX.exec(normalized)
   if (rootMatch) {
     const afterRoot = rootMatch[1]
     const segments = afterRoot.split('/').filter(Boolean)

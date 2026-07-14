@@ -11,6 +11,13 @@ import { serializeGodotObject } from '../helpers/godot-types.js'
 import { pathExists, safeResolve } from '../helpers/paths.js'
 import { fastTrimRange } from '../helpers/strings.js'
 
+// ⚡ Bolt: Pre-compile regular expressions to avoid recreation in hot paths
+const EVENTS_REGEX = /"events":\s*\[([^\]]*)\]/;
+const SINGLE_LINE_ACTION_REGEX = /^(\w+)=\{(.+)\}$/;
+const MULTI_LINE_ACTION_START_REGEX = /^(\w+)=\{(.*)$/;
+const EVENTS_TRANSFORM_REGEX = /("events":\s*\[)([^\]]*)\]/;
+
+
 /**
  * Godot 4.x Key enum numeric values (@GlobalScope.Key)
  * Letters are ASCII codes, special keys use the 4194304+ range (2^22 bit set)
@@ -200,7 +207,7 @@ function parseInputActions(content: string): Map<string, string[]> {
         currentActionAccumulator += trimmed
         if (trimmed.endsWith('}')) {
           // End of multi-line action
-          const eventsMatch = currentActionAccumulator.match(/"events":\s*\[([^\]]*)\]/)
+          const eventsMatch = EVENTS_REGEX.exec(currentActionAccumulator)
           const events = eventsMatch ? parseEventsList(eventsMatch[1]) : []
           actions.set(currentActionName, events)
           currentActionName = null
@@ -215,10 +222,10 @@ function parseInputActions(content: string): Map<string, string[]> {
           break
         } else if (inInputSection) {
           // Single-line format: action_name={...}
-          const match = trimmed.match(/^(\w+)=\{(.+)\}$/)
+          const match = SINGLE_LINE_ACTION_REGEX.exec(trimmed)
           if (match) {
             const actionName = match[1]
-            const eventsMatch = match[2].match(/"events":\s*\[([^\]]*)\]/)
+            const eventsMatch = EVENTS_REGEX.exec(match[2])
             const events = eventsMatch ? parseEventsList(eventsMatch[1]) : []
             actions.set(actionName, events)
           } else {
@@ -226,7 +233,7 @@ function parseInputActions(content: string): Map<string, string[]> {
             //   "deadzone": 0.2,
             //   "events": [...]
             // }
-            const startMatch = trimmed.match(/^(\w+)=\{(.*)$/)
+            const startMatch = MULTI_LINE_ACTION_START_REGEX.exec(trimmed)
             if (startMatch) {
               currentActionName = startMatch[1]
               currentActionAccumulator = startMatch[2]
@@ -491,13 +498,12 @@ export async function handleInputMap(action: string, args: Record<string, unknow
 
       // Find existing events array and append using transformInputMap
       const { updated, found } = transformInputMap(content, actionName, (block) => {
-        const eventsRegex = /("events":\s*\[)([^\]]*)\]/
-        const match = block.match(eventsRegex)
+        const match = EVENTS_TRANSFORM_REGEX.exec(block)
         if (!match) return block // Should not happen with valid Godot files
 
         const existingEvents = match[2].trim()
         const newEvents = existingEvents ? `${existingEvents}, ${eventObj}` : eventObj
-        return block.replace(eventsRegex, (_, p1) => `${p1}${newEvents}]`)
+        return block.replace(EVENTS_TRANSFORM_REGEX, (_, p1) => `${p1}${newEvents}]`)
       })
 
       if (!found) {

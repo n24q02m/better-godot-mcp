@@ -47,10 +47,12 @@ mcp-name: io.github.n24q02m/better-godot-mcp
 
 - [Features](#features)
 - [Install](#install)
+- [Smithery](#smithery)
 - [Documentation](#documentation)
 - [Tools](#tools)
 - [Comparison](#comparison)
 - [Configuration](#configuration)
+- [CLI](#cli)
 - [Security](#security)
 - [Build from source](#build-from-source)
 - [Trust model](#trust-model)
@@ -107,13 +109,17 @@ docker run -i --rm -v /path/to/your/godot/project:/project n24q02m/better-godot-
 
 The image is published for `amd64` and `arm64`. Mount your project directory so the server can read and write scene, script, and resource files.
 
+## Smithery
+
+better-godot-mcp ships a [`smithery.yaml`](smithery.yaml) so it can be discovered and deployed through [Smithery](https://smithery.ai/). Smithery launches the server over **stdio** via `npx -y @n24q02m/better-godot-mcp`, and no configuration is required to start -- the server has no credentials and reads your local Godot project files directly.
+
 ## Documentation
 
 Full setup guide at **[mcp.n24q02m.com/servers/better-godot-mcp/setup/](https://mcp.n24q02m.com/servers/better-godot-mcp/setup/)** -- install steps for Claude Code, Codex, Gemini CLI, Cursor, Windsurf, and `mcp.json`.
 
 **Install with AI agent** -- paste this to your AI coding agent:
 
-> Install MCP server `better-godot-mcp` following the steps at  
+> Install MCP server `better-godot-mcp` following the steps at
 > https://raw.githubusercontent.com/n24q02m/claude-plugins/main/plugins/better-godot-mcp/setup-with-agent.md
 
 ## Tools
@@ -188,6 +194,49 @@ The server runs over stdio by default. To serve over Streamable HTTP instead, pa
 - Scene files (`.tscn`) are parsed/modified via text manipulation, not Godot's internal API
 - `run`/`stop`/`export` actions require Godot binary to be installed
 - Docker mode has limited filesystem access (mount your project directory)
+
+## CLI
+
+The `better-godot-mcp` binary runs the MCP server by default (stdio; add `--http` for Streamable HTTP). It also exposes two diagnostic subcommands for checking your Godot environment before wiring up an MCP client.
+
+| Command | Description |
+|:--------|:------------|
+| `better-godot-mcp` | Start the MCP server (stdio default; `--http` for Streamable HTTP) |
+| `better-godot-mcp detect` | Print the detected Godot binary as JSON (path, version, source); exits non-zero when none is found |
+| `better-godot-mcp doctor` | Health-check the Godot binary and the current project (`GODOT_PROJECT_PATH`, else the working directory) |
+
+```bash
+# Detect the Godot binary (JSON output)
+npx -y @n24q02m/better-godot-mcp detect
+```
+
+```json
+{
+  "found": true,
+  "path": "/path/to/godot",
+  "version": {
+    "major": 4,
+    "minor": 6,
+    "patch": 3,
+    "label": "stable.official",
+    "raw": "4.6.3.stable.official"
+  },
+  "source": "system"
+}
+```
+
+```bash
+# Health-check the Godot binary and project
+npx -y @n24q02m/better-godot-mcp doctor
+```
+
+```text
+[ok] godot binary: /path/to/godot (source: system)
+[ok] godot version: 4.6.3.stable.official
+[warn] project: no project.godot found at /path/to/cwd (set GODOT_PROJECT_PATH)
+```
+
+`detect` exits `1` when no Godot binary is found; `doctor` exits `1` when the binary is missing (a missing `project.godot` is only a warning).
 
 ## Security
 

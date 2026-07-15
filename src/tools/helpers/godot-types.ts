@@ -148,34 +148,49 @@ export function parseGodotValue(expr: string, _depth = 0): unknown {
     const inner = trimmed.slice(1, -1).trim()
     if (!inner) return []
 
+    // ⚡ Bolt: Fast-path Godot Array parser using charCodeAt and integer comparisons.
+    // Avoids inner loop string allocations (`char = inner[i]`) and string equality checks.
+    // Uses fastTrimRange logic inline to calculate boundaries before slicing, avoiding `slice().trim()`.
     const results: unknown[] = []
     let bracketLevel = 0
     let parenLevel = 0
-    let inQuote: string | null = null
+    let inQuote = 0 // null quote is 0
     let start = 0
+    const len = inner.length
 
-    for (let i = 0; i <= inner.length; i++) {
-      const char = i < inner.length ? inner[i] : ','
+    for (let i = 0; i <= len; i++) {
+      const charCode = i < len ? inner.charCodeAt(i) : 44 // ',' is 44
 
-      if (inQuote) {
-        if (char === inQuote && inner[i - 1] !== '\\') {
-          inQuote = null
+      if (inQuote !== 0) {
+        if (charCode === inQuote && inner.charCodeAt(i - 1) !== 92) {
+          // '\\' is 92
+          inQuote = 0
         }
         continue
       }
 
-      if (char === '"' || char === "'") {
-        inQuote = char
+      if (charCode === 34 || charCode === 39) {
+        // '"' is 34, "'" is 39
+        inQuote = charCode
         continue
       }
 
-      if (char === '[') bracketLevel++
-      else if (char === ']') bracketLevel--
-      else if (char === '(') parenLevel++
-      else if (char === ')') parenLevel--
-      else if (char === ',' && bracketLevel === 0 && parenLevel === 0) {
-        const item = inner.slice(start, i).trim()
-        if (item || results.length > 0 || i < inner.length) {
+      if (charCode === 91)
+        bracketLevel++ // '[' is 91
+      else if (charCode === 93)
+        bracketLevel-- // ']' is 93
+      else if (charCode === 40)
+        parenLevel++ // '(' is 40
+      else if (charCode === 41)
+        parenLevel-- // ')' is 41
+      else if (charCode === 44 && bracketLevel === 0 && parenLevel === 0) {
+        let s = start
+        let e = i
+        while (s < e && inner.charCodeAt(s) <= 32) s++
+        while (e > s && inner.charCodeAt(e - 1) <= 32) e--
+
+        const item = inner.slice(s, e)
+        if (item || results.length > 0 || i < len) {
           results.push(parseGodotValue(item, _depth + 1))
         }
         start = i + 1

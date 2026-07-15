@@ -72,3 +72,7 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## 2025-03-10 - [Pre-allocate arrays for node listing]
 **Learning:** Dynamically growing arrays using `.push()` inside an O(N) traversal (like listing all nodes in a scene) causes resizing overhead in the V8 engine, which accumulates heavily in scenes with tens of thousands of nodes.
 **Action:** Always use a pre-allocated array (`new Array(scene.nodes.length)`) for 1:1 mapping operations during O(N) loops, avoiding V8 array resizing penalties.
+
+## 2024-05-18 - Fast Array Parsing with Primitive Tracking
+**Learning:** In tight structural parsing loops (like Godot's `parseGodotValue` for arrays), intermediate string allocations from `inner.slice().trim()` and type transitions (e.g., `inQuote` shifting between `string | null`) significantly degrade V8's optimization and increase garbage collection pressure.
+**Action:** Replace string matching with `charCodeAt()` integer comparisons, manage states via primitive integers (e.g., `inQuote = 0` for false, character code for true), and compute trim bounds inline via indices before slicing to drastically reduce execution latency.

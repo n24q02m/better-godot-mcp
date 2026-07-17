@@ -33,7 +33,8 @@
       "groupSlug": "non-major-dev",
       "automerge": true,
       "automergeType": "pr",
-      "minimumReleaseAge": "7 days"
+      "minimumReleaseAge": "7 days",
+      "rangeStrategy": "pin"
     },
     {
       "description": "Auto-merge patch updates after cooldown",
@@ -42,7 +43,8 @@
       "groupSlug": "all-patch",
       "automerge": true,
       "automergeType": "pr",
-      "minimumReleaseAge": "7 days"
+      "minimumReleaseAge": "7 days",
+      "rangeStrategy": "pin"
     },
     {
       "description": "Auto-merge GitHub Actions digest updates after cooldown",

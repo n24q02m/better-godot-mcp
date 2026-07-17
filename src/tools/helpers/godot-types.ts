@@ -144,38 +144,58 @@ export function parseGodotValue(expr: string, _depth = 0): unknown {
   }
 
   // Array
+  // ⚡ Bolt: Fast path for Array parsing using charCodeAt, inline index tracking, and integer states
   if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-    const inner = trimmed.slice(1, -1).trim()
-    if (!inner) return []
+    const inner = trimmed.slice(1, -1)
+
+    let innerStart = 0
+    let innerEnd = inner.length
+    while (innerStart < innerEnd && inner.charCodeAt(innerStart) <= 32) innerStart++
+    while (innerEnd > innerStart && inner.charCodeAt(innerEnd - 1) <= 32) innerEnd--
+
+    if (innerStart >= innerEnd) return []
 
     const results: unknown[] = []
     let bracketLevel = 0
     let parenLevel = 0
-    let inQuote: string | null = null
-    let start = 0
+    let inQuote = 0 // 0 means not in quote, 34 is ", 39 is '
+    let start = innerStart
 
-    for (let i = 0; i <= inner.length; i++) {
-      const char = i < inner.length ? inner[i] : ','
+    for (let i = innerStart; i <= innerEnd; i++) {
+      const charCode = i < innerEnd ? inner.charCodeAt(i) : 44 // 44 is ','
 
-      if (inQuote) {
-        if (char === inQuote && inner[i - 1] !== '\\') {
-          inQuote = null
+      if (inQuote !== 0) {
+        if (charCode === inQuote && inner.charCodeAt(i - 1) !== 92) {
+          // 92 is '\'
+          inQuote = 0
         }
         continue
       }
 
-      if (char === '"' || char === "'") {
-        inQuote = char
+      if (charCode === 34 || charCode === 39) {
+        // '"' or "'"
+        inQuote = charCode
         continue
       }
 
-      if (char === '[') bracketLevel++
-      else if (char === ']') bracketLevel--
-      else if (char === '(') parenLevel++
-      else if (char === ')') parenLevel--
-      else if (char === ',' && bracketLevel === 0 && parenLevel === 0) {
-        const item = inner.slice(start, i).trim()
-        if (item || results.length > 0 || i < inner.length) {
+      if (charCode === 91)
+        bracketLevel++ // '['
+      else if (charCode === 93)
+        bracketLevel-- // ']'
+      else if (charCode === 40)
+        parenLevel++ // '('
+      else if (charCode === 41)
+        parenLevel-- // ')'
+      else if (charCode === 44 && bracketLevel === 0 && parenLevel === 0) {
+        // ','
+        let itemStart = start
+        let itemEnd = i
+        while (itemStart < itemEnd && inner.charCodeAt(itemStart) <= 32) itemStart++
+        while (itemEnd > itemStart && inner.charCodeAt(itemEnd - 1) <= 32) itemEnd--
+
+        const itemLen = itemEnd - itemStart
+        if (itemLen > 0 || results.length > 0 || i < innerEnd) {
+          const item = itemLen > 0 ? inner.slice(itemStart, itemEnd) : ''
           results.push(parseGodotValue(item, _depth + 1))
         }
         start = i + 1

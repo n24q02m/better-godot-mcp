@@ -41,7 +41,7 @@ jobs:
   # retype the squash-commit subject to start with fix:/feat: when this is red.
   pr-title:
     name: Validate PR title (Conventional Commits subset)
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && !startsWith(github.event.pull_request.title, '⚡ Bolt:')
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read

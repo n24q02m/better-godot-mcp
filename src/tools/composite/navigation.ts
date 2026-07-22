@@ -108,20 +108,20 @@ export async function handleNavigation(action: string, args: Record<string, unkn
       const nodeType = dimension === '2D' ? 'NavigationAgent2D' : 'NavigationAgent3D'
       let extraProps = ''
 
-      if (args.radius !== undefined) {
+      if (args.radius) {
         if (typeof args.radius !== 'number') throw new GodotMCPError('radius must be a number', 'INVALID_ARGS')
         extraProps += `radius = ${args.radius}\n`
       }
-      if (args.max_speed !== undefined) {
+      if (args.max_speed) {
         if (typeof args.max_speed !== 'number') throw new GodotMCPError('max_speed must be a number', 'INVALID_ARGS')
         extraProps += `max_speed = ${args.max_speed}\n`
       }
-      if (args.path_desired_distance !== undefined) {
+      if (args.path_desired_distance) {
         if (typeof args.path_desired_distance !== 'number')
           throw new GodotMCPError('path_desired_distance must be a number', 'INVALID_ARGS')
         extraProps += `path_desired_distance = ${args.path_desired_distance}\n`
       }
-      if (args.target_desired_distance !== undefined) {
+      if (args.target_desired_distance) {
         if (typeof args.target_desired_distance !== 'number')
           throw new GodotMCPError('target_desired_distance must be a number', 'INVALID_ARGS')
         extraProps += `target_desired_distance = ${args.target_desired_distance}\n`
@@ -173,7 +173,7 @@ export async function handleNavigation(action: string, args: Record<string, unkn
       const nodeType = dimension === '2D' ? 'NavigationObstacle2D' : 'NavigationObstacle3D'
       let extraProps = ''
 
-      if (args.radius !== undefined) {
+      if (args.radius) {
         if (typeof args.radius !== 'number') throw new GodotMCPError('radius must be a number', 'INVALID_ARGS')
         extraProps += `radius = ${args.radius}\n`
       }

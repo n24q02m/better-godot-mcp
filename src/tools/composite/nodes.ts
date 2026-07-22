@@ -16,9 +16,6 @@ import {
   setNodePropertyInContent,
 } from '../helpers/scene-parser.js'
 
-// ⚡ Bolt: Pre-compile regular expressions to avoid recreation in hot paths
-const ROOT_PATH_REGEX = /^\/?root\/(.+)$/i
-
 function resolveScenePath(projectPath: string, scenePath: string): string {
   return safeResolve(projectPath, scenePath)
 }
@@ -43,35 +40,56 @@ async function readSceneFile(fullPath: string, scenePath: string): Promise<strin
 function normalizeNodePath(path: string): { path: string; corrected: boolean } {
   if (!path || path === '.') return { path, corrected: false }
 
-  // Normalize backslashes to forward slashes
-  const normalized = path.replace(/\\/g, '/')
-  const corrected = path.includes('\\')
+  // ⚡ Bolt: Using replaceAll('\\', '/') avoids RegExp allocation overhead
+  const normalized = path.replaceAll('\\', '/')
+  let corrected = path.includes('\\')
 
-  // Case-insensitive check for /root/ or root/ prefix
-  // These are common LLM mistakes when they try to use absolute paths.
-  const rootMatch = ROOT_PATH_REGEX.exec(normalized)
-  if (rootMatch) {
-    const afterRoot = rootMatch[1]
-    const segments = afterRoot.split('/').filter(Boolean)
-    if (segments.length <= 1) {
-      return { path: '.', corrected: true }
-    }
-    const remaining = segments.slice(1).join('/')
-    return { path: remaining, corrected: true }
+  let i = 0
+  const len = normalized.length
+
+  // Strip leading slash
+  if (normalized.charCodeAt(i) === 47) {
+    i++
+    corrected = true
   }
 
-  // Handle /root or root (exact match)
-  // We only treat it as the scene root if it's explicitly "/root" or "root" (case-insensitive)
-  // But wait, if someone has a node named "Root" that is NOT the scene root?
-  // In Godot, the root of the scene being edited is often named after the scene or "Root".
-  // LLMs often use "/root/SceneName/..."
+  // Case-insensitive check for root/ prefix
+  // These are common LLM mistakes when they try to use absolute paths.
+  if (i + 4 < len && normalized.slice(i, i + 5).toLowerCase() === 'root/') {
+    corrected = true
+    i += 5
+
+    // Skip any slashes immediately after "root/"
+    while (i < len && normalized.charCodeAt(i) === 47) i++
+
+    // Find the next slash (which ends the SceneName segment)
+    const nextSlash = normalized.indexOf('/', i)
+
+    if (nextSlash === -1) {
+      // Just "root/SceneName"
+      return { path: '.', corrected: true }
+    }
+
+    // Skip the slash(es) after SceneName
+    i = nextSlash
+    while (i < len && normalized.charCodeAt(i) === 47) i++
+
+    if (i === len) {
+      return { path: '.', corrected: true }
+    }
+
+    return { path: normalized.slice(i), corrected: true }
+  }
+
+  // Handle /root exact match. We only treat it as the scene root if it's explicitly
+  // "/root" (case-insensitive). We don't match "root" or "Root" without a leading slash
+  // because that could be a valid node name.
   if (normalized.toLowerCase() === '/root') {
     return { path: '.', corrected: true }
   }
 
-  // Strip leading slash
-  if (normalized.startsWith('/')) {
-    return { path: normalized.slice(1), corrected: true }
+  if (i > 0) {
+    return { path: normalized.slice(i), corrected: true }
   }
 
   return { path: normalized, corrected }

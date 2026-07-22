@@ -107,10 +107,25 @@ export async function handleNavigation(action: string, args: Record<string, unkn
 
       const nodeType = dimension === '2D' ? 'NavigationAgent2D' : 'NavigationAgent3D'
       let extraProps = ''
-      if (args.radius) extraProps += `radius = ${args.radius}\n`
-      if (args.max_speed) extraProps += `max_speed = ${args.max_speed}\n`
-      if (args.path_desired_distance) extraProps += `path_desired_distance = ${args.path_desired_distance}\n`
-      if (args.target_desired_distance) extraProps += `target_desired_distance = ${args.target_desired_distance}\n`
+
+      if (args.radius !== undefined) {
+        if (typeof args.radius !== 'number') throw new GodotMCPError('radius must be a number', 'INVALID_ARGS')
+        extraProps += `radius = ${args.radius}\n`
+      }
+      if (args.max_speed !== undefined) {
+        if (typeof args.max_speed !== 'number') throw new GodotMCPError('max_speed must be a number', 'INVALID_ARGS')
+        extraProps += `max_speed = ${args.max_speed}\n`
+      }
+      if (args.path_desired_distance !== undefined) {
+        if (typeof args.path_desired_distance !== 'number')
+          throw new GodotMCPError('path_desired_distance must be a number', 'INVALID_ARGS')
+        extraProps += `path_desired_distance = ${args.path_desired_distance}\n`
+      }
+      if (args.target_desired_distance !== undefined) {
+        if (typeof args.target_desired_distance !== 'number')
+          throw new GodotMCPError('target_desired_distance must be a number', 'INVALID_ARGS')
+        extraProps += `target_desired_distance = ${args.target_desired_distance}\n`
+      }
 
       content = appendNode(content, agentName, nodeType, parent, extraProps || undefined)
 
@@ -157,8 +172,16 @@ export async function handleNavigation(action: string, args: Record<string, unkn
 
       const nodeType = dimension === '2D' ? 'NavigationObstacle2D' : 'NavigationObstacle3D'
       let extraProps = ''
-      if (args.radius) extraProps += `radius = ${args.radius}\n`
-      if (args.avoidance_enabled !== undefined) extraProps += `avoidance_enabled = ${args.avoidance_enabled}\n`
+
+      if (args.radius !== undefined) {
+        if (typeof args.radius !== 'number') throw new GodotMCPError('radius must be a number', 'INVALID_ARGS')
+        extraProps += `radius = ${args.radius}\n`
+      }
+      if (args.avoidance_enabled !== undefined) {
+        if (typeof args.avoidance_enabled !== 'boolean')
+          throw new GodotMCPError('avoidance_enabled must be a boolean', 'INVALID_ARGS')
+        extraProps += `avoidance_enabled = ${args.avoidance_enabled}\n`
+      }
 
       content = appendNode(content, obstacleName, nodeType, parent, extraProps || undefined)
 

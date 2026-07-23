@@ -7,7 +7,7 @@ import { mkdir, readdir, readFile, unlink, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
-import { safeResolve } from '../helpers/paths.js'
+import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
 import { parseSceneContent, updateNodeInScene } from '../helpers/scene-parser.js'
 
 const SCRIPT_TEMPLATES: Record<string, string> = {
@@ -247,11 +247,7 @@ async function attachScript(args: Record<string, unknown>, resolvePath: (path: s
   return formatSuccess(`Attached script ${scriptPath} to ${nodeName} in ${scenePath}`)
 }
 
-async function listScripts(baseDir: string, projectPath: string | undefined) {
-  if (!projectPath)
-    throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path argument.')
-
-  const resolvedPath = safeResolve(baseDir, projectPath)
+async function listScripts(resolvedPath: string) {
   const scripts = await findScriptFiles(resolvedPath)
 
   // OPTIMIZATION: Use substring and a pre-allocated array instead of .map() and node:path.relative
@@ -284,22 +280,13 @@ async function deleteScript(args: Record<string, unknown>, resolvePath: (path: s
 }
 
 export async function handleScripts(action: string, args: Record<string, unknown>, config: GodotConfig) {
-  const baseDir = config.projectPath || process.cwd()
-  // Validate args.project_path against the trusted baseDir to prevent path traversal vulnerabilities
-  const projectPath = args.project_path ? safeResolve(baseDir, args.project_path as string) : config.projectPath
-
-  if (!projectPath && action !== 'list') {
-    // List handles missing projectPath internally, but others need it for safeResolve base
-    // Though list also throws if missing. Let's rely on standard checks inside but ensure projectPath is available for resolution.
-    // Actually, all actions check projectPath. We can resolve it early.
+  if (!args.project_path && !config.projectPath) {
+    throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path argument.')
   }
+  const projectPath = resolveProjectRoot(args.project_path, config.projectPath)
 
   // Helper to resolve path securely
   const resolvePath = (path: string) => {
-    if (!projectPath) {
-      // Should be caught by action-specific checks, but fallback for safety
-      throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path argument.')
-    }
     return safeResolve(projectPath, path)
   }
 
@@ -313,7 +300,7 @@ export async function handleScripts(action: string, args: Record<string, unknown
     case 'attach':
       return attachScript(args, resolvePath)
     case 'list':
-      return listScripts(baseDir, projectPath ?? undefined)
+      return listScripts(projectPath)
     case 'delete':
       return deleteScript(args, resolvePath)
     default:

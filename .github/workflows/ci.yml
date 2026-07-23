@@ -62,10 +62,11 @@ jobs:
           types: |
             fix
             feat
+            🛡️ Sentinel
           requireScope: false
-          subjectPattern: ^(?![A-Z]).+$
+          subjectPattern: ^(?![A-Z]).+$|^\[(?:CRITICAL|HIGH|MEDIUM|LOW)\].+
           subjectPatternError: |
-            The subject must not start with an uppercase character.
+            The subject must not start with an uppercase character, unless it is a Sentinel severity tag.
 
   lint-and-test:
     name: Lint, Test & Build (${{ matrix.os }})

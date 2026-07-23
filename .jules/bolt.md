@@ -76,3 +76,6 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## 2026-07-14 - Pre-compile inline regular expressions
 **Learning:** Initializing regular expressions inline inside parsing hot paths (e.g., inside loops iterating over files like `project.godot`) forces the JS engine to recreate the RegExp object or check cache continually. While modern engines cache regex literals, making them module-level constants definitively avoids potential recreation overhead. Furthermore, `.exec()` avoids the minor overhead of `String.prototype.match()` while providing identical capture group output for non-global regexes.
 **Action:** Extract non-global inline regexes (like `/"events":\s*\[([^\]]*)\]/`) into module-level constants (e.g., `EVENTS_REGEX`) and replace `.match()` calls with `.exec()` in high-frequency parsing paths.
+## 2026-07-20 - [Optimize character comparisons in hot loops]
+**Learning:** Using bracket-notation string indexing (`str[i]`) and string equality checks (e.g., `char === '"'`) inside hot parsing loops creates single-character string allocations and adds overhead in engines like V8.
+**Action:** Replace `str[i]` with `str.charCodeAt(i)` and compare against integer character codes (e.g., `34` for `"`). This avoids unnecessary memory allocations and improves performance in high-frequency string parsing paths.

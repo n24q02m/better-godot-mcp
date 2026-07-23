@@ -145,6 +145,7 @@ function resolveMouseCode(value: string): number {
 /**
  * Fast-path parser for comma-separated lists, avoiding split/map/filter allocations.
  */
+// ⚡ Bolt: Use charCodeAt instead of bracket-notation string indexing for high-performance parsing
 function parseEventsList(str: string): string[] {
   if (!str) return []
   const results: string[] = []
@@ -152,14 +153,14 @@ function parseEventsList(str: string): string[] {
   let inQuotes = false
   let start = 0
   for (let i = 0; i < str.length; i++) {
-    const char = str[i]
-    if (char === '"' && (i === 0 || str[i - 1] !== '\\')) {
+    const charCode = str.charCodeAt(i)
+    if (charCode === 34 && (i === 0 || str.charCodeAt(i - 1) !== 92)) { // '"' and not '\'
       inQuotes = !inQuotes
     }
     if (!inQuotes) {
-      if (char === '(' || char === '[' || char === '{') depth++
-      else if (char === ')' || char === ']' || char === '}') depth--
-      else if (char === ',' && depth === 0) {
+      if (charCode === 40 || charCode === 91 || charCode === 123) depth++ // '(', '[', '{'
+      else if (charCode === 41 || charCode === 93 || charCode === 125) depth-- // ')', ']', '}'
+      else if (charCode === 44 && depth === 0) { // ','
         const part = str.slice(start, i).trim()
         if (part) results.push(part)
         start = i + 1

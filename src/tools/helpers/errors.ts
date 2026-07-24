@@ -104,14 +104,6 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
   const safeInput = input.length > 100 ? input.slice(0, 100) : input
   const lower = safeInput.toLowerCase()
 
-  // 1. Priority: Exact match (case-insensitive)
-  for (const option of validOptions) {
-    if (option.toLowerCase() === lower) {
-      return option
-    }
-  }
-
-  // 2-4. Priority: Prefix and containment matches
   let bestStartsWith: string | null = null
   let minLenDiffStartsWith = Number.POSITIVE_INFINITY
 
@@ -121,10 +113,15 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
   let bestInputStartsWith: string | null = null
   let minLenDiffInputStartsWith = Number.POSITIVE_INFINITY
 
-  for (const option of validOptions) {
+  // ⚡ Bolt: Fast-path 1-4 Priority checks into a single loop to avoid multiple iterations
+  for (let i = 0; i < validOptions.length; i++) {
+    const option = validOptions[i]
     const optionLower = option.toLowerCase()
-    const lenDiff = Math.abs(optionLower.length - lower.length)
 
+    // 1. Priority: Exact match (case-insensitive)
+    if (optionLower === lower) return option // Exact match early return
+
+    const lenDiff = Math.abs(optionLower.length - lower.length)
     if (optionLower.startsWith(lower)) {
       if (lenDiff < minLenDiffStartsWith) {
         minLenDiffStartsWith = lenDiff
@@ -151,24 +148,78 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
   let bestFuzzyMatch: string | null = null
   let bestScore = 0
 
-  const inputBigrams = new Set<string>()
-  for (let i = 0; i < lower.length - 1; i++) {
-    inputBigrams.add(lower.slice(i, i + 2))
+  const inputLen = lower.length
+  if (inputLen < 2) return null
+
+  // ⚡ Bolt: Fast path bigrams for input using a Float64Array instead of Set to reduce allocations.
+  // We use char1 * 65536 + char2 to safely pack two 16-bit characters into a 53-bit safe integer.
+  // Inputs are limited to 100 chars, max bigrams = 99.
+  const maxBigrams = inputLen - 1
+  const inputBigrams = new Float64Array(maxBigrams)
+  let inputSize = 0
+
+  for (let i = 0; i < maxBigrams; i++) {
+    const char1 = lower.charCodeAt(i)
+    const char2 = lower.charCodeAt(i + 1)
+    const bigram = char1 * 65536 + char2
+
+    let found = false
+    for (let k = 0; k < inputSize; k++) {
+      if (inputBigrams[k] === bigram) {
+        found = true
+        break
+      }
+    }
+    if (!found) inputBigrams[inputSize++] = bigram
   }
 
-  for (const option of validOptions) {
+  // Pre-allocate option bigrams array for reuse across all options
+  // The max length of any option in MCP is small, we allocate 256.
+  const optionSeen = new Float64Array(256)
+
+  for (let i = 0; i < validOptions.length; i++) {
+    const option = validOptions[i]
     const optionLower = option.toLowerCase()
-    const optionBigrams = new Set<string>()
-    for (let i = 0; i < optionLower.length - 1; i++) {
-      optionBigrams.add(optionLower.slice(i, i + 2))
-    }
+    const optLen = optionLower.length
+
+    if (optLen < 2) continue
 
     let overlap = 0
-    for (const bigram of optionBigrams) {
-      if (inputBigrams.has(bigram)) overlap++
+    let optionSize = 0
+    const optionMaxBigrams = optLen - 1
+
+    for (let j = 0; j < optionMaxBigrams; j++) {
+      const char1 = optionLower.charCodeAt(j)
+      const char2 = optionLower.charCodeAt(j + 1)
+      const bigram = char1 * 65536 + char2
+
+      let found = false
+      for (let k = 0; k < optionSize; k++) {
+        if (optionSeen[k] === bigram) {
+          found = true
+          break
+        }
+      }
+
+      if (!found) {
+        if (optionSize < 256) {
+          optionSeen[optionSize++] = bigram
+        } else {
+          // If option is incredibly long, we just limit it.
+          // In practice this won't happen for MCP tool names.
+          optionSize++
+        }
+
+        for (let k = 0; k < inputSize; k++) {
+          if (inputBigrams[k] === bigram) {
+            overlap++
+            break
+          }
+        }
+      }
     }
 
-    const total = inputBigrams.size + optionBigrams.size
+    const total = inputSize + optionSize
     if (total === 0) continue
 
     const score = (2 * overlap) / total

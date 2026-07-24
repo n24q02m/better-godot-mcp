@@ -49,24 +49,35 @@ const MAX_PARSE_DEPTH = 32
 
 export function parseGodotValue(expr: string, _depth = 0): unknown {
   if (_depth > MAX_PARSE_DEPTH) return expr
-  const trimmed = expr.trim()
 
-  // Boolean
-  if (trimmed === 'true') return true
-  if (trimmed === 'false') return false
+  // ⚡ Bolt: Fast path trim - avoid allocating new string if it's already trimmed
+  let s = 0
+  let e = expr.length
+  while (s < e && expr.charCodeAt(s) <= 32) s++
+  while (e > s && expr.charCodeAt(e - 1) <= 32) e--
 
-  // null
-  if (trimmed === 'null') return null
+  if (s >= e) return ''
 
-  // Number (int or float)
-  if (NUMBER_RE.test(trimmed)) {
-    return Number.parseFloat(trimmed)
+  const trimmed = s === 0 && e === expr.length ? expr : expr.slice(s, e)
+  const len = trimmed.length
+  const firstChar = trimmed.charCodeAt(0)
+
+  // Fast path exact matches
+  // 116 = 't', 102 = 'f', 110 = 'n'
+  if (firstChar === 116 && trimmed === 'true') return true
+  if (firstChar === 102 && trimmed === 'false') return false
+  if (firstChar === 110 && trimmed === 'null') return null
+
+  // Fast path for numbers without regexp when possible (ascii: 45='-', 48='0', 57='9', 46='.')
+  if ((firstChar >= 48 && firstChar <= 57) || firstChar === 45) {
+    if (NUMBER_RE.test(trimmed)) {
+      return Number.parseFloat(trimmed)
+    }
   }
 
   // String (quoted)
-  const firstChar = trimmed.length > 0 ? trimmed.charCodeAt(0) : 0
-  if (trimmed.length >= 2) {
-    const last = trimmed.charCodeAt(trimmed.length - 1)
+  if (len >= 2) {
+    const last = trimmed.charCodeAt(len - 1)
     if ((firstChar === 34 && last === 34) || (firstChar === 39 && last === 39)) {
       return trimmed.slice(1, -1)
     }
@@ -128,30 +139,30 @@ export function parseGodotValue(expr: string, _depth = 0): unknown {
     }
   }
 
-  // NodePath
-  if (trimmed.startsWith('NodePath("') && trimmed.endsWith('")')) {
+  // NodePath ('N' = 78)
+  if (firstChar === 78 && trimmed.startsWith('NodePath("') && trimmed.endsWith('")')) {
     return trimmed.slice(10, -2)
   }
 
-  // ExtResource reference
-  if (trimmed.startsWith('ExtResource("') && trimmed.endsWith('")')) {
+  // ExtResource reference ('E' = 69)
+  if (firstChar === 69 && trimmed.startsWith('ExtResource("') && trimmed.endsWith('")')) {
     return trimmed // already in correct format
   }
 
-  // SubResource reference
-  if (trimmed.startsWith('SubResource("') && trimmed.endsWith('")')) {
+  // SubResource reference ('S' = 83)
+  if (firstChar === 83 && trimmed.startsWith('SubResource("') && trimmed.endsWith('")')) {
     return trimmed // already in correct format
   }
 
-  // Array
+  // Array ('[' = 91, ']' = 93)
   // ⚡ Bolt: Fast path for Array parsing using charCodeAt, inline index tracking, and integer states
-  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-    const inner = trimmed.slice(1, -1)
-
-    let innerStart = 0
-    let innerEnd = inner.length
-    while (innerStart < innerEnd && inner.charCodeAt(innerStart) <= 32) innerStart++
-    while (innerEnd > innerStart && inner.charCodeAt(innerEnd - 1) <= 32) innerEnd--
+  if (firstChar === 91 && trimmed.charCodeAt(len - 1) === 93) {
+    // We already know expr[s] == '[' and expr[e-1] == ']'
+    // Parse array directly from main string indices to avoid inner string allocation
+    let innerStart = s + 1
+    let innerEnd = e - 1
+    while (innerStart < innerEnd && expr.charCodeAt(innerStart) <= 32) innerStart++
+    while (innerEnd > innerStart && expr.charCodeAt(innerEnd - 1) <= 32) innerEnd--
 
     if (innerStart >= innerEnd) return []
 
@@ -162,11 +173,11 @@ export function parseGodotValue(expr: string, _depth = 0): unknown {
     let start = innerStart
 
     for (let i = innerStart; i <= innerEnd; i++) {
-      const charCode = i < innerEnd ? inner.charCodeAt(i) : 44 // 44 is ','
+      const charCode = i < innerEnd ? expr.charCodeAt(i) : 44 // 44 is ','
 
       if (inQuote !== 0) {
-        if (charCode === inQuote && inner.charCodeAt(i - 1) !== 92) {
-          // 92 is '\'
+        if (charCode === inQuote && expr.charCodeAt(i - 1) !== 92) {
+          // 92 is ''
           inQuote = 0
         }
         continue
@@ -190,12 +201,12 @@ export function parseGodotValue(expr: string, _depth = 0): unknown {
         // ','
         let itemStart = start
         let itemEnd = i
-        while (itemStart < itemEnd && inner.charCodeAt(itemStart) <= 32) itemStart++
-        while (itemEnd > itemStart && inner.charCodeAt(itemEnd - 1) <= 32) itemEnd--
+        while (itemStart < itemEnd && expr.charCodeAt(itemStart) <= 32) itemStart++
+        while (itemEnd > itemStart && expr.charCodeAt(itemEnd - 1) <= 32) itemEnd--
 
         const itemLen = itemEnd - itemStart
         if (itemLen > 0 || results.length > 0 || i < innerEnd) {
-          const item = itemLen > 0 ? inner.slice(itemStart, itemEnd) : ''
+          const item = itemLen > 0 ? expr.slice(itemStart, itemEnd) : ''
           results.push(parseGodotValue(item, _depth + 1))
         }
         start = i + 1

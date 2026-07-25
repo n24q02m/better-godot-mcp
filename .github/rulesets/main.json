@@ -36,12 +36,6 @@
       "type": "update"
     },
     {
-      "type": "code_quality",
-      "parameters": {
-        "severity": "errors"
-      }
-    },
-    {
       "type": "code_scanning",
       "parameters": {
         "code_scanning_tools": [

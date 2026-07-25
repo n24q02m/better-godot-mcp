@@ -133,4 +133,36 @@ describe('Security: Scene Injection Prevention in UI and Audio tools', () => {
       ).rejects.toThrow('Invalid characters in parameters')
     })
   })
+
+  describe('Array Injection Tests', () => {
+    it('should prevent injection via node name array in create_control', async () => {
+      createTmpScene(projectPath, 'main.tscn')
+      await expect(
+        handleUI(
+          'create_control',
+          {
+            project_path: projectPath,
+            scene_path: 'main.tscn',
+            name: ['Button"\n[node name="Malicious" type="Node"]\n"'],
+            type: 'Button',
+          },
+          config,
+        ),
+      ).rejects.toThrow('Invalid characters in parameters')
+    })
+
+    it('should prevent injection via array in add_bus in audio', async () => {
+      await expect(
+        handleAudio(
+          'add_bus',
+          {
+            project_path: projectPath,
+            bus_name: ['Master"\n[node name="Malicious" type="Node"]\n"'],
+          },
+          config,
+        ),
+      ).rejects.toThrow('Invalid characters in parameters')
+    })
+  })
+
 })

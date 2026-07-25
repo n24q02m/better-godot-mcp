@@ -72,11 +72,11 @@ function resolveScene(projectRoot: string, scenePath: string): string {
 }
 
 async function handleCreateControl(projectPath: string, args: Record<string, unknown>) {
-  const scenePath = args.scene_path as string
+  const scenePath = args.scene_path !== undefined ? String(args.scene_path) : ''
   if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
-  const controlName = args.name as string
-  const controlType = (args.type as string) || 'Control'
-  const parent = (args.parent as string) || '.'
+  const controlName = args.name !== undefined ? String(args.name) : ''
+  const controlType = args.type !== undefined ? String(args.type) : 'Control'
+  const parent = args.parent !== undefined ? String(args.parent) : '.'
 
   if (!controlName) throw new GodotMCPError('No name specified', 'INVALID_ARGS', 'Provide control node name.')
 
@@ -151,7 +151,7 @@ async function handleCreateControl(projectPath: string, args: Record<string, unk
 }
 
 async function handleSetTheme(projectPath: string, args: Record<string, unknown>) {
-  const themePath = args.theme_path as string
+  const themePath = args.theme_path !== undefined ? String(args.theme_path) : ''
   if (!themePath)
     throw new GodotMCPError('No theme_path specified', 'INVALID_ARGS', 'Provide theme_path (e.g., "themes/main.tres").')
 
@@ -174,11 +174,11 @@ async function handleSetTheme(projectPath: string, args: Record<string, unknown>
 }
 
 async function handleLayout(projectPath: string, args: Record<string, unknown>) {
-  const scenePath = args.scene_path as string
+  const scenePath = args.scene_path !== undefined ? String(args.scene_path) : ''
   if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
-  const nodeName = args.name as string
+  const nodeName = args.name !== undefined ? String(args.name) : ''
   if (!nodeName) throw new GodotMCPError('No name specified', 'INVALID_ARGS', 'Provide node name.')
-  const preset = (args.preset as string) || 'full_rect'
+  const preset = args.preset !== undefined ? String(args.preset) : 'full_rect'
 
   if (
     nodeName.includes('"') ||
@@ -272,7 +272,7 @@ async function handleLayout(projectPath: string, args: Record<string, unknown>) 
 }
 
 async function handleListControls(projectPath: string, args: Record<string, unknown>) {
-  const scenePath = args.scene_path as string
+  const scenePath = args.scene_path !== undefined ? String(args.scene_path) : ''
   if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
 
   const fullPath = resolveScene(projectPath, scenePath)

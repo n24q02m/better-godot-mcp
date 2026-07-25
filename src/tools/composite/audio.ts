@@ -105,9 +105,9 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
 
     case 'add_bus': {
       const busLayoutPath = resolveBusLayoutPath(projectPath, baseDir)
-      const busName = args.bus_name as string
+      const busName = args.bus_name !== undefined ? String(args.bus_name) : ''
       if (!busName) throw new GodotMCPError('No bus_name specified', 'INVALID_ARGS', 'Provide bus name.')
-      const sendTo = (args.send_to as string) || 'Master'
+      const sendTo = args.send_to !== undefined ? String(args.send_to) : 'Master'
 
       if (
         busName.includes('"') ||
@@ -165,8 +165,8 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
 
     case 'add_effect': {
       const busLayoutPath = resolveBusLayoutPath(projectPath, baseDir)
-      const busName = args.bus_name as string
-      const effectType = args.effect_type as string
+      const busName = args.bus_name !== undefined ? String(args.bus_name) : ''
+      const effectType = args.effect_type !== undefined ? String(args.effect_type) : ''
       if (!busName || !effectType) {
         throw new GodotMCPError(
           'bus_name and effect_type required',
@@ -250,12 +250,12 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
     }
 
     case 'create_stream': {
-      const scenePath = args.scene_path as string
+      const scenePath = args.scene_path !== undefined ? String(args.scene_path) : ''
       if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
-      const nodeName = (args.name as string) || 'AudioStreamPlayer'
-      const streamType = (args.stream_type as string) || '2D'
-      const parent = (args.parent as string) || '.'
-      const bus = (args.bus as string) || 'Master'
+      const nodeName = args.name !== undefined ? String(args.name) : 'AudioStreamPlayer'
+      const streamType = args.stream_type !== undefined ? String(args.stream_type) : '2D'
+      const parent = args.parent !== undefined ? String(args.parent) : '.'
+      const bus = args.bus !== undefined ? String(args.bus) : 'Master'
 
       if (
         nodeName.includes('"') ||

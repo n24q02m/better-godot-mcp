@@ -164,5 +164,4 @@ describe('Security: Scene Injection Prevention in UI and Audio tools', () => {
       ).rejects.toThrow('Invalid characters in parameters')
     })
   })
-
 })

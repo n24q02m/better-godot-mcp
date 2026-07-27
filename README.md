@@ -1,5 +1,7 @@
 # Better Godot MCP
 
+[![MCP Toplist](https://mcptoplist.com/badge/io.github.n24q02m%2Fbetter-godot-mcp.svg)](https://mcptoplist.com/server/io.github.n24q02m%2Fbetter-godot-mcp)
+
 mcp-name: io.github.n24q02m/better-godot-mcp
 
 **Composite MCP server for Godot Engine -- 17 composite tools for AI-assisted game development.**

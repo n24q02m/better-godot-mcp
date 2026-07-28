@@ -80,13 +80,13 @@ export function wrapToolResult<
  * @param customMessage Custom error message if validation fails.
  * @param values Values to check.
  */
-export function validateNoNewlines(
-  customMessage: string | undefined,
-  ...values: (string | number | boolean | undefined | null)[]
-): void {
+export function validateNoNewlines(customMessage: string | undefined, ...values: unknown[]): void {
   for (const val of values) {
-    if (typeof val === 'string' && (val.includes('\n') || val.includes('\r'))) {
-      throw new GodotMCPError(customMessage || 'Invalid arguments: newlines not allowed', 'INVALID_ARGS')
+    if (val !== undefined && val !== null) {
+      const strVal = String(val)
+      if (strVal.includes('\n') || strVal.includes('\r')) {
+        throw new GodotMCPError(customMessage || 'Invalid arguments: newlines not allowed', 'INVALID_ARGS')
+      }
     }
   }
 }

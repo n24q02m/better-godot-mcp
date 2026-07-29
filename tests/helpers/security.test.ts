@@ -154,6 +154,12 @@ describe('security', () => {
       )
     })
 
+    it('should throw for an array containing a newline (bypassing typeof string)', () => {
+      expect(() => validateNoNewlines(undefined, 'safe', ['has\nnewline'])).toThrow(
+        'Invalid arguments: newlines not allowed',
+      )
+    })
+
     it('should throw for string with carriage return', () => {
       expect(() => validateNoNewlines(undefined, 'has\rcarriage', 'safe')).toThrow(
         'Invalid arguments: newlines not allowed',

@@ -103,11 +103,12 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
   // Truncate to prevent CPU exhaustion from excessively long inputs
   const safeInput = input.length > 100 ? input.slice(0, 100) : input
   const lower = safeInput.toLowerCase()
+  const inputLen = lower.length
 
   // 1. Priority: Exact match (case-insensitive)
-  for (const option of validOptions) {
-    if (option.toLowerCase() === lower) {
-      return option
+  for (let i = 0; i < validOptions.length; i++) {
+    if (validOptions[i].toLowerCase() === lower) {
+      return validOptions[i]
     }
   }
 
@@ -121,9 +122,11 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
   let bestInputStartsWith: string | null = null
   let minLenDiffInputStartsWith = Number.POSITIVE_INFINITY
 
-  for (const option of validOptions) {
+  for (let i = 0; i < validOptions.length; i++) {
+    const option = validOptions[i]
     const optionLower = option.toLowerCase()
-    const lenDiff = Math.abs(optionLower.length - lower.length)
+    const optionLen = optionLower.length
+    const lenDiff = Math.abs(optionLen - inputLen)
 
     if (optionLower.startsWith(lower)) {
       if (lenDiff < minLenDiffStartsWith) {
@@ -148,33 +151,73 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
   if (bestInputStartsWith !== null) return bestInputStartsWith
 
   // 5. Fallback: Fuzzy matching using bigram similarity
+  // ⚡ Bolt: Optimize fuzzy matching using Uint32Array and mathematical bigram encoding
   let bestFuzzyMatch: string | null = null
   let bestScore = 0
 
-  const inputBigrams = new Set<string>()
-  for (let i = 0; i < lower.length - 1; i++) {
-    inputBigrams.add(lower.slice(i, i + 2))
+  const inputBigrams = new Uint32Array(Math.max(0, inputLen - 1))
+  for (let i = 0; i < inputLen - 1; i++) {
+    inputBigrams[i] = lower.charCodeAt(i) * 65536 + lower.charCodeAt(i + 1)
+  }
+  inputBigrams.sort()
+
+  let uniqueInputBigramsCount = 0
+  if (inputBigrams.length > 0) {
+    uniqueInputBigramsCount = 1
+    for (let i = 1; i < inputBigrams.length; i++) {
+      if (inputBigrams[i] !== inputBigrams[i - 1]) {
+        inputBigrams[uniqueInputBigramsCount++] = inputBigrams[i]
+      }
+    }
   }
 
-  for (const option of validOptions) {
+  for (let i = 0; i < validOptions.length; i++) {
+    const option = validOptions[i]
     const optionLower = option.toLowerCase()
-    const optionBigrams = new Set<string>()
-    for (let i = 0; i < optionLower.length - 1; i++) {
-      optionBigrams.add(optionLower.slice(i, i + 2))
-    }
+    const optionLen = optionLower.length
 
-    let overlap = 0
-    for (const bigram of optionBigrams) {
-      if (inputBigrams.has(bigram)) overlap++
-    }
+    if (optionLen > 1 && inputLen > 1) {
+      const optionBigrams = new Uint32Array(optionLen - 1)
+      for (let j = 0; j < optionLen - 1; j++) {
+        optionBigrams[j] = optionLower.charCodeAt(j) * 65536 + optionLower.charCodeAt(j + 1)
+      }
+      optionBigrams.sort()
 
-    const total = inputBigrams.size + optionBigrams.size
-    if (total === 0) continue
+      let uniqueOptionBigramsCount = 0
+      if (optionBigrams.length > 0) {
+        uniqueOptionBigramsCount = 1
+        for (let j = 1; j < optionBigrams.length; j++) {
+          if (optionBigrams[j] !== optionBigrams[j - 1]) {
+            optionBigrams[uniqueOptionBigramsCount++] = optionBigrams[j]
+          }
+        }
+      }
 
-    const score = (2 * overlap) / total
-    if (score > bestScore && score > 0.4) {
-      bestScore = score
-      bestFuzzyMatch = option
+      let overlap = 0
+      let idx1 = 0
+      let idx2 = 0
+
+      while (idx1 < uniqueInputBigramsCount && idx2 < uniqueOptionBigramsCount) {
+        const bg1 = inputBigrams[idx1]
+        const bg2 = optionBigrams[idx2]
+        if (bg1 === bg2) {
+          overlap++
+          idx1++
+          idx2++
+        } else if (bg1 < bg2) {
+          idx1++
+        } else {
+          idx2++
+        }
+      }
+
+      const total = uniqueInputBigramsCount + uniqueOptionBigramsCount
+      const score = total > 0 ? (2 * overlap) / total : 0
+
+      if (score > bestScore && score > 0.4) {
+        bestScore = score
+        bestFuzzyMatch = option
+      }
     }
   }
 

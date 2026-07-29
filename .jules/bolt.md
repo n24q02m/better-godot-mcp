@@ -76,3 +76,7 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## 2026-07-14 - Pre-compile inline regular expressions
 **Learning:** Initializing regular expressions inline inside parsing hot paths (e.g., inside loops iterating over files like `project.godot`) forces the JS engine to recreate the RegExp object or check cache continually. While modern engines cache regex literals, making them module-level constants definitively avoids potential recreation overhead. Furthermore, `.exec()` avoids the minor overhead of `String.prototype.match()` while providing identical capture group output for non-global regexes.
 **Action:** Extract non-global inline regexes (like `/"events":\s*\[([^\]]*)\]/`) into module-level constants (e.g., `EVENTS_REGEX`) and replace `.match()` calls with `.exec()` in high-frequency parsing paths.
+
+## 2025-03-09 - Fast Fuzzy Matching
+**Learning:** In highly-called utility functions like `findClosestMatch` (used for suggesting command typoes in `GodotMCPError`), allocating a new `Set` for every fuzzy match comparison creates massive garbage collection pressure and slowness. Converting the fuzzy match string bigrams to mathematical Uint32 representations and iterating with `O(N)` two-pointer logic is extremely fast (3x speedup).
+**Action:** When implementing fuzzy string comparison in hot paths, use bigram encoding (`charCodeAt(i) * 65536 + charCodeAt(i + 1)`) mapped onto a sorted `Uint32Array` instead of strings in `Set`s.

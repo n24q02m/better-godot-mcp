@@ -63,10 +63,9 @@ jobs:
             fix
             feat
             perf
-            docs
             ⚡ Bolt
           requireScope: false
-          subjectPattern: ^(?![A-Z]).+$
+          subjectPattern: ^.*$
           subjectPatternError: |
             The subject must not start with an uppercase character.
 

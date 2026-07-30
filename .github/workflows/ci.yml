@@ -63,6 +63,7 @@ jobs:
             fix
             feat
             perf
+            docs
             ⚡ Bolt
           requireScope: false
           subjectPattern: ^.*$

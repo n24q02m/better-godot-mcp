@@ -130,8 +130,10 @@ async function handleCreateControl(projectPath: string, args: Record<string, unk
         'properties must be an object with string keys and values.',
       )
     }
-    for (const [key, value] of Object.entries(args.properties)) {
-      if (typeof key !== 'string' || typeof value !== 'string') {
+    for (const [k, v] of Object.entries(args.properties)) {
+      const key = String(k)
+      const value = String(v)
+      if (typeof k !== 'string' || typeof v !== 'string') {
         throw new GodotMCPError('Invalid property value', 'INVALID_ARGS', 'Property keys and values must be strings.')
       }
       if (key.includes('=') || key.includes('\n') || key.includes('\r')) {

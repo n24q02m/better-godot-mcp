@@ -62,6 +62,9 @@ jobs:
           types: |
             fix
             feat
+            perf
+            docs
+            ⚡ Bolt
           requireScope: false
           subjectPattern: ^(?![A-Z]).+$
           subjectPatternError: |

@@ -104,14 +104,8 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
   const safeInput = input.length > 100 ? input.slice(0, 100) : input
   const lower = safeInput.toLowerCase()
 
-  // 1. Priority: Exact match (case-insensitive)
-  for (const option of validOptions) {
-    if (option.toLowerCase() === lower) {
-      return option
-    }
-  }
-
-  // 2-4. Priority: Prefix and containment matches
+  // ⚡ Bolt: Use a single pass for Exact, Prefix, and Containment matches
+  // to avoid calling toLowerCase() multiple times per option.
   let bestStartsWith: string | null = null
   let minLenDiffStartsWith = Number.POSITIVE_INFINITY
 
@@ -123,6 +117,13 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
 
   for (const option of validOptions) {
     const optionLower = option.toLowerCase()
+
+    // 1. Priority: Exact match (case-insensitive) - Early return
+    if (optionLower === lower) {
+      return option
+    }
+
+    // 2-4. Priority: Prefix and containment matches
     const lenDiff = Math.abs(optionLower.length - lower.length)
 
     if (optionLower.startsWith(lower)) {
@@ -151,24 +152,64 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
   let bestFuzzyMatch: string | null = null
   let bestScore = 0
 
-  const inputBigrams = new Set<string>()
-  for (let i = 0; i < lower.length - 1; i++) {
-    inputBigrams.add(lower.slice(i, i + 2))
+  const inputLen = lower.length
+  if (inputLen < 2) return null
+
+  // ⚡ Bolt: Fast mathematical bigram encoding and intersection logic
+  const inputBigrams = new Uint32Array(inputLen - 1)
+  for (let i = 0; i < inputLen - 1; i++) {
+    inputBigrams[i] = lower.charCodeAt(i) * 65536 + lower.charCodeAt(i + 1)
   }
+  inputBigrams.sort()
+
+  let inputUniqueCount = 0
+  if (inputBigrams.length > 0) {
+    inputUniqueCount = 1
+    for (let i = 1; i < inputBigrams.length; i++) {
+      if (inputBigrams[i] !== inputBigrams[i - 1]) {
+        inputBigrams[inputUniqueCount++] = inputBigrams[i]
+      }
+    }
+  }
+  const inputUnique = inputBigrams.subarray(0, inputUniqueCount)
 
   for (const option of validOptions) {
     const optionLower = option.toLowerCase()
-    const optionBigrams = new Set<string>()
-    for (let i = 0; i < optionLower.length - 1; i++) {
-      optionBigrams.add(optionLower.slice(i, i + 2))
+    const optLen = optionLower.length
+    if (optLen < 2) continue
+
+    const optBigrams = new Uint32Array(optLen - 1)
+    for (let i = 0; i < optLen - 1; i++) {
+      optBigrams[i] = optionLower.charCodeAt(i) * 65536 + optionLower.charCodeAt(i + 1)
+    }
+    optBigrams.sort()
+
+    let optUniqueCount = 0
+    if (optBigrams.length > 0) {
+      optUniqueCount = 1
+      for (let i = 1; i < optBigrams.length; i++) {
+        if (optBigrams[i] !== optBigrams[i - 1]) {
+          optBigrams[optUniqueCount++] = optBigrams[i]
+        }
+      }
     }
 
     let overlap = 0
-    for (const bigram of optionBigrams) {
-      if (inputBigrams.has(bigram)) overlap++
+    let i = 0
+    let j = 0
+    while (i < inputUniqueCount && j < optUniqueCount) {
+      if (inputUnique[i] === optBigrams[j]) {
+        overlap++
+        i++
+        j++
+      } else if (inputUnique[i] < optBigrams[j]) {
+        i++
+      } else {
+        j++
+      }
     }
 
-    const total = inputBigrams.size + optionBigrams.size
+    const total = inputUniqueCount + optUniqueCount
     if (total === 0) continue
 
     const score = (2 * overlap) / total

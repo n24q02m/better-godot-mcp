@@ -94,7 +94,10 @@ export async function handleShader(action: string, args: Record<string, unknown>
           'Provide shader_path (e.g., "shaders/effect.gdshader").',
         )
       const shaderType = (args.shader_type as string) || 'canvas_item'
-      const content = (args.content as string) || SHADER_TEMPLATES[shaderType] || SHADER_TEMPLATES.canvas_item
+      const content =
+        (args.content as string) ||
+        (Object.hasOwn(SHADER_TEMPLATES, shaderType) ? SHADER_TEMPLATES[shaderType] : undefined) ||
+        SHADER_TEMPLATES.canvas_item
 
       const fullPath = safeResolve(projectRoot, shaderPath)
 

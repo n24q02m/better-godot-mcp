@@ -287,7 +287,18 @@ async function handleListControls(projectPath: string, args: Record<string, unkn
     throw err
   }
 
-  const controls: { name: string; type: string; parent: string }[] = []
+  // ⚡ Bolt: First pass: calculate total matching nodes to pre-allocate the controls array
+  let totalControls = 0
+  for (const type of CONTROL_TYPES) {
+    const typeNodes = scene.nodesByType.get(type)
+    if (typeNodes) {
+      totalControls += typeNodes.length
+    }
+  }
+
+  // ⚡ Bolt: Pre-allocate array to avoid dynamic resizing overhead
+  const controls = new Array(totalControls)
+  let controlIdx = 0
 
   // ⚡ Bolt: Query by pre-indexed types (O(K)) instead of iterating all N nodes.
   // This drastically speeds up filtering in complex scenes with many non-Control nodes.
@@ -296,12 +307,12 @@ async function handleListControls(projectPath: string, args: Record<string, unkn
     if (typeNodes) {
       for (let i = 0; i < typeNodes.length; i++) {
         const node = typeNodes[i]
-        controls.push({ name: node.name, type: node.type || type, parent: node.parent || '(root)' })
+        controls[controlIdx++] = { name: node.name, type: node.type || type, parent: node.parent || '(root)' }
       }
     }
   }
 
-  return formatJSON({ scene: scenePath, count: controls.length, controls })
+  return formatJSON({ scene: scenePath, count: totalControls, controls })
 }
 
 export async function handleUI(action: string, args: Record<string, unknown>, config: GodotConfig) {

@@ -193,11 +193,13 @@ async function handleListAnimations(projectPath: string, args: Record<string, un
 
   // ⚡ Bolt: Fast extraction of specific node types using O(1) index lookup
   // instead of O(N) scene iteration
-  const players: string[] = []
+  let players: string[] = []
   const playerNodes = parsed.nodesByType.get('AnimationPlayer')
   if (playerNodes) {
+    // ⚡ Bolt: Pre-allocate array to avoid dynamic resizing overhead
+    players = new Array(playerNodes.length)
     for (let i = 0; i < playerNodes.length; i++) {
-      players.push(playerNodes[i].name)
+      players[i] = playerNodes[i].name
     }
   }
 

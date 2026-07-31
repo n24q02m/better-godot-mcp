@@ -55,6 +55,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          ignoreLabels: |
+            ignore-semantic-pull-request
+          # Sentinel agent titles skip this check
+          ignoreTitlePattern: "^🛡️ Sentinel:"
           # Repo rule: only feat: and fix: (feedback_commit_prefix.md). This is
           # narrower than PSR's own default allowed_tags (which also treats
           # perf: as patch-worthy) -- we enforce the project convention here,

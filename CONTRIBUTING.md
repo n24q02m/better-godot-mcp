@@ -170,7 +170,7 @@ better-godot-mcp/
 ├── package.json
 ├── README.md
 ├── CONTRIBUTING.md           # This guide
-├── LICENSE                   # MIT License
+├── LICENSE                   # Apache-2.0
 ├── Dockerfile                # Docker build configuration
 ├── AGENTS.md                 # Agent-specific instructions
 └── CLAUDE.md                 # Development notes and known bugs
@@ -189,7 +189,7 @@ Feel free to open an issue for:
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the MIT License.
+By contributing, you agree that your contributions will be licensed under the Apache License, Version 2.0.
 
 ---
 

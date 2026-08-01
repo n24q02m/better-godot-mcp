@@ -70,7 +70,7 @@
     "opencode"
   ],
   "author": "n24q02m",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/n24q02m/better-godot-mcp.git"

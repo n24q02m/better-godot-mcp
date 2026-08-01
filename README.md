@@ -9,7 +9,7 @@ mcp-name: io.github.n24q02m/better-godot-mcp
 [![codecov](https://codecov.io/gh/n24q02m/better-godot-mcp/graph/badge.svg?token=PF94LT0K2L)](https://codecov.io/gh/n24q02m/better-godot-mcp)
 [![npm](https://img.shields.io/npm/v/@n24q02m/better-godot-mcp?logo=npm&logoColor=white)](https://www.npmjs.com/package/@n24q02m/better-godot-mcp)
 [![Docker](https://img.shields.io/docker/v/n24q02m/better-godot-mcp?label=docker&logo=docker&logoColor=white&sort=semver)](https://hub.docker.com/r/n24q02m/better-godot-mcp)
-[![License: MIT](https://img.shields.io/github/license/n24q02m/better-godot-mcp)](LICENSE)
+[![License: Apache-2.0](https://img.shields.io/github/license/n24q02m/better-godot-mcp)](LICENSE)
 
 <!-- Badge Row 2: Tech -->
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](#)
@@ -269,4 +269,4 @@ This plugin implements **TC-Local** (no auth required -- no credentials stored).
 
 ## License
 
-MIT -- See [LICENSE](LICENSE).
+Apache-2.0 -- See [LICENSE](LICENSE).

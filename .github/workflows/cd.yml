@@ -59,7 +59,7 @@ jobs:
       # BEFORE the real run creates a git tag or GitHub Release. Same action + SHA and
       # same prerelease inputs as the real step, run against the same untouched checkout,
       # so the computed version is identical.
-      - uses: n24q02m/better-semantic-release@95d056deb7b7edcf6b4be69536aec70624355333 # v1.2.1
+      - uses: n24q02m/better-semantic-release@9b8ee6275b7dae995bac090282ccb1cabc99ae0f # v1.2.3
         id: dryrun
         with:
           github_token: ${{ steps.app-token.outputs.token }}
@@ -136,7 +136,7 @@ jobs:
           echo "::error::Could not verify whether ${PKG}@${COMPUTED_VERSION} exists on npm: 'npm view' failed without an E404 (likely a transient registry/network error, rate limit, or outage). Refusing to proceed so a genuine collision cannot slip through as a false 'free'. Re-run the release once the registry is reachable. npm output: ${output}"
           exit 1
 
-      - uses: n24q02m/better-semantic-release@95d056deb7b7edcf6b4be69536aec70624355333 # v1.2.1
+      - uses: n24q02m/better-semantic-release@9b8ee6275b7dae995bac090282ccb1cabc99ae0f # v1.2.3
         id: release
         with:
           github_token: ${{ steps.app-token.outputs.token }}

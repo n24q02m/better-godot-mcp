@@ -1,18 +1,9 @@
-## 2025-02-27 - [Optimize findInPath split usage]
-**Learning:** In hot paths or frequently executed lookup functions like `findInPath` in `src/godot/detector.ts`, using `.split('\n')[0]` introduces unnecessary array allocations and garbage collection overhead.
-**Action:** Replace `split('\n')[0]` with `indexOf('\n')` and `slice(0, newlineIdx)` to extract the first line without allocating an intermediate array, adhering to the performance patterns observed in `src/tools/helpers/project-settings.ts` and `src/tools/composite/scenes.ts`. Add `// ⚡ Bolt:` comment to denote intentional optimization.
-
-## 2025-03-02 - [Avoid RegExp compilation for exact string replacements]
-**Learning:** Using `.replace(/"/g, '')` incurs overhead due to instantiating and executing a regular expression.
-**Action:** Use `.replaceAll('"', '')` instead when performing simple, exact string replacements. This avoids RegExp allocation overhead entirely.
-
-## 2025-03-09 - [Optimize parseProjectGodot string parsing]
-**Learning:** Parsing `project.godot` (or other INI-like configurations) line-by-line using regular expressions inside a hot loop (e.g., `^\[(.+)\]$`, `/^([^\s=]+)\s*=\s*(.+)$/`) causes severe performance bottlenecks due to RegExp compilation, execution, and extensive GC pressure from intermediary match objects and string allocations.
-**Action:** Replace regular expressions within file parsing loops with manual string operations: use `charCodeAt` to identify section boundaries (e.g., `91` for `[`), `indexOf('=')` for key-value extraction, and direct `.slice()` + `.trim()` for data separation. Apply manual quote removal checking string bounds and `charCodeAt(0) === 34` instead of `.replace(/^"(.*)"$/, '$1')`.
-
-## 2025-03-09 - [Optimize documentation directory discovery]
-**Learning:** Using `Promise.all` with `map` for file system discovery operations (like finding the documentation path) executes redundant parallel I/O checks even after a valid path is found. Furthermore, repeating this discovery process on every command blocks the event loop unnecessarily.
-**Action:** Replace parallel `Promise.all(array.map(...))` I/O lookups with a sequential `for...of` loop with an early return, and store the result in a module-level variable to cache the result, preventing redundant file system operations on subsequent invocations.
+## 2025-05-15 - [Optimization] Redundant pathExists checks in config tool
+**Learning:** Checking `pathExists` before file operations is often redundant, especially when `readFile` or `writeFile` immediately follows.
+**Action:** In `src/tools/composite/config.ts`, refactored `handleConfig` to use `try...catch` and check for `ENOENT` on file reads rather than wrapping them in `pathExists`. Additionally, Godot detection logic should utilize the native async flow rather than blocking on it if not required, preventing an artificial delay during start-up.
+## 2025-05-15 - [Optimization] Cache godot executable detection results
+**Learning:** `detectGodot` performs sequential file system checks (`access`) to verify binary existence. Doing this repeatedly per tool invocation adds significant latency to standard Godot processes.
+**Action:** Modified `detectGodot` in `src/godot/detector.ts` to cache the return, and store the result in a module-level variable to cache the result, preventing redundant file system operations on subsequent invocations.
 ## 2025-05-15 - [Optimization] Redundant pathExists checks in resources tool
 **Learning:** Sequential `pathExists` and `stat`/`readFile`/`unlink` operations result in redundant filesystem calls. Direct execution with `try-catch` handling for `ENOENT` is more efficient for existing files.
 **Action:** Replaced `pathExists` followed by I/O operations in `handleResources` with direct calls and `NodeJS.ErrnoException` code checks.
@@ -76,3 +67,7 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## 2026-07-14 - Pre-compile inline regular expressions
 **Learning:** Initializing regular expressions inline inside parsing hot paths (e.g., inside loops iterating over files like `project.godot`) forces the JS engine to recreate the RegExp object or check cache continually. While modern engines cache regex literals, making them module-level constants definitively avoids potential recreation overhead. Furthermore, `.exec()` avoids the minor overhead of `String.prototype.match()` while providing identical capture group output for non-global regexes.
 **Action:** Extract non-global inline regexes (like `/"events":\s*\[([^\]]*)\]/`) into module-level constants (e.g., `EVENTS_REGEX`) and replace `.match()` calls with `.exec()` in high-frequency parsing paths.
+
+## 2025-07-28 - [Pre-allocate arrays for node listing in ui and animation tools]
+**Learning:** Dynamically growing arrays using `.push()` inside an O(N) traversal (like listing all nodes in a scene or extracting node types) causes resizing overhead in the V8 engine, which accumulates heavily in scenes with tens of thousands of nodes.
+**Action:** Always use a pre-allocated array (`new Array(length)`) for mapping operations during O(N) loops when extracting specific nodes, avoiding V8 array resizing penalties. This has been applied to `handleListControls` in `ui.ts` and `handleListAnimations` in `animation.ts`.

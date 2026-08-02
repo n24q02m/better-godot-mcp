@@ -287,7 +287,17 @@ async function handleListControls(projectPath: string, args: Record<string, unkn
     throw err
   }
 
-  const controls: { name: string; type: string; parent: string }[] = []
+  // ⚡ Bolt: Pre-calculate total controls to allocate array exactly, avoiding dynamic resize overhead
+  let totalControls = 0
+  for (const type of CONTROL_TYPES) {
+    const typeNodes = scene.nodesByType.get(type)
+    if (typeNodes) {
+      totalControls += typeNodes.length
+    }
+  }
+
+  const controls = new Array(totalControls)
+  let controlIdx = 0
 
   // ⚡ Bolt: Query by pre-indexed types (O(K)) instead of iterating all N nodes.
   // This drastically speeds up filtering in complex scenes with many non-Control nodes.
@@ -296,7 +306,7 @@ async function handleListControls(projectPath: string, args: Record<string, unkn
     if (typeNodes) {
       for (let i = 0; i < typeNodes.length; i++) {
         const node = typeNodes[i]
-        controls.push({ name: node.name, type: node.type || type, parent: node.parent || '(root)' })
+        controls[controlIdx++] = { name: node.name, type: node.type || type, parent: node.parent || '(root)' }
       }
     }
   }

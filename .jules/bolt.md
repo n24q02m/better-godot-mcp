@@ -76,3 +76,7 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## 2026-07-14 - Pre-compile inline regular expressions
 **Learning:** Initializing regular expressions inline inside parsing hot paths (e.g., inside loops iterating over files like `project.godot`) forces the JS engine to recreate the RegExp object or check cache continually. While modern engines cache regex literals, making them module-level constants definitively avoids potential recreation overhead. Furthermore, `.exec()` avoids the minor overhead of `String.prototype.match()` while providing identical capture group output for non-global regexes.
 **Action:** Extract non-global inline regexes (like `/"events":\s*\[([^\]]*)\]/`) into module-level constants (e.g., `EVENTS_REGEX`) and replace `.match()` calls with `.exec()` in high-frequency parsing paths.
+
+## Rejected
+
+- PRs #1029, #1031, #1037, #1040, #1048, #1051, #1053, #1054, and #1058 were rejected after individual diff, commit, comment, linked-issue, and CI review. They were duplicate or unverified cold-path optimizations and/or weakened title and test gates. Do not resurrect these patches; any needed hardening is reimplemented in a reviewed source patch.

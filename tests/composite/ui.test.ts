@@ -212,6 +212,29 @@ describe('ui', () => {
       expect(content).toContain('default_font_size = 24')
     })
 
+    it('should preserve a zero font_size', async () => {
+      await handleUI('set_theme', { theme_path: 'themes/zero.tres', font_size: 0 }, config)
+
+      const content = readFileSync(join(projectPath, 'themes/zero.tres'), 'utf-8')
+      expect(content).toContain('default_font_size = 0')
+    })
+
+    it.each([Number.NaN, Number.POSITIVE_INFINITY])(
+      'should reject non-finite font_size values without changing the theme: %p',
+      async (fontSize) => {
+        const themePath = 'themes/existing.tres'
+        const fullPath = join(projectPath, themePath)
+        await handleUI('set_theme', { theme_path: themePath, font_size: 12 }, config)
+        const before = readFileSync(fullPath, 'utf-8')
+
+        await expect(handleUI('set_theme', { theme_path: themePath, font_size: fontSize }, config)).rejects.toThrow(
+          'font_size must be a number',
+        )
+
+        expect(readFileSync(fullPath, 'utf-8')).toBe(before)
+      },
+    )
+
     it('should throw if no theme_path provided', async () => {
       await expect(handleUI('set_theme', {}, config)).rejects.toThrow('No theme_path specified')
     })

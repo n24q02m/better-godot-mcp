@@ -159,7 +159,11 @@ async function handleSetTheme(projectPath: string, args: Record<string, unknown>
   if (!themePath)
     throw new GodotMCPError('No theme_path specified', 'INVALID_ARGS', 'Provide theme_path (e.g., "themes/main.tres").')
 
-  if (args.font_size !== undefined && args.font_size !== null && typeof args.font_size !== 'number') {
+  if (
+    args.font_size !== undefined &&
+    args.font_size !== null &&
+    (typeof args.font_size !== 'number' || !Number.isFinite(args.font_size))
+  ) {
     throw new GodotMCPError('font_size must be a number', 'INVALID_ARGS')
   }
 

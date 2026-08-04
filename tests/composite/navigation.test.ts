@@ -3,6 +3,7 @@
  */
 
 import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { GodotConfig } from '../../src/godot/types.js'
 import { handleNavigation } from '../../src/tools/composite/navigation.js'
@@ -63,6 +64,24 @@ describe('navigation', () => {
         'Scene not found',
       )
     })
+
+    it('should reject false dimensions without changing the scene', async () => {
+      const scenePath = createTmpScene(projectPath, 'nav.tscn', MINIMAL_TSCN)
+      const before = readFileSync(scenePath, 'utf-8')
+
+      await expect(
+        handleNavigation(
+          'create_region',
+          {
+            scene_path: 'nav.tscn',
+            dimension: false,
+          },
+          config,
+        ),
+      ).rejects.toThrow('Invalid characters in parameters')
+
+      expect(readFileSync(scenePath, 'utf-8')).toBe(before)
+    })
   })
 
   // ==========================================
@@ -97,6 +116,64 @@ describe('navigation', () => {
       expect(content).toContain('radius = 0.5')
       expect(content).toContain('max_speed = 5')
     })
+
+    it('should reject non-number agent properties before interpolation', async () => {
+      createTmpScene(projectPath, 'nav.tscn', MINIMAL_TSCN)
+
+      await expect(
+        handleNavigation(
+          'add_agent',
+          {
+            scene_path: 'nav.tscn',
+            radius: '0.5\n[node name="Injected" type="Node"]',
+          },
+          config,
+        ),
+      ).rejects.toThrow('radius must be a number')
+    })
+
+    it('should preserve zero numeric agent properties', async () => {
+      createTmpScene(projectPath, 'nav.tscn', MINIMAL_TSCN)
+
+      await handleNavigation(
+        'add_agent',
+        {
+          scene_path: 'nav.tscn',
+          radius: 0,
+          path_desired_distance: 0,
+          target_desired_distance: 0,
+          max_speed: 0,
+        },
+        config,
+      )
+
+      const content = readFileSync(join(projectPath, 'nav.tscn'), 'utf-8')
+      expect(content).toContain('radius = 0')
+      expect(content).toContain('path_desired_distance = 0')
+      expect(content).toContain('target_desired_distance = 0')
+      expect(content).toContain('max_speed = 0')
+    })
+
+    it.each([Number.NaN, Number.POSITIVE_INFINITY])(
+      'should reject non-finite agent radii without changing the scene: %p',
+      async (radius) => {
+        const scenePath = createTmpScene(projectPath, 'nav.tscn', MINIMAL_TSCN)
+        const before = readFileSync(scenePath, 'utf-8')
+
+        await expect(
+          handleNavigation(
+            'add_agent',
+            {
+              scene_path: 'nav.tscn',
+              radius,
+            },
+            config,
+          ),
+        ).rejects.toThrow('radius must be a number')
+
+        expect(readFileSync(scenePath, 'utf-8')).toBe(before)
+      },
+    )
 
     it('should throw if no scene_path provided', async () => {
       await expect(handleNavigation('add_agent', {}, config)).rejects.toThrow('No scene_path specified')
@@ -133,6 +210,21 @@ describe('navigation', () => {
 
       const content = readFileSync(`${projectPath}/nav.tscn`, 'utf-8')
       expect(content).toContain('avoidance_enabled = true')
+    })
+
+    it('should reject non-boolean avoidance_enabled before interpolation', async () => {
+      createTmpScene(projectPath, 'nav.tscn', MINIMAL_TSCN)
+
+      await expect(
+        handleNavigation(
+          'add_obstacle',
+          {
+            scene_path: 'nav.tscn',
+            avoidance_enabled: 'true\n[node name="Injected" type="Node"]',
+          },
+          config,
+        ),
+      ).rejects.toThrow('avoidance_enabled must be a boolean')
     })
 
     it('should throw if no scene_path provided', async () => {

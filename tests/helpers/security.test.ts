@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { isValidPid, validateNoNewlines, validatePid, wrapToolResult } from '../../src/tools/helpers/security.js'
+import {
+  isValidPid,
+  validateNoNewlines,
+  validatePid,
+  validateStringArguments,
+  wrapToolResult,
+} from '../../src/tools/helpers/security.js'
 
 describe('security', () => {
   // ==========================================
@@ -168,6 +174,24 @@ describe('security', () => {
 
     it('should use custom message when provided', () => {
       expect(() => validateNoNewlines('Custom error message', 'has\nnewline')).toThrow('Custom error message')
+    })
+  })
+
+  // ==========================================
+  // validateStringArguments
+  // ==========================================
+  describe('validateStringArguments', () => {
+    it('should pass for strings and omitted optional values', () => {
+      expect(() => validateStringArguments(undefined, 'safe', undefined, null)).not.toThrow()
+    })
+
+    it('should reject non-string values before string interpolation', () => {
+      expect(() => validateStringArguments('Invalid characters in parameters', ['unsafe\nvalue'])).toThrow(
+        'Invalid characters in parameters',
+      )
+      expect(() => validateStringArguments(undefined, { value: 'unsafe' })).toThrow(
+        'Invalid arguments: expected string values',
+      )
     })
   })
 

@@ -76,7 +76,8 @@ function* scanBuses(content: string): Generator<{ index: number; name: string }>
 }
 
 export async function handleAudio(action: string, args: Record<string, unknown>, config: GodotConfig) {
-  const projectPath = (args.project_path as string) || config.projectPath
+  validateStringArguments(undefined, args.project_path)
+  const projectPath = (args.project_path ?? config.projectPath) as string | undefined
   const baseDir = config.projectPath || process.cwd()
 
   switch (action) {
@@ -108,8 +109,9 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       const busLayoutPath = resolveBusLayoutPath(projectPath, baseDir)
       const busName = args.bus_name as string
       if (!busName) throw new GodotMCPError('No bus_name specified', 'INVALID_ARGS', 'Provide bus name.')
-      const sendTo = (args.send_to as string) || 'Master'
-      validateStringArguments('Invalid characters in parameters', busName, sendTo)
+      const rawSendTo = args.send_to
+      validateStringArguments('Invalid characters in parameters', busName, rawSendTo)
+      const sendTo = (rawSendTo ?? 'Master') as string
 
       if (
         busName.includes('"') ||
@@ -255,11 +257,15 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
     case 'create_stream': {
       const scenePath = args.scene_path as string
       if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
-      const nodeName = (args.name as string) || 'AudioStreamPlayer'
-      const streamType = (args.stream_type as string) || '2D'
-      const parent = (args.parent as string) || '.'
-      const bus = (args.bus as string) || 'Master'
-      validateStringArguments('Invalid characters in parameters', nodeName, streamType, parent, bus)
+      const rawNodeName = args.name
+      const rawStreamType = args.stream_type
+      const rawParent = args.parent
+      const rawBus = args.bus
+      validateStringArguments('Invalid characters in parameters', rawNodeName, rawStreamType, rawParent, rawBus)
+      const nodeName = (rawNodeName ?? 'AudioStreamPlayer') as string
+      const streamType = (rawStreamType ?? '2D') as string
+      const parent = (rawParent ?? '.') as string
+      const bus = (rawBus ?? 'Master') as string
 
       if (
         nodeName.includes('"') ||

@@ -2,7 +2,7 @@
  * Security tests for Scripts tool - prevent .tscn file injection via attach
  */
 
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { GodotConfig } from '../../src/godot/types.js'
@@ -115,5 +115,40 @@ describe('scripts security', () => {
       // Ensure no extra injected nodes
       expect(updated.match(/\[node /g)?.length).toBe(1)
     })
+  })
+
+  it('uses a string fallback for inherited template keys', async () => {
+    await expect(
+      handleScripts(
+        'create',
+        {
+          project_path: projectPath,
+          script_path: 'proto.gd',
+          extends: '__proto__',
+        },
+        config,
+      ),
+    ).resolves.toBeDefined()
+
+    const content = readFileSync(join(projectPath, 'proto.gd'), 'utf-8')
+    expect(content).toContain('extends __proto__')
+  })
+
+  it('rejects false extends values without creating a script', async () => {
+    const scriptPath = 'false-extends.gd'
+
+    await expect(
+      handleScripts(
+        'create',
+        {
+          project_path: projectPath,
+          script_path: scriptPath,
+          extends: false,
+        },
+        config,
+      ),
+    ).rejects.toThrow('Invalid arguments: expected string values')
+
+    expect(existsSync(join(projectPath, scriptPath))).toBe(false)
   })
 })

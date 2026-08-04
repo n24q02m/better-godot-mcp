@@ -79,7 +79,8 @@ async function findShaderFiles(dir: string, results: string[] = []): Promise<str
 }
 
 export async function handleShader(action: string, args: Record<string, unknown>, config: GodotConfig) {
-  const projectPath = (args.project_path as string) || config.projectPath
+  validateStringArguments(undefined, args.project_path)
+  const projectPath = (args.project_path ?? config.projectPath) as string | undefined
   const baseDir = config.projectPath || process.cwd()
   // Confined trusted project root for per-file actions (create/read/write/get_params):
   // the caller-supplied project_path must stay within baseDir (path-traversal guard).
@@ -94,11 +95,14 @@ export async function handleShader(action: string, args: Record<string, unknown>
           'INVALID_ARGS',
           'Provide shader_path (e.g., "shaders/effect.gdshader").',
         )
-      const shaderType = (args.shader_type as string) || 'canvas_item'
-      validateStringArguments(undefined, shaderPath, shaderType)
-      const content =
-        (args.content as string) ||
-        (Object.hasOwn(SHADER_TEMPLATES, shaderType) ? SHADER_TEMPLATES[shaderType] : SHADER_TEMPLATES.canvas_item)
+      const rawShaderType = args.shader_type
+      const rawContent = args.content
+      validateStringArguments(undefined, shaderPath, rawShaderType, rawContent)
+      const shaderType = (rawShaderType ?? 'canvas_item') as string
+      const content = (rawContent ??
+        (Object.hasOwn(SHADER_TEMPLATES, shaderType)
+          ? SHADER_TEMPLATES[shaderType]
+          : SHADER_TEMPLATES.canvas_item)) as string
 
       const fullPath = safeResolve(projectRoot, shaderPath)
 

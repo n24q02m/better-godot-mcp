@@ -102,6 +102,24 @@ describe('audio', () => {
         'No bus_name specified',
       )
     })
+
+    it('should reject false send targets without creating a layout', async () => {
+      const layoutPath = join(projectPath, 'default_bus_layout.tres')
+
+      await expect(
+        handleAudio(
+          'add_bus',
+          {
+            project_path: projectPath,
+            bus_name: 'SFX',
+            send_to: false,
+          },
+          config,
+        ),
+      ).rejects.toThrow('Invalid characters in parameters')
+
+      expect(existsSync(layoutPath)).toBe(false)
+    })
   })
 
   // ==========================================

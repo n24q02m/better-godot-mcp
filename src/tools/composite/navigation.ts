@@ -22,16 +22,20 @@ function appendNode(content: string, name: string, type: string, parent: string,
 }
 
 export async function handleNavigation(action: string, args: Record<string, unknown>, config: GodotConfig) {
+  validateStringArguments(undefined, args.project_path)
   const projectPath = resolveProjectRoot(args.project_path, config.projectPath)
 
   switch (action) {
     case 'create_region': {
       const scenePath = args.scene_path as string
       if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
-      const regionName = (args.name as string) || 'NavigationRegion3D'
-      const parent = (args.parent as string) || '.'
-      const dimension = (args.dimension as string) || '3D'
-      validateStringArguments('Invalid characters in parameters', scenePath, regionName, parent, dimension)
+      const rawRegionName = args.name
+      const rawParent = args.parent
+      const rawDimension = args.dimension
+      validateStringArguments('Invalid characters in parameters', scenePath, rawRegionName, rawParent, rawDimension)
+      const regionName = (rawRegionName ?? 'NavigationRegion3D') as string
+      const parent = (rawParent ?? '.') as string
+      const dimension = (rawDimension ?? '3D') as string
 
       if (
         regionName.includes('\n') ||
@@ -73,10 +77,13 @@ export async function handleNavigation(action: string, args: Record<string, unkn
     case 'add_agent': {
       const scenePath = args.scene_path as string
       if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
-      const agentName = (args.name as string) || 'NavigationAgent3D'
-      const parent = (args.parent as string) || '.'
-      const dimension = (args.dimension as string) || '3D'
-      validateStringArguments('Invalid characters in parameters', scenePath, agentName, parent, dimension)
+      const rawAgentName = args.name
+      const rawParent = args.parent
+      const rawDimension = args.dimension
+      validateStringArguments('Invalid characters in parameters', scenePath, rawAgentName, rawParent, rawDimension)
+      const agentName = (rawAgentName ?? 'NavigationAgent3D') as string
+      const parent = (rawParent ?? '.') as string
+      const dimension = (rawDimension ?? '3D') as string
 
       if (
         agentName.includes('\n') ||
@@ -97,7 +104,11 @@ export async function handleNavigation(action: string, args: Record<string, unkn
       }
 
       for (const property of ['radius', 'max_speed', 'path_desired_distance', 'target_desired_distance'] as const) {
-        if (args[property] !== undefined && typeof args[property] !== 'number') {
+        if (
+          args[property] !== undefined &&
+          args[property] !== null &&
+          (typeof args[property] !== 'number' || !Number.isFinite(args[property]))
+        ) {
           throw new GodotMCPError(`${property} must be a number`, 'INVALID_ARGS')
         }
       }
@@ -116,10 +127,12 @@ export async function handleNavigation(action: string, args: Record<string, unkn
 
       const nodeType = dimension === '2D' ? 'NavigationAgent2D' : 'NavigationAgent3D'
       let extraProps = ''
-      if (args.radius) extraProps += `radius = ${args.radius}\n`
-      if (args.max_speed) extraProps += `max_speed = ${args.max_speed}\n`
-      if (args.path_desired_distance) extraProps += `path_desired_distance = ${args.path_desired_distance}\n`
-      if (args.target_desired_distance) extraProps += `target_desired_distance = ${args.target_desired_distance}\n`
+      if (args.radius !== undefined && args.radius !== null) extraProps += `radius = ${args.radius}\n`
+      if (args.max_speed !== undefined && args.max_speed !== null) extraProps += `max_speed = ${args.max_speed}\n`
+      if (args.path_desired_distance !== undefined && args.path_desired_distance !== null)
+        extraProps += `path_desired_distance = ${args.path_desired_distance}\n`
+      if (args.target_desired_distance !== undefined && args.target_desired_distance !== null)
+        extraProps += `target_desired_distance = ${args.target_desired_distance}\n`
 
       content = appendNode(content, agentName, nodeType, parent, extraProps || undefined)
 
@@ -130,10 +143,13 @@ export async function handleNavigation(action: string, args: Record<string, unkn
     case 'add_obstacle': {
       const scenePath = args.scene_path as string
       if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
-      const obstacleName = (args.name as string) || 'NavigationObstacle3D'
-      const parent = (args.parent as string) || '.'
-      const dimension = (args.dimension as string) || '3D'
-      validateStringArguments('Invalid characters in parameters', scenePath, obstacleName, parent, dimension)
+      const rawObstacleName = args.name
+      const rawParent = args.parent
+      const rawDimension = args.dimension
+      validateStringArguments('Invalid characters in parameters', scenePath, rawObstacleName, rawParent, rawDimension)
+      const obstacleName = (rawObstacleName ?? 'NavigationObstacle3D') as string
+      const parent = (rawParent ?? '.') as string
+      const dimension = (rawDimension ?? '3D') as string
 
       if (
         obstacleName.includes('\n') ||
@@ -153,10 +169,18 @@ export async function handleNavigation(action: string, args: Record<string, unkn
         )
       }
 
-      if (args.radius !== undefined && typeof args.radius !== 'number') {
+      if (
+        args.radius !== undefined &&
+        args.radius !== null &&
+        (typeof args.radius !== 'number' || !Number.isFinite(args.radius))
+      ) {
         throw new GodotMCPError('radius must be a number', 'INVALID_ARGS')
       }
-      if (args.avoidance_enabled !== undefined && typeof args.avoidance_enabled !== 'boolean') {
+      if (
+        args.avoidance_enabled !== undefined &&
+        args.avoidance_enabled !== null &&
+        typeof args.avoidance_enabled !== 'boolean'
+      ) {
         throw new GodotMCPError('avoidance_enabled must be a boolean', 'INVALID_ARGS')
       }
 
@@ -174,8 +198,9 @@ export async function handleNavigation(action: string, args: Record<string, unkn
 
       const nodeType = dimension === '2D' ? 'NavigationObstacle2D' : 'NavigationObstacle3D'
       let extraProps = ''
-      if (args.radius) extraProps += `radius = ${args.radius}\n`
-      if (args.avoidance_enabled !== undefined) extraProps += `avoidance_enabled = ${args.avoidance_enabled}\n`
+      if (args.radius !== undefined && args.radius !== null) extraProps += `radius = ${args.radius}\n`
+      if (args.avoidance_enabled !== undefined && args.avoidance_enabled !== null)
+        extraProps += `avoidance_enabled = ${args.avoidance_enabled}\n`
 
       content = appendNode(content, obstacleName, nodeType, parent, extraProps || undefined)
 

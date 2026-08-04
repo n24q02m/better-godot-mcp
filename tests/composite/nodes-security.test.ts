@@ -37,6 +37,20 @@ describe('Nodes Tool Security', () => {
     expect(content).not.toContain('type="Injected"')
   })
 
+  it('should reject non-string node names before interpolation', async () => {
+    await expect(
+      handleNodes(
+        'add',
+        {
+          scene_path: 'scene.tscn',
+          name: ['NewNode\n[node name="Injected" type="Node"]'],
+          type: 'Node',
+        },
+        config,
+      ),
+    ).rejects.toThrow('Invalid node name')
+  })
+
   it('should prevent injection in node type (add)', async () => {
     const maliciousType = 'Node" parent="." injected="true'
 

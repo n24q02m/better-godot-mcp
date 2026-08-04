@@ -2,7 +2,7 @@
  * Integration tests for Shader tool
  */
 
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { GodotConfig } from '../../src/godot/types.js'
@@ -78,6 +78,39 @@ describe('shader', () => {
 
       const content = readFileSync(join(projectPath, 'shaders/particles.gdshader'), 'utf-8')
       expect(content).toContain('shader_type particles')
+    })
+
+    it('should fall back for inherited shader template keys', async () => {
+      await handleShader(
+        'create',
+        {
+          project_path: projectPath,
+          shader_path: 'shaders/proto.gdshader',
+          shader_type: '__proto__',
+        },
+        config,
+      )
+
+      const content = readFileSync(join(projectPath, 'shaders/proto.gdshader'), 'utf-8')
+      expect(content).toContain('shader_type canvas_item')
+    })
+
+    it('should reject false shader types without creating a shader', async () => {
+      const shaderPath = 'shaders/false-type.gdshader'
+
+      await expect(
+        handleShader(
+          'create',
+          {
+            project_path: projectPath,
+            shader_path: shaderPath,
+            shader_type: false,
+          },
+          config,
+        ),
+      ).rejects.toThrow('Invalid arguments: expected string values')
+
+      expect(existsSync(join(projectPath, shaderPath))).toBe(false)
     })
 
     it('should throw if shader already exists', async () => {

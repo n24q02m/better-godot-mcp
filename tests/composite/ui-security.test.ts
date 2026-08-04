@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { GodotConfig } from '../../src/godot/types.js'
 import { handleAudio } from '../../src/tools/composite/audio.js'
@@ -87,6 +88,71 @@ describe('Security: Scene Injection Prevention in UI and Audio tools', () => {
         ),
       ).rejects.toThrow('Invalid characters in parameters')
     })
+
+    it('should reject non-string node names before interpolation', async () => {
+      createTmpScene(projectPath, 'main.tscn')
+
+      await expect(
+        handleUI(
+          'create_control',
+          {
+            project_path: projectPath,
+            scene_path: 'main.tscn',
+            name: ['Button\n[node name="Malicious" type="Node"]'],
+            type: 'Button',
+          },
+          config,
+        ),
+      ).rejects.toThrow('Invalid characters in parameters')
+    })
+
+    it('should reject false control types without changing the scene', async () => {
+      const scenePath = createTmpScene(projectPath, 'main.tscn')
+      const before = readFileSync(scenePath, 'utf-8')
+
+      await expect(
+        handleUI(
+          'create_control',
+          {
+            project_path: projectPath,
+            scene_path: 'main.tscn',
+            name: 'Button',
+            type: false,
+          },
+          config,
+        ),
+      ).rejects.toThrow('Invalid characters in parameters')
+
+      expect(readFileSync(scenePath, 'utf-8')).toBe(before)
+    })
+
+    it('should not use inherited control template properties', async () => {
+      Object.defineProperty(Object.prototype, 'inherited_ui_template_property', {
+        configurable: true,
+        enumerable: true,
+        value: '"unexpected"',
+        writable: true,
+      })
+
+      try {
+        const scenePath = createTmpScene(projectPath, 'main.tscn')
+
+        await handleUI(
+          'create_control',
+          {
+            project_path: projectPath,
+            scene_path: 'main.tscn',
+            name: 'InheritedTemplate',
+            type: '__proto__',
+          },
+          config,
+        )
+
+        expect(readFileSync(scenePath, 'utf-8')).not.toContain('inherited_ui_template_property')
+      } finally {
+        delete Object.prototype.inherited_ui_template_property
+      }
+    })
   })
 
   describe('Audio tool', () => {
@@ -113,6 +179,19 @@ describe('Security: Scene Injection Prevention in UI and Audio tools', () => {
           {
             project_path: projectPath,
             bus_name: 'Master"\n[node name="Malicious" type="Node"]\n"',
+          },
+          config,
+        ),
+      ).rejects.toThrow('Invalid characters in parameters')
+    })
+
+    it('should reject non-string bus names before interpolation', async () => {
+      await expect(
+        handleAudio(
+          'add_bus',
+          {
+            project_path: projectPath,
+            bus_name: ['Master\n[node name="Malicious" type="Node"]'],
           },
           config,
         ),

@@ -217,6 +217,21 @@ describe('Nodes Tool Security', () => {
     }
   })
 
+  it('preserves explicit empty node type and parent instead of defaulting them', async () => {
+    await handleNodes(
+      'add',
+      {
+        scene_path: 'scene.tscn',
+        name: 'NewNode',
+        type: '',
+        parent: '',
+      },
+      config,
+    )
+
+    expect(readFileSync(join(projectPath, 'scene.tscn'), 'utf-8')).toContain('[node name="NewNode" type="" parent=""]')
+  })
+
   it('rejects raw node names before normalization without changing the scene', async () => {
     await expectRejectedWithoutSceneChange('remove', { name: false }, 'Invalid node name')
     await expectRejectedWithoutSceneChange('rename', { name: 0, new_name: 'Renamed' }, 'Invalid node name')

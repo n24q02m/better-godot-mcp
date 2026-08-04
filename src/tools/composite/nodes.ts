@@ -90,14 +90,14 @@ async function handleAddNode(projectPath: string, args: Record<string, unknown>)
 
   const rawNodeType = args.type
   validateStringArguments('Invalid node type', rawNodeType)
-  const nodeType = (rawNodeType as string | null | undefined) || 'Node'
+  const nodeType = (rawNodeType as string | null | undefined) ?? 'Node'
   if (nodeType.includes('"') || nodeType.includes('\n') || nodeType.includes('\r')) {
     throw new GodotMCPError('Invalid node type', 'INVALID_ARGS', 'Node type must not contain quotes or newlines.')
   }
 
   const rawParentArgument = args.parent
   validateStringArguments('Invalid parent path', rawParentArgument)
-  const rawParent = (rawParentArgument as string | null | undefined) || '.'
+  const rawParent = (rawParentArgument as string | null | undefined) ?? '.'
   const { path: parent } = normalizeNodePath(rawParent)
   if (parent.includes('"') || parent.includes('\n') || parent.includes('\r')) {
     throw new GodotMCPError('Invalid parent path', 'INVALID_ARGS', 'Parent path must not contain quotes or newlines.')

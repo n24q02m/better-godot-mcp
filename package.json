@@ -34,8 +34,8 @@
     "prepublishOnly": "bun run build"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
-    "@n24q02m/mcp-core": "1.20.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@n24q02m/mcp-core": "1.22.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -51,7 +51,7 @@
     "esbuild"
   ],
   "engines": {
-    "node": ">=24.18.0"
+    "node": ">=24.19.0"
   },
   "keywords": [
     "mcp",

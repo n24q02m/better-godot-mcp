@@ -27,8 +27,8 @@
     "lint": "biome check .",
     "format": "biome format --write .",
     "check": "biome check . && tsc --noEmit",
-    "test:full": "vitest run --config vitest.full.config.ts",
-    "test:live": "vitest run --config vitest.live.config.ts",
+    "test:full": "bun run build && vitest run --config vitest.full.config.ts",
+    "test:live": "bun run build && vitest run --config vitest.live.config.ts",
     "check:fix": "biome check --fix .",
     "clean": "rm -rf build bin",
     "prepublishOnly": "bun run build"

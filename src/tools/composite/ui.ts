@@ -116,7 +116,7 @@ async function handleCreateControl(projectPath: string, args: Record<string, unk
   let nodeDecl = `\n[node name="${controlName}" type="${controlType}"${parentAttr}]\n`
 
   // Add default properties for known control types
-  const defaults = CONTROL_TEMPLATES[controlType]
+  const defaults = Object.hasOwn(CONTROL_TEMPLATES, controlType) ? CONTROL_TEMPLATES[controlType] : undefined
   if (defaults) {
     for (const [key, value] of Object.entries(defaults)) {
       nodeDecl += `${key} = ${value}\n`

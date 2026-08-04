@@ -18,6 +18,19 @@ describe('Nodes Tool Security', () => {
     rmSync(projectPath, { recursive: true, force: true })
   })
 
+  async function expectRejectedWithoutSceneChange(
+    action: 'add' | 'remove' | 'rename' | 'set_property' | 'get_property',
+    args: Record<string, unknown>,
+    message: string,
+  ) {
+    const scenePath = join(projectPath, 'scene.tscn')
+    const original = readFileSync(scenePath, 'utf-8')
+
+    await expect(handleNodes(action, { scene_path: 'scene.tscn', ...args }, config)).rejects.toThrow(message)
+
+    expect(readFileSync(scenePath, 'utf-8')).toBe(original)
+  }
+
   it('should prevent injection in node name (add)', async () => {
     const maliciousName = 'Root" type="Injected" parent=".'
 
@@ -189,5 +202,39 @@ describe('Nodes Tool Security', () => {
 
     const content = readFileSync(join(projectPath, 'scene.tscn'), 'utf-8')
     expect(content).not.toContain('[node name="Injected"')
+  })
+
+  it('rejects raw node type and parent values before add defaults without changing the scene', async () => {
+    for (const [field, value, message] of [
+      ['type', false, 'Invalid node type'],
+      ['type', 0, 'Invalid node type'],
+      ['type', [], 'Invalid node type'],
+      ['parent', false, 'Invalid parent path'],
+      ['parent', 0, 'Invalid parent path'],
+      ['parent', {}, 'Invalid parent path'],
+    ] as const) {
+      await expectRejectedWithoutSceneChange('add', { name: 'NewNode', [field]: value }, message)
+    }
+  })
+
+  it('rejects raw node names before normalization without changing the scene', async () => {
+    await expectRejectedWithoutSceneChange('remove', { name: false }, 'Invalid node name')
+    await expectRejectedWithoutSceneChange('rename', { name: 0, new_name: 'Renamed' }, 'Invalid node name')
+    await expectRejectedWithoutSceneChange(
+      'set_property',
+      { name: [], property: 'visible', value: 'true' },
+      'Invalid node name',
+    )
+    await expectRejectedWithoutSceneChange('get_property', { name: {}, property: 'visible' }, 'Invalid node name')
+  })
+
+  it('rejects null and non-string property values before interpolation without changing the scene', async () => {
+    for (const value of [false, 0, null, [], {}]) {
+      await expectRejectedWithoutSceneChange(
+        'set_property',
+        { name: 'Root', property: 'visible', value },
+        'Invalid property value',
+      )
+    }
   })
 })

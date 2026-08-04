@@ -9,6 +9,7 @@ import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
 import { parseScene, updateNodeInScene } from '../helpers/scene-parser.js'
+import { validateStringArguments } from '../helpers/security.js'
 
 const CONTROL_TEMPLATES: Record<string, Record<string, string>> = {
   Button: { text: '"Click"' },
@@ -79,6 +80,7 @@ async function handleCreateControl(projectPath: string, args: Record<string, unk
   const parent = (args.parent as string) || '.'
 
   if (!controlName) throw new GodotMCPError('No name specified', 'INVALID_ARGS', 'Provide control node name.')
+  validateStringArguments('Invalid characters in parameters', controlName, controlType, parent)
 
   if (
     controlName.includes('"') ||
@@ -179,6 +181,7 @@ async function handleLayout(projectPath: string, args: Record<string, unknown>) 
   const nodeName = args.name as string
   if (!nodeName) throw new GodotMCPError('No name specified', 'INVALID_ARGS', 'Provide node name.')
   const preset = (args.preset as string) || 'full_rect'
+  validateStringArguments('Invalid characters in parameters', nodeName, preset)
 
   if (
     nodeName.includes('"') ||

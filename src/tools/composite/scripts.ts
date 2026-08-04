@@ -9,6 +9,7 @@ import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
 import { parseSceneContent, updateNodeInScene } from '../helpers/scene-parser.js'
+import { validateStringArguments } from '../helpers/security.js'
 
 const SCRIPT_TEMPLATES: Record<string, string> = {
   Node: `extends Node
@@ -95,7 +96,9 @@ func _ready() -> void:
 }
 
 function getTemplate(extendsType: string): string {
-  return SCRIPT_TEMPLATES[extendsType] || `extends ${extendsType}\n\n\nfunc _ready() -> void:\n\tpass\n`
+  return Object.hasOwn(SCRIPT_TEMPLATES, extendsType)
+    ? SCRIPT_TEMPLATES[extendsType]
+    : `extends ${extendsType}\n\n\nfunc _ready() -> void:\n\tpass\n`
 }
 
 async function findScriptFiles(dir: string, results: string[] = []): Promise<string[]> {
@@ -131,6 +134,7 @@ async function createScript(args: Record<string, unknown>, resolvePath: (path: s
   if (!scriptPath)
     throw new GodotMCPError('No script_path specified', 'INVALID_ARGS', 'Provide script_path (e.g., "player.gd").')
   const extendsType = (args.extends as string) || 'Node'
+  validateStringArguments(undefined, scriptPath, extendsType)
   const content = (args.content as string) || getTemplate(extendsType)
 
   const fullPath = resolvePath(scriptPath)
@@ -193,6 +197,8 @@ async function attachScript(args: Record<string, unknown>, resolvePath: (path: s
       'Provide scene_path and script_path.',
     )
   }
+  validateStringArguments('Invalid script path', scriptPath)
+  validateStringArguments('Invalid node name', nodeName)
 
   if (scriptPath.includes('\n') || scriptPath.includes('\r') || scriptPath.includes('"')) {
     throw new GodotMCPError(

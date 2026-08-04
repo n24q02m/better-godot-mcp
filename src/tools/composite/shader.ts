@@ -8,6 +8,7 @@ import { dirname, join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
+import { validateStringArguments } from '../helpers/security.js'
 
 const SHADER_TEMPLATES: Record<string, string> = {
   canvas_item: `shader_type canvas_item;
@@ -94,7 +95,10 @@ export async function handleShader(action: string, args: Record<string, unknown>
           'Provide shader_path (e.g., "shaders/effect.gdshader").',
         )
       const shaderType = (args.shader_type as string) || 'canvas_item'
-      const content = (args.content as string) || SHADER_TEMPLATES[shaderType] || SHADER_TEMPLATES.canvas_item
+      validateStringArguments(undefined, shaderPath, shaderType)
+      const content =
+        (args.content as string) ||
+        (Object.hasOwn(SHADER_TEMPLATES, shaderType) ? SHADER_TEMPLATES[shaderType] : SHADER_TEMPLATES.canvas_item)
 
       const fullPath = safeResolve(projectRoot, shaderPath)
 

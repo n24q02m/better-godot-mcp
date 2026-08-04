@@ -92,6 +92,20 @@ export function validateNoNewlines(
 }
 
 /**
+ * Validates that supplied values are strings when present.
+ * Prevents arrays and objects from being coerced during interpolation or lookup.
+ * @param customMessage Custom error message if validation fails.
+ * @param values Values to check.
+ */
+export function validateStringArguments(customMessage: string | undefined, ...values: unknown[]): void {
+  for (const val of values) {
+    if (val !== undefined && val !== null && typeof val !== 'string') {
+      throw new GodotMCPError(customMessage || 'Invalid arguments: expected string values', 'INVALID_ARGS')
+    }
+  }
+}
+
+/**
  * Validates that a PID is a positive safe integer.
  * @param pid The PID to validate.
  * @returns True if the PID is valid.

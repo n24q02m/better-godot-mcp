@@ -8,6 +8,7 @@ import { join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
+import { validateStringArguments } from '../helpers/security.js'
 
 /**
  * Helper to resolve the default bus layout path.
@@ -108,6 +109,7 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       const busName = args.bus_name as string
       if (!busName) throw new GodotMCPError('No bus_name specified', 'INVALID_ARGS', 'Provide bus name.')
       const sendTo = (args.send_to as string) || 'Master'
+      validateStringArguments('Invalid characters in parameters', busName, sendTo)
 
       if (
         busName.includes('"') ||
@@ -174,6 +176,7 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
           'Provide bus name and effect type (e.g., "Reverb", "Compressor", "Limiter", "EQ").',
         )
       }
+      validateStringArguments('Invalid characters in parameters', busName, effectType)
 
       if (
         busName.includes('"') ||
@@ -256,6 +259,7 @@ export async function handleAudio(action: string, args: Record<string, unknown>,
       const streamType = (args.stream_type as string) || '2D'
       const parent = (args.parent as string) || '.'
       const bus = (args.bus as string) || 'Master'
+      validateStringArguments('Invalid characters in parameters', nodeName, streamType, parent, bus)
 
       if (
         nodeName.includes('"') ||

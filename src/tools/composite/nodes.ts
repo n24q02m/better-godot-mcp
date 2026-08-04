@@ -7,6 +7,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
+import { validateStringArguments } from '../helpers/security.js'
 
 import {
   getNodeProperty,
@@ -82,17 +83,20 @@ async function handleAddNode(projectPath: string, args: Record<string, unknown>)
   if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
   const nodeName = args.name as string
   if (!nodeName) throw new GodotMCPError('No node name specified', 'INVALID_ARGS', 'Provide name for the new node.')
+  validateStringArguments('Invalid node name', nodeName)
 
   if (nodeName.includes('"') || nodeName.includes('\n') || nodeName.includes('\r')) {
     throw new GodotMCPError('Invalid node name', 'INVALID_ARGS', 'Node name must not contain quotes or newlines.')
   }
 
   const nodeType = (args.type as string) || 'Node'
+  validateStringArguments('Invalid node type', nodeType)
   if (nodeType.includes('"') || nodeType.includes('\n') || nodeType.includes('\r')) {
     throw new GodotMCPError('Invalid node type', 'INVALID_ARGS', 'Node type must not contain quotes or newlines.')
   }
 
   const rawParent = (args.parent as string) || '.'
+  validateStringArguments('Invalid parent path', rawParent)
   const { path: parent } = normalizeNodePath(rawParent)
   if (parent.includes('"') || parent.includes('\n') || parent.includes('\r')) {
     throw new GodotMCPError('Invalid parent path', 'INVALID_ARGS', 'Parent path must not contain quotes or newlines.')
@@ -172,6 +176,7 @@ async function handleRenameNode(projectPath: string, args: Record<string, unknow
   const newName = args.new_name as string
   if (!nodeName || !newName)
     throw new GodotMCPError('Both name and new_name required', 'INVALID_ARGS', 'Provide name and new_name.')
+  validateStringArguments('Invalid node name', newName)
 
   if (newName.includes('"') || newName.includes('\n') || newName.includes('\r')) {
     throw new GodotMCPError('Invalid node name', 'INVALID_ARGS', 'New node name must not contain quotes or newlines.')
@@ -221,6 +226,8 @@ async function handleSetNodeProperty(projectPath: string, args: Record<string, u
   if (!nodeName || !property || value === undefined) {
     throw new GodotMCPError('name, property, and value required', 'INVALID_ARGS', 'Provide name, property, and value.')
   }
+  validateStringArguments('Invalid property key', property)
+  validateStringArguments('Invalid property value', value)
 
   if (property.includes('=') || property.includes('\n') || property.includes('\r')) {
     throw new GodotMCPError('Invalid property key', 'INVALID_ARGS', 'Property keys must not contain "=", newlines.')

@@ -7,6 +7,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
+import { validateStringArguments } from '../helpers/security.js'
 
 // ⚡ Bolt: Removed redundant pathExists. Instead return resolved path and use try/catch in handlers where needed.
 function resolveScene(projectRoot: string, scenePath: string): string {
@@ -30,6 +31,7 @@ export async function handleNavigation(action: string, args: Record<string, unkn
       const regionName = (args.name as string) || 'NavigationRegion3D'
       const parent = (args.parent as string) || '.'
       const dimension = (args.dimension as string) || '3D'
+      validateStringArguments('Invalid characters in parameters', scenePath, regionName, parent, dimension)
 
       if (
         regionName.includes('\n') ||
@@ -74,6 +76,7 @@ export async function handleNavigation(action: string, args: Record<string, unkn
       const agentName = (args.name as string) || 'NavigationAgent3D'
       const parent = (args.parent as string) || '.'
       const dimension = (args.dimension as string) || '3D'
+      validateStringArguments('Invalid characters in parameters', scenePath, agentName, parent, dimension)
 
       if (
         agentName.includes('\n') ||
@@ -91,6 +94,12 @@ export async function handleNavigation(action: string, args: Record<string, unkn
           'INVALID_ARGS',
           'Parameters must not contain quotes or newlines.',
         )
+      }
+
+      for (const property of ['radius', 'max_speed', 'path_desired_distance', 'target_desired_distance'] as const) {
+        if (args[property] !== undefined && typeof args[property] !== 'number') {
+          throw new GodotMCPError(`${property} must be a number`, 'INVALID_ARGS')
+        }
       }
 
       const fullPath = resolveScene(projectPath, scenePath)
@@ -124,6 +133,7 @@ export async function handleNavigation(action: string, args: Record<string, unkn
       const obstacleName = (args.name as string) || 'NavigationObstacle3D'
       const parent = (args.parent as string) || '.'
       const dimension = (args.dimension as string) || '3D'
+      validateStringArguments('Invalid characters in parameters', scenePath, obstacleName, parent, dimension)
 
       if (
         obstacleName.includes('\n') ||
@@ -141,6 +151,13 @@ export async function handleNavigation(action: string, args: Record<string, unkn
           'INVALID_ARGS',
           'Parameters must not contain quotes or newlines.',
         )
+      }
+
+      if (args.radius !== undefined && typeof args.radius !== 'number') {
+        throw new GodotMCPError('radius must be a number', 'INVALID_ARGS')
+      }
+      if (args.avoidance_enabled !== undefined && typeof args.avoidance_enabled !== 'boolean') {
+        throw new GodotMCPError('avoidance_enabled must be a boolean', 'INVALID_ARGS')
       }
 
       const fullPath = resolveScene(projectPath, scenePath)

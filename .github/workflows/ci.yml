@@ -109,9 +109,6 @@ jobs:
         with:
           files: coverage/lcov.info
 
-      - name: Build project
-        run: bun run build
-
       - name: Run live MCP protocol test (stdio handshake + tools/list)
         run: bun run test:live
 

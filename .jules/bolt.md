@@ -80,3 +80,7 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## Rejected
 
 - PRs #1029, #1031, #1037, #1040, #1048, #1051, #1053, #1054, and #1058 were rejected after individual diff, commit, comment, linked-issue, and CI review. They were duplicate or unverified cold-path optimizations and/or weakened title and test gates. Do not resurrect these patches; any needed hardening is reimplemented in a reviewed source patch.
+
+## 2025-06-25 - [Pre-allocate arrays for node listings from multi-type lookups]
+**Learning:** In `handleListControls`, calling `controls.push()` inside nested loops (iterating over `CONTROL_TYPES` and then the nodes for each type) causes V8 dynamic resizing overhead for the result array. However, a micro-optimization using a double pass (one to sum lengths, one to allocate and index) only yields significant performance gains for huge arrays. It is safe, but arguably sacrifices slight code readability for modest performance wins.
+**Action:** When filtering across multiple specific control types using O(K) lookup in `nodesByType`, consider if the total potential size warrants a double-pass pre-allocation approach over `.push()`.

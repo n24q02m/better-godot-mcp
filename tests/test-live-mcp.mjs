@@ -11,9 +11,9 @@
  * No env vars required. Godot detection is optional — all tests are offline.
  */
 
+import { fileURLToPath } from 'node:url'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
-import { fileURLToPath } from 'node:url'
 
 const TIMEOUT = { timeout: 15000 }
 

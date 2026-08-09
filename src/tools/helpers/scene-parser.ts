@@ -369,8 +369,12 @@ function transformSceneContent(
       if (inTargetNode && callbacks.onTargetNodeEnd) {
         const extra = callbacks.onTargetNodeEnd()
         if (extra) {
-          if (Array.isArray(extra)) result.push(...extra)
-          else result.push(extra)
+          // ⚡ Bolt: Avoid Array.isArray() and spread operator (...) in tight loop
+          if (typeof extra === 'string') {
+            result.push(extra)
+          } else {
+            for (let i = 0; i < extra.length; i++) result.push(extra[i])
+          }
         }
       }
 
@@ -381,8 +385,12 @@ function transformSceneContent(
 
     const processed = callbacks.processLine(line, inTargetNode, isSectionHeader)
     if (processed !== null) {
-      if (Array.isArray(processed)) result.push(...processed)
-      else result.push(processed)
+      // ⚡ Bolt: Avoid Array.isArray() and spread operator (...) in tight loop
+      if (typeof processed === 'string') {
+        result.push(processed)
+      } else {
+        for (let i = 0; i < processed.length; i++) result.push(processed[i])
+      }
     }
 
     pos = nextNewline + 1
@@ -392,8 +400,12 @@ function transformSceneContent(
   if (inTargetNode && callbacks.onTargetNodeEnd) {
     const extra = callbacks.onTargetNodeEnd()
     if (extra) {
-      if (Array.isArray(extra)) result.push(...extra)
-      else result.push(extra)
+      // ⚡ Bolt: Avoid Array.isArray() and spread operator (...) in tight loop
+      if (typeof extra === 'string') {
+        result.push(extra)
+      } else {
+        for (let i = 0; i < extra.length; i++) result.push(extra[i])
+      }
     }
   }
 

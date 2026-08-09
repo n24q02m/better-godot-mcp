@@ -305,4 +305,17 @@ describe('scene-parser', () => {
       expect(escapeRegExp('node.name[1]')).toBe('node\\.name\\[1\\]')
     })
   })
+
+  // ==========================================
+  // transformSceneContent updates
+  // ==========================================
+  describe('transformSceneContent optimizations', () => {
+    it('should correctly process array returns from callbacks', () => {
+      const updates = { position: 'Vector2(0, 0)', velocity: 'Vector2(100, 100)' }
+      const { content, updated } = updateNodeInScene(COMPLEX_TSCN, 'Player', updates)
+      expect(updated).toBe(true)
+      expect(content).toContain('velocity = Vector2(100, 100)')
+      expect(content).toContain('position = Vector2(0, 0)')
+    })
+  })
 })

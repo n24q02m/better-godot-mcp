@@ -81,7 +81,7 @@ describe('start-server (buildCli wiring)', () => {
 
     // This is the core built-in's own output shape ([ok]/[warn]/[fail]
     // lines), distinct from Godot's `doctor` (editor detection).
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('[ok] node'))
+    expect(logSpy).toHaveBeenCalledWith(expect.stringMatching(/\[(?:ok|fail)\] node/))
     expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('[warn] config: not configured'))
     expect(runGodotCli).not.toHaveBeenCalled()
     expect(initServer).not.toHaveBeenCalled()

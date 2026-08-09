@@ -2,6 +2,16 @@
 
 <!-- version list -->
 
+## Unreleased
+
+### Breaking Changes
+
+| Legacy argument | Current argument |
+| --- | --- |
+| `help.tool_name` | `help.topic` |
+
+`topic` is optional; omitting it returns the overview.
+
 ## v1.21.0 (2026-07-18)
 
 ### Bug Fixes

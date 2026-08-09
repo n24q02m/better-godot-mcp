@@ -90,14 +90,16 @@ describe('MCP Protocol - Live', () => {
     }
   })
 
-  it('every tool has inputSchema with required action field', async () => {
+  it('every tool has the expected inputSchema contract', async () => {
     const result = await client.listTools()
     // All tools except 'help' require 'action'
     for (const tool of result.tools) {
       const schema = tool.inputSchema as Record<string, unknown>
       expect(schema.type).toBe('object')
       if (tool.name === 'help') {
-        expect((schema.required as string[]) ?? []).toContain('tool_name')
+        expect((schema.required as string[]) ?? []).toEqual([])
+        expect(schema.properties).toMatchObject({ topic: { type: 'string' } })
+        expect(JSON.stringify(schema)).not.toContain('tool_name')
       } else {
         expect((schema.required as string[]) ?? []).toContain('action')
       }
@@ -107,8 +109,16 @@ describe('MCP Protocol - Live', () => {
   // -------------------------------------------------------
   // 3. help tool works and returns useful content
   // -------------------------------------------------------
+  it('help tool returns overview documentation when topic is omitted', async () => {
+    const result = await client.callTool({ name: 'help', arguments: {} })
+    const text = getText(result)
+
+    expect(result.isError).toBeFalsy()
+    expect(text).toContain('Available Topics')
+  })
+
   it('help tool returns documentation for project', async () => {
-    const result = await client.callTool({ name: 'help', arguments: { tool_name: 'project' } })
+    const result = await client.callTool({ name: 'help', arguments: { topic: 'project' } })
     const text = getText(result)
 
     expect(result.isError).toBeFalsy()
@@ -117,7 +127,7 @@ describe('MCP Protocol - Live', () => {
   })
 
   it('help tool rejects unknown topics', async () => {
-    const result = await client.callTool({ name: 'help', arguments: { tool_name: 'nonexistent' } })
+    const result = await client.callTool({ name: 'help', arguments: { topic: 'nonexistent' } })
 
     expect(result.isError).toBe(true)
     const text = getText(result)
@@ -125,21 +135,10 @@ describe('MCP Protocol - Live', () => {
   })
 
   it('help tool works for all P0+P1 tools', async () => {
-    const p0p1Tools = [
-      'project',
-      'scenes',
-      'nodes',
-      'scripts',
-      'editor',
-      'config',
-      'help',
-      'resources',
-      'input_map',
-      'signals',
-    ]
+    const p0p1Tools = ['project', 'scenes', 'nodes', 'scripts', 'editor', 'config', 'resources', 'input_map', 'signals']
 
     for (const toolName of p0p1Tools) {
-      const result = await client.callTool({ name: 'help', arguments: { tool_name: toolName } })
+      const result = await client.callTool({ name: 'help', arguments: { topic: toolName } })
       expect(result.isError, `help for "${toolName}" returned error`).toBeFalsy()
       const text = getText(result)
       expect(text.length, `help for "${toolName}" should return content`).toBeGreaterThan(10)

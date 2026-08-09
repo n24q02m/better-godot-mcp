@@ -14,7 +14,7 @@ import { handleAnimation } from './composite/animation.js'
 import { handleAudio } from './composite/audio.js'
 import { handleConfig } from './composite/config.js'
 import { handleEditor } from './composite/editor.js'
-import { handleHelp } from './composite/help.js'
+import { handleHelp, VALID_HELP_TOPICS } from './composite/help.js'
 import { handleInputMap } from './composite/input-map.js'
 import { handleNavigation } from './composite/navigation.js'
 import { handleNodes } from './composite/nodes.js'
@@ -249,36 +249,18 @@ const P0_TOOLS = [
   },
   {
     name: 'help',
-    description: 'Full documentation for a tool. Use when compressed descriptions are insufficient.',
+    description:
+      'Full documentation. Omit topic for the overview; use a topic when compressed descriptions are insufficient.',
     annotations: createAnnotations('Help', { readOnly: true, idempotent: true }),
     inputSchema: {
       type: 'object' as const,
       properties: {
-        tool_name: {
+        topic: {
           type: 'string',
-          enum: [
-            'project',
-            'scenes',
-            'nodes',
-            'scripts',
-            'editor',
-            'config',
-            'help',
-            'resources',
-            'input_map',
-            'signals',
-            'animation',
-            'tilemap',
-            'shader',
-            'physics',
-            'audio',
-            'navigation',
-            'ui',
-          ],
-          description: 'Tool to get documentation for',
+          enum: [...VALID_HELP_TOPICS],
+          description: 'Documentation topic. Omit to read overview.md.',
         },
       },
-      required: ['tool_name'],
     },
   },
 ]
@@ -616,10 +598,7 @@ export function registerTools(server: Server, config: GodotConfig): void {
         isError?: boolean
       }
       if (name === 'help') {
-        result = await handleHelp(
-          (args.action as string) || (args.tool_name as string),
-          args as Record<string, unknown>,
-        )
+        result = await handleHelp(args.topic as string | undefined)
       } else {
         const handler = Object.hasOwn(TOOL_HANDLERS, name) ? TOOL_HANDLERS[name] : undefined
         if (!handler) {

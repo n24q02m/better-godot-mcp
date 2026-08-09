@@ -92,3 +92,7 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## 2026-08-09 - [Fix CI Title Check]
 **Learning:** The GitHub Actions CI includes an `amannn/action-semantic-pull-request` check that enforces Conventional Commits (requiring prefixes like `fix:` and lowercase subjects). The `.github/workflows/ci.yml` has been configured to ONLY allow `fix` and `feat` types for semantic pull requests. Other prefixes like `perf` will cause the CI to fail.
 **Action:** When acting as the Bolt agent and submitting a performance optimization PR, use the title format `fix: ⚡ Bolt: [performance improvement]` instead of just `⚡ Bolt:` or `perf:` to ensure it passes the CI semantic title check.
+
+## 2026-08-09 - [Fix CI Title Validation Case]
+**Learning:** The GitHub Actions CI includes a strict `amannn/action-semantic-pull-request` check that enforces the PR title subject must NOT start with an uppercase character (`subjectPattern: ^(?![A-Z]).+$`).
+**Action:** When acting as the Bolt agent and submitting a performance optimization PR, use the title format `fix: ⚡ bolt: [performance improvement]` (all lowercase after the type) instead of `fix: ⚡ Bolt:` to ensure it passes the CI semantic title check.

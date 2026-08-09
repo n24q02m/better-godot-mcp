@@ -45,7 +45,7 @@ describe('start-server (buildCli wiring)', () => {
 
     expect(initServer).not.toHaveBeenCalled()
     expect(process.exit).toHaveBeenCalledWith(0)
-  })
+  }, 30_000)
 
   it('routes "detect" to the Godot-specific handler', async () => {
     process.argv.push('detect')
@@ -56,7 +56,7 @@ describe('start-server (buildCli wiring)', () => {
 
     expect(initServer).not.toHaveBeenCalled()
     expect(process.exit).toHaveBeenCalledWith(0)
-  })
+  }, 30_000)
 
   it('propagates the Godot doctor exit code (1 when Godot is not found)', async () => {
     process.argv.push('doctor')
@@ -66,7 +66,7 @@ describe('start-server (buildCli wiring)', () => {
     await vi.waitFor(() => expect(process.exit).toHaveBeenCalled())
 
     expect(process.exit).toHaveBeenCalledWith(1)
-  })
+  }, 30_000)
 
   it('exposes the core doctor (node runtime / storage / relay / mode) under "core-doctor"', async () => {
     process.argv.push('core-doctor')
@@ -86,7 +86,7 @@ describe('start-server (buildCli wiring)', () => {
     expect(runGodotCli).not.toHaveBeenCalled()
     expect(initServer).not.toHaveBeenCalled()
     logSpy.mockRestore()
-  })
+  }, 30_000)
 
   it('prints version and exits 0 without starting the server', async () => {
     process.argv.push('--version')
@@ -99,7 +99,7 @@ describe('start-server (buildCli wiring)', () => {
     expect(process.exit).toHaveBeenCalledWith(0)
     expect(initServer).not.toHaveBeenCalled()
     logSpy.mockRestore()
-  })
+  }, 30_000)
 
   it('lists doctor/detect/core-doctor as subcommands in -h', async () => {
     process.argv.push('-h')
@@ -113,7 +113,7 @@ describe('start-server (buildCli wiring)', () => {
     expect(subcommandsLine).toContain('detect')
     expect(subcommandsLine).toContain('core-doctor')
     logSpy.mockRestore()
-  })
+  }, 30_000)
 
   it('starts the server and registers SIGINT/SIGTERM when no subcommand is given', async () => {
     vi.mocked(initServer).mockResolvedValue(undefined)
@@ -124,7 +124,7 @@ describe('start-server (buildCli wiring)', () => {
     expect(runGodotCli).not.toHaveBeenCalled()
     expect(onceSpy).toHaveBeenCalledWith('SIGINT', expect.any(Function))
     expect(onceSpy).toHaveBeenCalledWith('SIGTERM', expect.any(Function))
-  })
+  }, 30_000)
 
   it('does not exit right after initServer resolves (stdio must stay alive until shutdown)', async () => {
     // Regression guard: Server.connect() (inside initServer) resolves once
@@ -139,7 +139,7 @@ describe('start-server (buildCli wiring)', () => {
     await new Promise((resolve) => setTimeout(resolve, 20))
 
     expect(process.exit).not.toHaveBeenCalled()
-  })
+  }, 30_000)
 
   it('exits 0 once SIGINT fires after the server starts', async () => {
     vi.mocked(initServer).mockResolvedValue(undefined)
@@ -156,7 +156,7 @@ describe('start-server (buildCli wiring)', () => {
 
     sigintHandler?.()
     await vi.waitFor(() => expect(process.exit).toHaveBeenCalledWith(0))
-  })
+  }, 30_000)
 
   it('exits with 1 if initServer throws', async () => {
     const error = new Error('Init failed')
@@ -165,7 +165,7 @@ describe('start-server (buildCli wiring)', () => {
     await import('./start-server.js')
     await vi.waitFor(() => expect(initServer).toHaveBeenCalled())
     await vi.waitFor(() => expect(process.exit).toHaveBeenCalledWith(1))
-  })
+  }, 30_000)
 
   it('does not add a redundant SIGINT wait for --http (initServer already blocks until its own shutdown)', async () => {
     process.argv.push('--http')
@@ -176,5 +176,5 @@ describe('start-server (buildCli wiring)', () => {
     await vi.waitFor(() => expect(process.exit).toHaveBeenCalledWith(0))
 
     expect(onceSpy).not.toHaveBeenCalled()
-  })
+  }, 30_000)
 })

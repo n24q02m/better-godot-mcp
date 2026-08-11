@@ -251,11 +251,28 @@ func _is_loopback_endpoint(endpoint: String) -> bool:
 	var slash := authority.find("/")
 	if slash >= 0:
 		authority = authority.substr(0, slash)
+	if authority.is_empty() or authority.contains("@") or authority.contains("\\"):
+		return false
 	if authority.begins_with("[::1]"):
-		return true
+		return _is_valid_port_suffix(authority.substr(5))
 	var colon := authority.find(":")
+	if colon >= 0 and authority.find(":", colon + 1) >= 0:
+		return false
+	if colon >= 0 and not _is_valid_port(authority.substr(colon + 1)):
+		return false
 	var host := authority if colon < 0 else authority.substr(0, colon)
 	return host == "localhost" or host == "127.0.0.1"
+
+func _is_valid_port_suffix(suffix: String) -> bool:
+	if suffix.is_empty():
+		return true
+	return suffix.begins_with(":") and _is_valid_port(suffix.substr(1))
+
+func _is_valid_port(port: String) -> bool:
+	if port.is_empty() or port != port.strip_edges() or not port.is_valid_int():
+		return false
+	var value := port.to_int()
+	return value > 0 and value <= 65535
 
 func _find_header(headers: PackedStringArray, name: String) -> String:
 	var wanted := name.to_lower()

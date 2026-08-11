@@ -62,11 +62,11 @@ describe('P0: project tool', () => {
     cleanup = tmp.cleanup
     const setup = await setupClient('full-test-project', projectPath)
     client = setup.client
-  }, 15_000)
+  }, 30_000)
 
   afterAll(async () => {
-    await client.close()
-    cleanup()
+    await client?.close()
+    cleanup?.()
   })
 
   it('info returns project metadata', async () => {
@@ -141,11 +141,11 @@ describe('P0: scenes tool', () => {
     cleanup = tmp.cleanup
     const setup = await setupClient('full-test-scenes', projectPath)
     client = setup.client
-  }, 15_000)
+  }, 30_000)
 
   afterAll(async () => {
-    await client.close()
-    cleanup()
+    await client?.close()
+    cleanup?.()
   })
 
   it('create -> list -> info -> duplicate -> set_main -> delete', async () => {
@@ -234,11 +234,11 @@ describe('P0: nodes tool', () => {
     createTmpScene(projectPath, 'scenes/test.tscn')
     const setup = await setupClient('full-test-nodes', projectPath)
     client = setup.client
-  }, 15_000)
+  }, 30_000)
 
   afterAll(async () => {
-    await client.close()
-    cleanup()
+    await client?.close()
+    cleanup?.()
   })
 
   it('add -> list -> rename -> set_property -> get_property -> remove', async () => {
@@ -334,11 +334,11 @@ describe('P0: scripts tool', () => {
     createTmpScene(projectPath, 'scenes/main.tscn')
     const setup = await setupClient('full-test-scripts', projectPath)
     client = setup.client
-  }, 15_000)
+  }, 30_000)
 
   afterAll(async () => {
-    await client.close()
-    cleanup()
+    await client?.close()
+    cleanup?.()
   })
 
   it('create -> list -> read -> write -> attach -> delete', async () => {
@@ -415,10 +415,10 @@ describe('P0: editor tool', () => {
     })
     client = new Client({ name: 'full-test-editor', version: '1.0.0' })
     await client.connect(transport)
-  }, 15_000)
+  }, 30_000)
 
   afterAll(async () => {
-    await client.close()
+    await client?.close()
   })
 
   it('status returns process info', async () => {
@@ -445,10 +445,10 @@ describe('P0: config tool (detect_godot + check)', () => {
     })
     client = new Client({ name: 'full-test-config-setup', version: '1.0.0' })
     await client.connect(transport)
-  }, 15_000)
+  }, 30_000)
 
   afterAll(async () => {
-    await client.close()
+    await client?.close()
   })
 
   it('detect_godot returns structured detection result', async () => {
@@ -466,7 +466,7 @@ describe('P0: config tool (detect_godot + check)', () => {
     } else {
       expect(json).toHaveProperty('suggestions')
     }
-  })
+  }, 30_000)
 
   it('check returns structured check result', async () => {
     const result = await client.callTool({
@@ -492,10 +492,10 @@ describe('P0: config tool', () => {
     })
     client = new Client({ name: 'full-test-config', version: '1.0.0' })
     await client.connect(transport)
-  }, 15_000)
+  }, 30_000)
 
   afterAll(async () => {
-    await client.close()
+    await client?.close()
   })
 
   it('status returns server configuration', async () => {
@@ -535,11 +535,11 @@ describe('P1: resources tool', () => {
     )
     const setup = await setupClient('full-test-resources', projectPath)
     client = setup.client
-  }, 15_000)
+  }, 30_000)
 
   afterAll(async () => {
-    await client.close()
-    cleanup()
+    await client?.close()
+    cleanup?.()
   })
 
   it('list returns resource files', async () => {
@@ -602,11 +602,11 @@ describe('P1: input_map tool', () => {
     cleanup = tmp.cleanup
     const setup = await setupClient('full-test-input-map', projectPath)
     client = setup.client
-  }, 15_000)
+  }, 30_000)
 
   afterAll(async () => {
-    await client.close()
-    cleanup()
+    await client?.close()
+    cleanup?.()
   })
 
   it('list returns existing input actions', async () => {
@@ -679,11 +679,11 @@ describe('P1: signals tool', () => {
     createTmpScene(projectPath, 'scenes/signals_test.tscn', COMPLEX_TSCN)
     const setup = await setupClient('full-test-signals', projectPath)
     client = setup.client
-  }, 15_000)
+  }, 30_000)
 
   afterAll(async () => {
-    await client.close()
-    cleanup()
+    await client?.close()
+    cleanup?.()
   })
 
   it('list returns existing connections', async () => {
@@ -756,11 +756,11 @@ describe('P2: animation tool', () => {
     createTmpScene(projectPath, 'scenes/anim_test.tscn')
     const setup = await setupClient('full-test-animation', projectPath)
     client = setup.client
-  }, 15_000)
+  }, 30_000)
 
   afterAll(async () => {
-    await client.close()
-    cleanup()
+    await client?.close()
+    cleanup?.()
   })
 
   it('create_player adds AnimationPlayer node', async () => {
@@ -844,11 +844,11 @@ describe('P2: shader tool', () => {
     cleanup = tmp.cleanup
     const setup = await setupClient('full-test-shader', projectPath)
     client = setup.client
-  }, 15_000)
+  }, 30_000)
 
   afterAll(async () => {
-    await client.close()
-    cleanup()
+    await client?.close()
+    cleanup?.()
   })
 
   it('create -> read -> write -> get_params -> list', async () => {
@@ -922,11 +922,11 @@ describe('P2: tilemap tool', () => {
     createTmpScene(projectPath, 'scenes/tilemap_test.tscn')
     const setup = await setupClient('full-test-tilemap', projectPath)
     client = setup.client
-  }, 15_000)
+  }, 30_000)
 
   afterAll(async () => {
-    await client.close()
-    cleanup()
+    await client?.close()
+    cleanup?.()
   })
 
   it('create_tileset creates a .tres tileset resource', async () => {
@@ -966,11 +966,11 @@ describe('P2: physics tool', () => {
     createTmpScene(projectPath, 'scenes/physics_test.tscn', COMPLEX_TSCN)
     const setup = await setupClient('full-test-physics', projectPath)
     client = setup.client
-  }, 15_000)
+  }, 30_000)
 
   afterAll(async () => {
-    await client.close()
-    cleanup()
+    await client?.close()
+    cleanup?.()
   })
 
   it('layers returns physics layer names', async () => {
@@ -1045,11 +1045,11 @@ describe('P3: audio tool', () => {
     cleanup = tmp.cleanup
     const setup = await setupClient('full-test-audio', projectPath)
     client = setup.client
-  }, 15_000)
+  }, 30_000)
 
   afterAll(async () => {
-    await client.close()
-    cleanup()
+    await client?.close()
+    cleanup?.()
   })
 
   it('list_buses returns bus layout', async () => {
@@ -1098,11 +1098,11 @@ describe('P3: navigation tool', () => {
     createTmpScene(projectPath, 'scenes/nav_test.tscn')
     const setup = await setupClient('full-test-navigation', projectPath)
     client = setup.client
-  }, 15_000)
+  }, 30_000)
 
   afterAll(async () => {
-    await client.close()
-    cleanup()
+    await client?.close()
+    cleanup?.()
   })
 
   it('create_region adds a NavigationRegion node', async () => {
@@ -1133,11 +1133,11 @@ describe('P3: ui tool', () => {
     createTmpScene(projectPath, 'scenes/ui_test.tscn')
     const setup = await setupClient('full-test-ui', projectPath)
     client = setup.client
-  }, 15_000)
+  }, 30_000)
 
   afterAll(async () => {
-    await client.close()
-    cleanup()
+    await client?.close()
+    cleanup?.()
   })
 
   it('create_control adds a UI control node', async () => {

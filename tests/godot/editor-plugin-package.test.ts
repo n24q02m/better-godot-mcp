@@ -35,6 +35,8 @@ describe('Godot EditorPlugin package', () => {
     expect(dock).toContain('text/event-stream')
     expect(dock).toContain('127.0.0.1')
     expect(dock).toContain('MCP error')
+    expect(dock).toContain('authority.contains("@")')
+    expect(dock).toContain('_is_valid_port')
   })
 
   it('documents the explicit local-server and publication boundaries', () => {

@@ -297,7 +297,6 @@ async function handleListControls(projectPath: string, args: Record<string, unkn
     throw err
   }
 
-  // ⚡ Bolt: Pre-allocate controls array to avoid dynamic resizing overhead
   let totalControls = 0
   for (const type of CONTROL_TYPES) {
     const typeNodes = scene.nodesByType.get(type)

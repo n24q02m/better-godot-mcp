@@ -47,6 +47,9 @@ htmlcov/
 # E2E test result artifacts
 tests/e2e_mcp_*report.json
 
+# Godot editor-generated project cache
+.godot/
+
 # Bot/merge junk artifacts (prevent accidental commits) — 2026-06-07
 *.orig
 *.rej

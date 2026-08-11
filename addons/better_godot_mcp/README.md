@@ -55,5 +55,6 @@ requires a separate security design.
 ## Godot Asset Library
 
 The addon package is structured for an official Godot Asset Library review: it includes
-`plugin.cfg`, an `@tool` `EditorPlugin`, README, and icon. Submission and listing are separate
-public publication steps and are not performed automatically by this repository.
+`plugin.cfg`, an `@tool` `EditorPlugin`, this README, a copied `LICENSE`, and the square 128x128
+`icon.png` submission icon. Submission and listing are separate public publication steps and are
+not performed automatically by this repository.

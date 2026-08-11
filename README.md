@@ -77,7 +77,7 @@ mcp-name: io.github.n24q02m/better-godot-mcp
 
 ## Install
 
-Runs over **stdio** by default. No credentials, no account, no relay -- the server reads and writes your local Godot project files directly. Godot 4.x is optional (only `run`/`stop`/`export` and `editor` actions need the binary).
+Runs over **stdio** by default. No credentials, no account, no relay -- the server reads and writes your local Godot project files directly. Godot 4.x is optional for file operations; only `run`/`stop`/`export` and `editor` actions need a Godot binary. The detector accepts Godot >=4.1. Live engine compatibility is currently verified with Godot 4.7.1 stable; this does not claim that every future minor release has been verified.
 
 ### Via npx (recommended)
 
@@ -194,7 +194,7 @@ The server runs over stdio by default. To serve over Streamable HTTP instead, pa
 
 ### Limitations
 
-- Requires Godot 4.x project structure
+- Requires a Godot 4.x project structure; a Godot binary is optional for file operations
 - Scene files (`.tscn`) are parsed/modified via text manipulation, not Godot's internal API
 - `run`/`stop`/`export` actions require Godot binary to be installed
 - Docker mode has limited filesystem access (mount your project directory)
@@ -220,10 +220,10 @@ npx -y @n24q02m/better-godot-mcp detect
   "path": "/path/to/godot",
   "version": {
     "major": 4,
-    "minor": 6,
-    "patch": 3,
+    "minor": 7,
+    "patch": 1,
     "label": "stable.official",
-    "raw": "4.6.3.stable.official"
+    "raw": "4.7.1.stable.official"
   },
   "source": "system"
 }
@@ -236,7 +236,7 @@ npx -y @n24q02m/better-godot-mcp doctor
 
 ```text
 [ok] godot binary: /path/to/godot (source: system)
-[ok] godot version: 4.6.3.stable.official
+[ok] godot version: 4.7.1.stable.official
 [warn] project: no project.godot found at /path/to/cwd (set GODOT_PROJECT_PATH)
 ```
 

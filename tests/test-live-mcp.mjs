@@ -11,6 +11,7 @@
  * No env vars required. Godot detection is optional — all tests are offline.
  */
 
+import { fileURLToPath } from 'node:url'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 
@@ -44,7 +45,7 @@ const transport = new StdioClientTransport({
   command: 'node',
   args: ['bin/cli.mjs'],
   env: { PATH: process.env.PATH },
-  cwd: import.meta.dirname || process.cwd(),
+  cwd: fileURLToPath(new URL('../', import.meta.url)),
 })
 
 const client = new Client({ name: 'live-test', version: '1.0.0' })
@@ -92,7 +93,7 @@ const helpTopics = ['project', 'scenes', 'nodes', 'scripts', 'resources', 'edito
 
 for (const topic of helpTopics) {
   try {
-    const r = await client.callTool({ name: 'help', arguments: { tool_name: topic } }, undefined, TIMEOUT)
+    const r = await client.callTool({ name: 'help', arguments: { topic } }, undefined, TIMEOUT)
     const t = parse(r)
     if (t.length >= 50) {
       ok(`help(${topic})`, `${t.length} chars`)
@@ -141,7 +142,7 @@ try {
 
 // help with nonexistent tool
 try {
-  const r = await client.callTool({ name: 'help', arguments: { tool_name: 'nonexistent' } }, undefined, TIMEOUT)
+  const r = await client.callTool({ name: 'help', arguments: { topic: 'nonexistent' } }, undefined, TIMEOUT)
   const t = r.content[0].text.toLowerCase()
   if (
     r.isError ||
@@ -248,7 +249,7 @@ const extendedHelpTopics = [
 
 for (const topic of extendedHelpTopics) {
   try {
-    const r = await client.callTool({ name: 'help', arguments: { tool_name: topic } }, undefined, TIMEOUT)
+    const r = await client.callTool({ name: 'help', arguments: { topic } }, undefined, TIMEOUT)
     const t = parse(r)
     if (t.length >= 50) {
       ok(`help(${topic})`, `${t.length} chars`)
@@ -342,7 +343,7 @@ try {
   const r = await client.callTool(
     {
       name: 'help',
-      arguments: { tool_name: '<script>alert(1)</script>' },
+      arguments: { topic: '<script>alert(1)</script>' },
     },
     undefined,
     TIMEOUT,

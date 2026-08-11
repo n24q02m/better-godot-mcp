@@ -112,6 +112,70 @@ jobs:
       - name: Run live MCP protocol test (stdio handshake + tools/list)
         run: bun run test:live
 
+  engine-compatibility:
+    name: Engine compatibility (Godot 4.7.1 stable)
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install pinned Godot 4.7.1 stable
+        env:
+          GODOT_ASSET_NAME: Godot_v4.7.1-stable_linux.x86_64.zip
+          GODOT_ASSET_URL: https://github.com/godotengine/godot-builds/releases/download/4.7.1-stable/Godot_v4.7.1-stable_linux.x86_64.zip
+          GODOT_SHA256: c7ff14fd28472c8d4f193043de30278dcf7e5241a1dcf7566b02e27addaa33ba
+        run: |
+          set -euo pipefail
+          godot_root="$RUNNER_TEMP/godot"
+          godot_archive="$godot_root/$GODOT_ASSET_NAME"
+          godot_extract="$godot_root/extracted"
+          godot_bin="$godot_root/bin"
+
+          mkdir -p "$godot_extract" "$godot_bin"
+          curl --fail --location --retry 3 --output "$godot_archive" "$GODOT_ASSET_URL"
+          printf '%s  %s\n' "$GODOT_SHA256" "$godot_archive" | sha256sum --check --strict
+          unzip -q "$godot_archive" -d "$godot_extract"
+
+          godot_binary="$godot_extract/Godot_v4.7.1-stable_linux.x86_64"
+          test -f "$godot_binary"
+          install -m 0755 "$godot_binary" "$godot_bin/godot"
+          echo "$godot_bin" >> "$GITHUB_PATH"
+          echo "GODOT_PATH=$godot_bin/godot" >> "$GITHUB_ENV"
+
+      - name: Verify pinned Godot version
+        run: |
+          set -euo pipefail
+          godot_version="$(godot --headless --version)"
+          printf 'Godot version: %s\n' "$godot_version"
+          case "$godot_version" in
+            4.7.1.stable.official*) ;;
+            *) echo "Unexpected Godot version: $godot_version" >&2; exit 1 ;;
+          esac
+
+      - name: Setup bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build MCP binary
+        run: bun run build
+
+      - name: Run full MCP engine scenario
+        run: bun run test:full
+
   dependency-review:
     name: Dependency Review
     if: github.event_name == 'pull_request'

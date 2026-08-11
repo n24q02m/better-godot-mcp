@@ -26,6 +26,25 @@ vi.mock('../src/tools/composite/config.js', () => ({
   handleConfig: vi.fn(() => ({ content: [{ type: 'text', text: 'config result' }] })),
 }))
 vi.mock('../src/tools/composite/help.js', () => ({
+  VALID_HELP_TOPICS: [
+    'animation',
+    'audio',
+    'editor',
+    'input_map',
+    'navigation',
+    'nodes',
+    'physics',
+    'project',
+    'resources',
+    'scenes',
+    'scripts',
+    'shader',
+    'signals',
+    'tilemap',
+    'ui',
+    'config',
+    'overview',
+  ],
   handleHelp: vi.fn(() => ({ content: [{ type: 'text', text: 'help result' }] })),
 }))
 vi.mock('../src/tools/composite/resources.js', () => ({
@@ -147,9 +166,9 @@ describe('registerTools handler routing', () => {
     })
   }
 
-  it('should route help tool with tool_name argument', async () => {
+  it('should route help tool with topic argument', async () => {
     const result = await callToolHandler?.({
-      params: { name: 'help', arguments: { tool_name: 'project' } },
+      params: { name: 'help', arguments: { topic: 'project' } },
     })
     expect(result).toBeDefined()
   })
@@ -215,7 +234,7 @@ describe('registerTools handler routing', () => {
 
     it('should NOT include structuredContent for help', async () => {
       const result = (await callToolHandler?.({
-        params: { name: 'help', arguments: { tool_name: 'project' } },
+        params: { name: 'help', arguments: { topic: 'project' } },
       })) as { structuredContent?: Record<string, unknown> }
 
       expect(result.structuredContent).toBeUndefined()

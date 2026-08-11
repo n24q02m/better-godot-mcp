@@ -2,6 +2,154 @@
 
 <!-- version list -->
 
+## v1.22.0 (2026-08-11)
+
+### Bug Fixes
+
+- Align live harness imports ([#1073](https://github.com/n24q02m/better-godot-mcp/pull/1073),
+  [`0f60ed8`](https://github.com/n24q02m/better-godot-mcp/commit/0f60ed84cc71a261805a0070e4e4ceb6c09e5efe))
+
+- Avoid duplicate live test builds ([#1062](https://github.com/n24q02m/better-godot-mcp/pull/1062),
+  [`1e21cc5`](https://github.com/n24q02m/better-godot-mcp/commit/1e21cc52c3ff47e870a5092b54d1c4254628bb55))
+
+- Build CLI before live tests ([#1062](https://github.com/n24q02m/better-godot-mcp/pull/1062),
+  [`1e21cc5`](https://github.com/n24q02m/better-godot-mcp/commit/1e21cc52c3ff47e870a5092b54d1c4254628bb55))
+
+- Cap Vitest workers ([#1061](https://github.com/n24q02m/better-godot-mcp/pull/1061),
+  [`ab2c32e`](https://github.com/n24q02m/better-godot-mcp/commit/ab2c32ecbff7d9500d498366f4a0d3ea7d17aeaa))
+
+- Drop code_quality from the main ruleset
+  ([#1042](https://github.com/n24q02m/better-godot-mcp/pull/1042),
+  [`b90b63b`](https://github.com/n24q02m/better-godot-mcp/commit/b90b63b491e7d4458ee4c43c2216ab035f71943e))
+
+- Drop rangeStrategy from update-type package rules
+  ([#1033](https://github.com/n24q02m/better-godot-mcp/pull/1033),
+  [`bf7f7f7`](https://github.com/n24q02m/better-godot-mcp/commit/bf7f7f7d14ae539a23fc4ce24d29d99e0cf62dd4))
+
+- Guard UI control templates ([#1061](https://github.com/n24q02m/better-godot-mcp/pull/1061),
+  [`ab2c32e`](https://github.com/n24q02m/better-godot-mcp/commit/ab2c32ecbff7d9500d498366f4a0d3ea7d17aeaa))
+
+- Harden composite input defaults ([#1061](https://github.com/n24q02m/better-godot-mcp/pull/1061),
+  [`ab2c32e`](https://github.com/n24q02m/better-godot-mcp/commit/ab2c32ecbff7d9500d498366f4a0d3ea7d17aeaa))
+
+- Harden composite input validation ([#1061](https://github.com/n24q02m/better-godot-mcp/pull/1061),
+  [`ab2c32e`](https://github.com/n24q02m/better-godot-mcp/commit/ab2c32ecbff7d9500d498366f4a0d3ea7d17aeaa))
+
+- Make live tests self-contained ([#1062](https://github.com/n24q02m/better-godot-mcp/pull/1062),
+  [`1e21cc5`](https://github.com/n24q02m/better-godot-mcp/commit/1e21cc52c3ff47e870a5092b54d1c4254628bb55))
+
+- Move this repo to Apache-2.0, preserving the MIT terms it received
+  ([#1056](https://github.com/n24q02m/better-godot-mcp/pull/1056),
+  [`dfea1d7`](https://github.com/n24q02m/better-godot-mcp/commit/dfea1d7a67be8e4898ea754ae2c1274aa1d89100))
+
+- Pin GitHub Action references to commit SHAs
+  ([#1030](https://github.com/n24q02m/better-godot-mcp/pull/1030),
+  [`fac79f5`](https://github.com/n24q02m/better-godot-mcp/commit/fac79f5e4bac20137d0471cda979a7865a672520))
+
+- Pin the remaining action tags missed by the first push
+  ([#1030](https://github.com/n24q02m/better-godot-mcp/pull/1030),
+  [`fac79f5`](https://github.com/n24q02m/better-godot-mcp/commit/fac79f5e4bac20137d0471cda979a7865a672520))
+
+- Preserve empty node defaults ([#1061](https://github.com/n24q02m/better-godot-mcp/pull/1061),
+  [`ab2c32e`](https://github.com/n24q02m/better-godot-mcp/commit/ab2c32ecbff7d9500d498366f4a0d3ea7d17aeaa))
+
+- Record rejected bot patches ([#1061](https://github.com/n24q02m/better-godot-mcp/pull/1061),
+  [`ab2c32e`](https://github.com/n24q02m/better-godot-mcp/commit/ab2c32ecbff7d9500d498366f4a0d3ea7d17aeaa))
+
+- Reject non-finite theme font sizes
+  ([#1061](https://github.com/n24q02m/better-godot-mcp/pull/1061),
+  [`ab2c32e`](https://github.com/n24q02m/better-godot-mcp/commit/ab2c32ecbff7d9500d498366f4a0d3ea7d17aeaa))
+
+- Remove redundant orphan-tag shell guard (better-semantic-release @v1 has a built-in one)
+  ([#1028](https://github.com/n24q02m/better-godot-mcp/pull/1028),
+  [`3069142`](https://github.com/n24q02m/better-godot-mcp/commit/3069142800cd0b1a3efcf5475d7c4af9c2f2d47b))
+
+- Replace redundant pathExists checks with ENOENT handling
+  ([`ebf733a`](https://github.com/n24q02m/better-godot-mcp/commit/ebf733a338c1eb3b87f002abf13e7f3380dd2e11))
+
+- Run full live tests with dedicated config
+  ([#1061](https://github.com/n24q02m/better-godot-mcp/pull/1061),
+  [`ab2c32e`](https://github.com/n24q02m/better-godot-mcp/commit/ab2c32ecbff7d9500d498366f4a0d3ea7d17aeaa))
+
+- Stabilize dynamic import test timeouts
+  ([#1073](https://github.com/n24q02m/better-godot-mcp/pull/1073),
+  [`0f60ed8`](https://github.com/n24q02m/better-godot-mcp/commit/0f60ed84cc71a261805a0070e4e4ceb6c09e5efe))
+
+- Use resolveProjectRoot to prevent path traversal in config paths
+  ([`c5cdaf2`](https://github.com/n24q02m/better-godot-mcp/commit/c5cdaf200450599d3578f8c4345f0c078f7c910d))
+
+- Validate composite security inputs
+  ([#1061](https://github.com/n24q02m/better-godot-mcp/pull/1061),
+  [`ab2c32e`](https://github.com/n24q02m/better-godot-mcp/commit/ab2c32ecbff7d9500d498366f4a0d3ea7d17aeaa))
+
+- Validate raw node inputs ([#1061](https://github.com/n24q02m/better-godot-mcp/pull/1061),
+  [`ab2c32e`](https://github.com/n24q02m/better-godot-mcp/commit/ab2c32ecbff7d9500d498366f4a0d3ea7d17aeaa))
+
+- **deps**: Lock file maintenance ([#1064](https://github.com/n24q02m/better-godot-mcp/pull/1064),
+  [`a731957`](https://github.com/n24q02m/better-godot-mcp/commit/a73195724d8b8c9b76be137b6bbb82d802e68fe8))
+
+- **deps**: Update @biomejs/biome to ^2.5.5
+  ([#1047](https://github.com/n24q02m/better-godot-mcp/pull/1047),
+  [`e06b3da`](https://github.com/n24q02m/better-godot-mcp/commit/e06b3dac4b86a77e5d9d5776e44a1ffbe718841e))
+
+- **deps**: Update @biomejs/biome to ^2.5.6
+  ([#1063](https://github.com/n24q02m/better-godot-mcp/pull/1063),
+  [`591784c`](https://github.com/n24q02m/better-godot-mcp/commit/591784c907141f7ce6f50eba3b207700256d31b3))
+
+- **deps**: Update @n24q02m/mcp-core to v1.23.0
+  ([#1067](https://github.com/n24q02m/better-godot-mcp/pull/1067),
+  [`1cdf943`](https://github.com/n24q02m/better-godot-mcp/commit/1cdf943ee623f6f0929b669cb8c0d688afe8ff38))
+
+- **deps**: Update @types/node to ^26.1.2
+  ([#1060](https://github.com/n24q02m/better-godot-mcp/pull/1060),
+  [`d936e99`](https://github.com/n24q02m/better-godot-mcp/commit/d936e998a1ff77dbe684c98ae781d8da14c1c5c9))
+
+- **deps**: Update actions/checkout action to v7.0.1
+  ([#1046](https://github.com/n24q02m/better-godot-mcp/pull/1046),
+  [`a219d10`](https://github.com/n24q02m/better-godot-mcp/commit/a219d10dec8da519edb1e7b1a2d3373a4daa3baa))
+
+- **deps**: Update actions/setup-node action to v7
+  ([#1012](https://github.com/n24q02m/better-godot-mcp/pull/1012),
+  [`4db3d4d`](https://github.com/n24q02m/better-godot-mcp/commit/4db3d4d95ea8eb4b1acf6d6e9933e9e4730de59e))
+
+- **deps**: Update minor dependencies
+  ([#1035](https://github.com/n24q02m/better-godot-mcp/pull/1035),
+  [`c5a49a1`](https://github.com/n24q02m/better-godot-mcp/commit/c5a49a1cd4a5608f6f61dc143312081f39df0648))
+
+- **deps**: Update n24q02m/better-semantic-release action to v1.2.3
+  ([#1057](https://github.com/n24q02m/better-godot-mcp/pull/1057),
+  [`ffc8fc2`](https://github.com/n24q02m/better-godot-mcp/commit/ffc8fc2441c8e1cef0406b75b1bb5b91608dfe0c))
+
+- **deps**: Update patch dependencies
+  ([#1034](https://github.com/n24q02m/better-godot-mcp/pull/1034),
+  [`fdc10b7`](https://github.com/n24q02m/better-godot-mcp/commit/fdc10b74f467f91959936a40c3b98665dddd341d))
+
+- **deps**: Update tsx to ^4.23.4 ([#1068](https://github.com/n24q02m/better-godot-mcp/pull/1068),
+  [`48a762a`](https://github.com/n24q02m/better-godot-mcp/commit/48a762af9e985eef6b27abd6081a9c44f80b75ec))
+
+- **deps**: Update tsx to ^4.23.5 ([#1071](https://github.com/n24q02m/better-godot-mcp/pull/1071),
+  [`49cc2ec`](https://github.com/n24q02m/better-godot-mcp/commit/49cc2ecb3c2d168f6cc6954e6bc5f5a7391caf6d))
+
+### Features
+
+- Sync cross-promo section ([#1045](https://github.com/n24q02m/better-godot-mcp/pull/1045),
+  [`7c0de2c`](https://github.com/n24q02m/better-godot-mcp/commit/7c0de2cc2a71f52a09688ea20fb054a978aa7030))
+
+- Validate Godot engine compatibility and help contract
+  ([#1073](https://github.com/n24q02m/better-godot-mcp/pull/1073),
+  [`0f60ed8`](https://github.com/n24q02m/better-godot-mcp/commit/0f60ed84cc71a261805a0070e4e4ceb6c09e5efe))
+
+
+## Unreleased
+
+### Breaking Changes
+
+| Legacy argument | Current argument |
+| --- | --- |
+| `help.tool_name` | `help.topic` |
+
+`topic` is optional; omitting it returns the overview.
+
 ## v1.21.0 (2026-07-18)
 
 ### Bug Fixes

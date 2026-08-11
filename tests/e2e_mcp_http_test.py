@@ -67,7 +67,7 @@ async def main() -> int:
         ("config", "status", {"action": "status"}),
         ("config", "detect_godot", {"action": "detect_godot"}),
         ("config", "check", {"action": "check"}),
-        ("help", "help_config", {"tool_name": "config"}),
+        ("help", "help_config", {"topic": "config"}),
         ("project", "info", {"action": "info", "project_path": PROJECT_PATH}),
         ("project", "version", {"action": "version", "project_path": PROJECT_PATH}),
         ("project", "settings_get", {"action": "settings_get", "key": "application/config/name", "project_path": PROJECT_PATH}),

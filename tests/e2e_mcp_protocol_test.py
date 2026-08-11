@@ -30,8 +30,8 @@ CALL_PLANS: dict[str, list[tuple[str, dict]]] = {
         ("set", {"action": "set", "key": "project_path", "value": PROJECT_PATH}),
     ],
     "help": [
-        ("help_project", {"tool_name": "project"}),
-        ("help_scenes", {"tool_name": "scenes"}),
+        ("help_project", {"topic": "project"}),
+        ("help_scenes", {"topic": "scenes"}),
     ],
     "project": [
         ("version", {"action": "version"}),

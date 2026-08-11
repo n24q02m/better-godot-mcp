@@ -8,26 +8,26 @@ import { join } from 'node:path'
 import { GodotMCPError } from '../helpers/errors.js'
 import { pathExists } from '../helpers/paths.js'
 
-const VALID_TOPICS = [
-  'project',
-  'scenes',
-  'nodes',
-  'scripts',
-  'editor',
-  'config',
-  'help',
-  'resources',
-  'input_map',
-  'signals',
+export const VALID_HELP_TOPICS = [
   'animation',
-  'tilemap',
-  'shader',
-  'physics',
   'audio',
+  'editor',
+  'input_map',
   'navigation',
+  'nodes',
+  'physics',
+  'project',
+  'resources',
+  'scenes',
+  'scripts',
+  'shader',
+  'signals',
+  'tilemap',
   'ui',
+  'config',
+  'overview',
 ] as const
-type TopicName = (typeof VALID_TOPICS)[number]
+type HelpTopic = (typeof VALID_HELP_TOPICS)[number]
 
 let cachedDocsDir: string | null = null
 
@@ -63,7 +63,7 @@ async function getDocsDir(): Promise<string> {
 }
 
 /**
- * Load documentation for a specific tool
+ * Load documentation for a specific help topic.
  */
 async function loadDoc(topic: string): Promise<string> {
   const docsDir = await getDocsDir()
@@ -81,14 +81,18 @@ async function loadDoc(topic: string): Promise<string> {
   }
 }
 
-export async function handleHelp(action: string, args: Record<string, unknown>) {
-  const toolName = (args.tool_name as string) || action
+export async function handleHelp(topic?: string) {
+  const resolvedTopic = topic === undefined ? 'overview' : topic
 
-  if (!VALID_TOPICS.includes(toolName as TopicName)) {
-    throw new GodotMCPError(`Unknown tool: ${toolName}`, 'INVALID_ARGS', `Valid topics: ${VALID_TOPICS.join(', ')}`)
+  if (!VALID_HELP_TOPICS.includes(resolvedTopic as HelpTopic)) {
+    throw new GodotMCPError(
+      `Unknown topic: ${resolvedTopic}`,
+      'INVALID_ARGS',
+      `Valid topics: ${VALID_HELP_TOPICS.join(', ')}`,
+    )
   }
 
-  const doc = await loadDoc(toolName)
+  const doc = await loadDoc(resolvedTopic)
   // help stays markdown-only by design (no outputSchema) -- do not route through
   // formatSuccess, which now always emits structuredContent for domain tools.
   return { content: [{ type: 'text', text: doc }] }

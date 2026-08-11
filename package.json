@@ -1,7 +1,7 @@
 {
   "name": "@n24q02m/better-godot-mcp",
   "mcpName": "io.github.n24q02m/better-godot-mcp",
-  "version": "1.21.0",
+  "version": "1.22.0",
   "description": "Composite MCP server for Godot Engine -- 17 composite tools for AI-assisted game development.",
   "type": "module",
   "main": "build/src/init-server.js",
@@ -35,7 +35,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
-    "@n24q02m/mcp-core": "1.22.0",
+    "@n24q02m/mcp-core": "1.23.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -43,7 +43,7 @@
     "@types/node": "^26.1.2",
     "@vitest/coverage-v8": "^4.1.10",
     "esbuild": "^0.28.1",
-    "tsx": "^4.23.1",
+    "tsx": "^4.23.5",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   },

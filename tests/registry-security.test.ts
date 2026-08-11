@@ -10,6 +10,25 @@ vi.mock('../src/tools/composite/config.js', () => ({
   handleConfig: vi.fn(() => ({ content: [{ type: 'text', text: 'config content' }] })),
 }))
 vi.mock('../src/tools/composite/help.js', () => ({
+  VALID_HELP_TOPICS: [
+    'animation',
+    'audio',
+    'editor',
+    'input_map',
+    'navigation',
+    'nodes',
+    'physics',
+    'project',
+    'resources',
+    'scenes',
+    'scripts',
+    'shader',
+    'signals',
+    'tilemap',
+    'ui',
+    'config',
+    'overview',
+  ],
   handleHelp: vi.fn(() => ({ content: [{ type: 'text', text: 'help content' }] })),
 }))
 vi.mock('../src/tools/composite/project.js', () => ({
@@ -98,7 +117,7 @@ describe('registerTools security integration', () => {
 
   it('should NOT wrap results for help tool', async () => {
     const result = (await callToolHandler?.({
-      params: { name: 'help', arguments: { tool_name: 'scripts' } },
+      params: { name: 'help', arguments: { topic: 'scripts' } },
     })) as { content: Array<{ text: string }> }
 
     expect(result.content[0].text).toBe('help content')

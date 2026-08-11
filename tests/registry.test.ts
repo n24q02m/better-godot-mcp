@@ -67,16 +67,17 @@ describe('registry', () => {
       expect(registrySource).toContain('openWorldHint: false')
     })
 
-    it('all tools should have inputSchema with required action', () => {
+    it('all tools should have inputSchema with the correct required fields', () => {
       const inputSchemaCount = (registrySource.match(/inputSchema:\s*\{/g) || []).length
       expect(inputSchemaCount).toBe(EXPECTED_TOOLS.length)
 
-      // help tool requires 'tool_name' instead of 'action'
+      // help has an optional topic; all other tools require action
       const requiredActionCount = (registrySource.match(/required:\s*\['action']/g) || []).length
-      expect(requiredActionCount).toBe(EXPECTED_TOOLS.length - 1) // 17 minus help (uses 'tool_name')
+      expect(requiredActionCount).toBe(EXPECTED_TOOLS.length - 1)
 
-      // help uses 'tool_name' as required
-      expect(registrySource).toContain("required: ['tool_name']")
+      expect(registrySource).toContain('topic:')
+      expect(registrySource).not.toContain('tool_name')
+      expect(registrySource).not.toContain("required: ['topic']")
     })
   })
 
@@ -146,16 +147,9 @@ describe('registry', () => {
   // Schema correctness
   // ==========================================
   describe('schema correctness', () => {
-    it('help tool should list all other tool names in its enum', () => {
-      // Extract the help tool's tool_name enum
-      const helpSection = registrySource.slice(
-        registrySource.indexOf("name: 'help'"),
-        registrySource.indexOf('},\n]', registrySource.indexOf("name: 'help'")),
-      )
-
-      for (const tool of EXPECTED_TOOLS) {
-        expect(helpSection).toContain(`'${tool}'`)
-      }
+    it('help tool should expose the shared optional topic enum', () => {
+      expect(registrySource).toContain('enum: [...VALID_HELP_TOPICS]')
+      expect(registrySource).toContain('import { handleHelp, VALID_HELP_TOPICS }')
     })
 
     it('read-only tools should have readOnlyHint=true', () => {

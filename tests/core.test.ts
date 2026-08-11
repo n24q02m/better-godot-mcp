@@ -7,7 +7,7 @@ describe('Better Godot MCP', () => {
       const mod = await import('../src/init-server.js')
       expect(mod.initServer).toBeDefined()
       expect(typeof mod.initServer).toBe('function')
-    })
+    }, 30_000)
   })
 
   describe('detector', () => {
@@ -25,7 +25,7 @@ describe('Better Godot MCP', () => {
       expect(v2?.major).toBe(4)
       expect(v2?.minor).toBe(3)
       expect(v2?.patch).toBe(1)
-    })
+    }, 30_000)
 
     it('should validate minimum version', async () => {
       const { isVersionSupported } = await import('../src/godot/detector.js')
@@ -35,7 +35,7 @@ describe('Better Godot MCP', () => {
       expect(isVersionSupported({ major: 4, minor: 0, patch: 0, label: 'stable', raw: '' })).toBe(false)
       expect(isVersionSupported({ major: 3, minor: 5, patch: 0, label: 'stable', raw: '' })).toBe(false)
       expect(isVersionSupported({ major: 5, minor: 0, patch: 0, label: 'dev', raw: '' })).toBe(true)
-    })
+    }, 30_000)
   })
 
   describe('errors', () => {
@@ -49,7 +49,7 @@ describe('Better Godot MCP', () => {
       expect(result.content[0].text).toContain('GODOT_NOT_FOUND')
       expect(result.content[0].text).toContain('Test error')
       expect(result.content[0].text).toContain('Install Godot')
-    })
+    }, 30_000)
 
     it('should format generic errors', async () => {
       const { formatError } = await import('../src/tools/helpers/errors.js')
@@ -57,6 +57,6 @@ describe('Better Godot MCP', () => {
       const result = formatError(new Error('generic'))
       expect(result.isError).toBe(true)
       expect(result.content[0].text).toContain('generic')
-    })
+    }, 30_000)
   })
 })

@@ -7,7 +7,28 @@ import type { GodotConfig } from '../src/godot/types.js'
 import { makeConfig } from './fixtures.js'
 
 // Mock all tool handlers
-vi.mock('../src/tools/composite/help.js', () => ({ handleHelp: vi.fn() }))
+vi.mock('../src/tools/composite/help.js', () => ({
+  VALID_HELP_TOPICS: [
+    'animation',
+    'audio',
+    'editor',
+    'input_map',
+    'navigation',
+    'nodes',
+    'physics',
+    'project',
+    'resources',
+    'scenes',
+    'scripts',
+    'shader',
+    'signals',
+    'tilemap',
+    'ui',
+    'config',
+    'overview',
+  ],
+  handleHelp: vi.fn(),
+}))
 vi.mock('../src/tools/composite/project.js', () => ({
   handleProject: vi.fn(() => ({ content: [{ type: 'text', text: 'project result' }] })),
 }))
@@ -79,12 +100,12 @@ describe('registerTools coverage', () => {
     expect(result.content[0].text).toContain("Did you mean 'project'?")
   })
 
-  it('should route help tool with tool_name if action is missing', async () => {
+  it('should route help tool with topic if action is missing', async () => {
     const { handleHelp } = await import('../src/tools/composite/help.js')
     await callToolHandler?.({
-      params: { name: 'help', arguments: { tool_name: 'project' } },
+      params: { name: 'help', arguments: { topic: 'project' } },
     })
-    expect(handleHelp).toHaveBeenCalledWith('project', expect.anything())
+    expect(handleHelp).toHaveBeenCalledWith('project')
   })
 
   it('should handle errors thrown by handleHelp', async () => {
@@ -92,7 +113,7 @@ describe('registerTools coverage', () => {
     vi.mocked(handleHelp).mockRejectedValueOnce(new Error('help error'))
 
     const result = (await callToolHandler?.({
-      params: { name: 'help', arguments: { action: 'info' } },
+      params: { name: 'help', arguments: { topic: 'config' } },
     })) as { isError: boolean; content: Array<{ text: string }> }
 
     expect(result.isError).toBe(true)

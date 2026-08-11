@@ -1,0 +1,17 @@
+; Engine configuration file.
+; Generated for the Better Godot MCP EditorPlugin headless load test.
+
+config_version=5
+
+[application]
+
+config/name="Better Godot MCP EditorPlugin Fixture"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/better_godot_mcp/plugin.cfg")
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"

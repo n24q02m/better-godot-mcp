@@ -11,7 +11,7 @@ import { spawn } from 'node:child_process'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const CLI_PATH = resolve(__dirname, '..', 'bin', 'cli.mjs')
+const CLI_PATH = resolve(process.cwd(), 'bin', 'cli.mjs')
 
 interface JsonRpcResponse {
   jsonrpc: '2.0'

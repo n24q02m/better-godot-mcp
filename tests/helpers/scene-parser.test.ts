@@ -307,10 +307,10 @@ describe('scene-parser', () => {
   })
 
   // ==========================================
-  // transformSceneContent updates
+  // Array-returning transform callbacks
   // ==========================================
-  describe('transformSceneContent optimizations', () => {
-    it('should correctly process array returns from callbacks', () => {
+  describe('transformSceneContent callback results', () => {
+    it('should preserve properties appended by array callback results', () => {
       const updates = { position: 'Vector2(0, 0)', velocity: 'Vector2(100, 100)' }
       const { content, updated } = updateNodeInScene(COMPLEX_TSCN, 'Player', updates)
       expect(updated).toBe(true)

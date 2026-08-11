@@ -369,7 +369,6 @@ function transformSceneContent(
       if (inTargetNode && callbacks.onTargetNodeEnd) {
         const extra = callbacks.onTargetNodeEnd()
         if (extra) {
-          // ⚡ Bolt: Avoid Array.isArray() and spread operator (...) in tight loop
           if (typeof extra === 'string') {
             result.push(extra)
           } else {
@@ -385,7 +384,6 @@ function transformSceneContent(
 
     const processed = callbacks.processLine(line, inTargetNode, isSectionHeader)
     if (processed !== null) {
-      // ⚡ Bolt: Avoid Array.isArray() and spread operator (...) in tight loop
       if (typeof processed === 'string') {
         result.push(processed)
       } else {
@@ -400,7 +398,6 @@ function transformSceneContent(
   if (inTargetNode && callbacks.onTargetNodeEnd) {
     const extra = callbacks.onTargetNodeEnd()
     if (extra) {
-      // ⚡ Bolt: Avoid Array.isArray() and spread operator (...) in tight loop
       if (typeof extra === 'string') {
         result.push(extra)
       } else {

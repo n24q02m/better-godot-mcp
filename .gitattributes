@@ -42,10 +42,3 @@ bun.lock text eol=lf -diff linguist-generated
 *.png binary
 *.jpg binary
 *.ico binary
-
-# Godot Asset Store archives contain only the self-contained addon. The package command also
-# selects this path explicitly so a full-repository archive cannot leak server or CI files.
-/** export-ignore
-/addons !export-ignore
-/addons/better_godot_mcp !export-ignore
-/addons/better_godot_mcp/** !export-ignore

@@ -76,14 +76,14 @@ describe('Godot Asset Store package', () => {
     expect(entries.some((entry) => entry.startsWith('.github/'))).toBe(false)
   })
 
-  it('marks non-addon repository files export-ignore while retaining addon files', () => {
+  it('keeps the repository archive attribute-neutral because the command scopes its path explicitly', () => {
     const attributes = execFileSync(
       'git',
       ['check-attr', 'export-ignore', '--', 'package.json', 'addons/better_godot_mcp/plugin.cfg'],
       { cwd: repoRoot, encoding: 'utf8' },
     )
 
-    expect(attributes).toContain('package.json: export-ignore: set')
+    expect(attributes).toContain('package.json: export-ignore: unspecified')
     expect(attributes).toContain('addons/better_godot_mcp/plugin.cfg: export-ignore: unspecified')
   })
 })

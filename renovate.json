@@ -10,6 +10,7 @@
   "lockFileMaintenance": {
     "enabled": true,
     "schedule": ["before 5am"],
+    "commitMessageAction": "lock file maintenance",
     "automerge": true,
     "automergeType": "pr"
   },

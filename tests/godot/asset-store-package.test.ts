@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
@@ -42,13 +42,25 @@ function readZipEntries(archive: Buffer): string[] {
 }
 
 describe('Godot Asset Store package', () => {
-  it('builds a deterministic addon-only archive with the required package surface', () => {
+  it('builds a deterministic addon-only archive while unrelated worktree files are dirty', () => {
     const output = join(outputDir, 'better-godot-mcp-asset-store.zip')
+    const unrelatedDirtyFile = join(repoRoot, `.asset-store-unrelated-${process.pid}.tmp`)
+    writeFileSync(unrelatedDirtyFile, 'unrelated test fixture\n')
 
-    execFileSync(process.execPath, ['scripts/build-godot-asset-store-package.mjs', '--output', output], {
-      cwd: repoRoot,
-      encoding: 'utf8',
-    })
+    try {
+      const status = execFileSync('git', ['status', '--porcelain', '--', unrelatedDirtyFile], {
+        cwd: repoRoot,
+        encoding: 'utf8',
+      })
+      expect(status).toContain(`?? ${unrelatedDirtyFile.slice(repoRoot.length + 1).replaceAll('\\', '/')}`)
+
+      execFileSync(process.execPath, ['scripts/build-godot-asset-store-package.mjs', '--output', output], {
+        cwd: repoRoot,
+        encoding: 'utf8',
+      })
+    } finally {
+      rmSync(unrelatedDirtyFile, { force: true })
+    }
 
     expect(existsSync(output)).toBe(true)
     const entries = readZipEntries(readFileSync(output))
@@ -85,5 +97,24 @@ describe('Godot Asset Store package', () => {
 
     expect(attributes).toContain('package.json: export-ignore: unspecified')
     expect(attributes).toContain('addons/better_godot_mcp/plugin.cfg: export-ignore: unspecified')
+  })
+
+  it('rejects packaging when the addon source itself is dirty', () => {
+    const addonReadme = join(repoRoot, 'addons/better_godot_mcp/README.md')
+    const original = readFileSync(addonReadme)
+
+    try {
+      writeFileSync(addonReadme, Buffer.concat([original, Buffer.from('\nasset-store-dirty-fixture\n')]))
+
+      expect(() =>
+        execFileSync(process.execPath, ['scripts/build-godot-asset-store-package.mjs'], {
+          cwd: repoRoot,
+          encoding: 'utf8',
+          stdio: 'pipe',
+        }),
+      ).toThrow(/clean committed addon tree/)
+    } finally {
+      writeFileSync(addonReadme, original)
+    }
   })
 })

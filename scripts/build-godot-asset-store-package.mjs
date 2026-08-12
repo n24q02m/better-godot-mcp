@@ -34,14 +34,14 @@ function parseOutputPath(args, version) {
   return join(repoRoot, 'dist', 'godot-asset-store', `better-godot-mcp-${version}.zip`)
 }
 
-function assertCleanWorktree() {
-  const status = execFileSync('git', ['status', '--porcelain', '--untracked-files=all'], {
+function assertCleanAddonTree() {
+  const status = execFileSync('git', ['status', '--porcelain', '--untracked-files=all', '--', addonPath], {
     cwd: repoRoot,
     encoding: 'utf8',
   }).trim()
 
   if (status) {
-    throw new Error('Asset Store packaging requires a clean worktree; commit the source first')
+    throw new Error('Asset Store packaging requires a clean committed addon tree; commit the addon source first')
   }
 }
 
@@ -79,7 +79,7 @@ function buildArchive(outputPath) {
 
 const version = readAddonVersion()
 const outputPath = parseOutputPath(process.argv.slice(2), version)
-assertCleanWorktree()
+assertCleanAddonTree()
 assertRequiredAddonFiles()
 buildArchive(outputPath)
 

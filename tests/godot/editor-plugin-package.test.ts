@@ -68,7 +68,9 @@ describe('Godot EditorPlugin package', () => {
 
     expect(readme).toContain('127.0.0.1')
     expect(readme).toContain('npx')
+    expect(readme).toContain('Asset Store')
     expect(readme).toContain('Asset Library')
+    expect(readme).toContain('package:godot-asset-store')
     expect(readme).toContain('icon.png')
     expect(readme).toContain('LICENSE')
     expect(readme).toContain('no auth')

@@ -52,9 +52,22 @@ The first package is deliberately local-only. It rejects remote hosts, does not 
 does not spawn a process, and does not download dependencies. A remote/authenticated transport
 requires a separate security design.
 
-## Godot Asset Library
+## Godot Asset Store
 
-The addon package is structured for an official Godot Asset Library review: it includes
+The addon package is structured for the current official Godot Asset Store: it includes
 `plugin.cfg`, an `@tool` `EditorPlugin`, this README, a copied `LICENSE`, and the square 128x128
-`icon.png` submission icon. Submission and listing are separate public publication steps and are
-not performed automatically by this repository.
+`icon.png` submission icon. After committing the source, create the deterministic upload archive
+with:
+
+```sh
+bun run package:godot-asset-store
+```
+
+The generated ZIP contains only `addons/better_godot_mcp/`; it does not contain the MCP server
+source, lockfiles, CI configuration, or repository metadata. The Asset Store form still requires
+the owner to provide publisher/asset slug, type, supported Godot range, description, license,
+media and AI-usage disclosure, then accept terms and submit for manual review. Upload and listing
+are not performed automatically by this repository.
+
+The former Godot Asset Library is a separate legacy surface and is not a substitute for the
+current Asset Store listing.

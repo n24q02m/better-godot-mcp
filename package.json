@@ -27,6 +27,7 @@
     "lint": "biome check .",
     "format": "biome format --write .",
     "check": "biome check . && tsc --noEmit",
+    "package:godot-asset-store": "node scripts/build-godot-asset-store-package.mjs",
     "test:full": "bun run build && vitest run --config vitest.full.config.ts",
     "test:live": "bun run build && vitest run --config vitest.live.config.ts",
     "check:fix": "biome check --fix .",

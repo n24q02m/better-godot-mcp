@@ -54,7 +54,12 @@ describe('Godot Asset Store package', () => {
     const entries = readZipEntries(readFileSync(output))
 
     expect(entries.length).toBeGreaterThan(0)
-    expect(entries.every((entry) => entry.startsWith('addons/better_godot_mcp/'))).toBe(true)
+    const allowedDirectoryEntries = new Set(['addons/', 'addons/better_godot_mcp/'])
+    expect(
+      entries.every(
+        (entry) => allowedDirectoryEntries.has(entry) || entry.startsWith('addons/better_godot_mcp/'),
+      ),
+    ).toBe(true)
 
     for (const required of [
       'addons/better_godot_mcp/plugin.cfg',

@@ -67,19 +67,10 @@ function readAddonVersion() {
 
 function buildArchive(outputPath) {
   mkdirSync(dirname(outputPath), { recursive: true })
-  execFileSync(
-    'git',
-    [
-      'archive',
-      '--format=zip',
-      '--worktree-attributes',
-      '--output',
-      outputPath,
-      'HEAD',
-      addonPath,
-    ],
-    { cwd: repoRoot, stdio: 'pipe' },
-  )
+  execFileSync('git', ['archive', '--format=zip', '--worktree-attributes', '--output', outputPath, 'HEAD', addonPath], {
+    cwd: repoRoot,
+    stdio: 'pipe',
+  })
 
   if (!existsSync(outputPath) || statSync(outputPath).size === 0) {
     throw new Error(`Git produced no archive at ${outputPath}`)

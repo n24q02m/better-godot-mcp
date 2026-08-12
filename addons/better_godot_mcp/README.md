@@ -64,10 +64,14 @@ bun run package:godot-asset-store
 ```
 
 The generated ZIP contains only `addons/better_godot_mcp/`; it does not contain the MCP server
-source, lockfiles, CI configuration, or repository metadata. The Asset Store form still requires
-the owner to provide publisher/asset slug, type, supported Godot range, description, license,
-media and AI-usage disclosure, then accept terms and submit for manual review. Upload and listing
-are not performed automatically by this repository.
+source, lockfiles, CI configuration, repository metadata, or submission media. Upload-ready
+1280x720 screenshots and their exact form mapping are maintained in the repository's
+[`media/godot-asset-store/`](../../media/godot-asset-store/README.md) directory.
+
+The Asset Store form still requires the owner to provide publisher/asset slug, type, supported
+Godot range, description, license, upload the prepared media, complete the AI-usage disclosure,
+then accept terms and submit for manual review. Upload and listing are not performed automatically
+by this repository.
 
 The former Godot Asset Library is a separate legacy surface and is not a substitute for the
 current Asset Store listing.

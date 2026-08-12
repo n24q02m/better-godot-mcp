@@ -1,15 +1,16 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const addonDir = resolve(process.cwd(), 'addons/better_godot_mcp')
+const assetStoreMediaDir = resolve(process.cwd(), 'media/godot-asset-store')
 
 function readAddonFile(name: string): string {
   return readFileSync(resolve(addonDir, name), 'utf8')
 }
 
-function readPngDimensions(name: string): { width: number; height: number } {
-  const png = readFileSync(resolve(addonDir, name))
+function readPngDimensions(directory: string, name: string): { width: number; height: number } {
+  const png = readFileSync(resolve(directory, name))
   const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])
 
   if (!png.subarray(0, signature.length).equals(signature) || png.toString('ascii', 12, 16) !== 'IHDR') {
@@ -22,6 +23,9 @@ function readPngDimensions(name: string): { width: number; height: number } {
 describe('Godot EditorPlugin package', () => {
   it('contains the minimum official plugin package surface', () => {
     const manifest = readAddonFile('plugin.cfg')
+    const license = readAddonFile('LICENSE')
+
+    expect(existsSync(resolve(process.cwd(), '.gitignore'))).toBe(true)
 
     expect(manifest).toContain('[plugin]')
     expect(manifest).toContain('name="Better Godot MCP"')
@@ -39,8 +43,9 @@ describe('Godot EditorPlugin package', () => {
       expect(() => readAddonFile(file)).not.toThrow()
     }
 
-    expect(readAddonFile('LICENSE')).toContain('Apache License')
-    const icon = readPngDimensions('icon.png')
+    expect(license).toContain('Apache License')
+    expect(license).toContain('Copyright 2026 n24q02m')
+    const icon = readPngDimensions(addonDir, 'icon.png')
     expect(icon.width).toBeGreaterThanOrEqual(128)
     expect(icon.height).toBeGreaterThanOrEqual(128)
     expect(icon.width).toBe(icon.height)
@@ -75,5 +80,22 @@ describe('Godot EditorPlugin package', () => {
     expect(readme).toContain('LICENSE')
     expect(readme).toContain('no auth')
     expect(readme).toContain('Godot 4.7.1')
+  })
+
+  it('provides upload-ready 16:9 Asset Store media outside the addon archive', () => {
+    expect(existsSync(resolve(assetStoreMediaDir, '.gdignore'))).toBe(true)
+
+    for (const file of ['thumbnail.png', 'screenshot-project-info.png']) {
+      const image = readPngDimensions(assetStoreMediaDir, file)
+      expect(image.width).toBeGreaterThanOrEqual(1280)
+      expect(image.height).toBeGreaterThanOrEqual(720)
+      expect(image.width * 9).toBe(image.height * 16)
+    }
+
+    const guide = readFileSync(resolve(assetStoreMediaDir, 'README.md'), 'utf8')
+    expect(guide).toContain('thumbnail.png')
+    expect(guide).toContain('screenshot-project-info.png')
+    expect(guide).toContain('1280x720')
+    expect(guide).toContain('Media')
   })
 })

@@ -19,6 +19,26 @@ describe('physics security', () => {
 
   afterEach(() => cleanup())
 
+  it('should reject non-string layer names before modifying project.godot', async () => {
+    const configPath = join(projectPath, 'project.godot')
+    const original = readFileSync(configPath, 'utf-8')
+
+    await expect(
+      handlePhysics(
+        'set_layer_name',
+        {
+          project_path: projectPath,
+          layer_number: 1,
+          dimension: '2d',
+          name: ['Enemies\n[application]'],
+        },
+        config,
+      ),
+    ).rejects.toThrow('Invalid arguments: expected string values')
+
+    expect(readFileSync(configPath, 'utf-8')).toBe(original)
+  })
+
   it('should not allow scene file injection via collision_layer', async () => {
     createTmpScene(projectPath, 'test.tscn', MINIMAL_TSCN)
     const maliciousPayload = '1\n[node name="Injected" type="Node"]\n'

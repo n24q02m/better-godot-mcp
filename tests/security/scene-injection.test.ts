@@ -1,4 +1,4 @@
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { GodotConfig } from '../../src/godot/types.js'
@@ -20,6 +20,25 @@ describe('Scene Injection Security Tests', () => {
   })
 
   describe('Animation Tool', () => {
+    it('should reject non-string template arguments before modifying the scene', async () => {
+      const scenePath = join(projectPath, 'scene.tscn')
+      const original = readFileSync(scenePath, 'utf-8')
+
+      await expect(
+        handleAnimation(
+          'create_player',
+          { scene_path: 'scene.tscn', name: ['Player\n[node name="Injected"]'] },
+          config,
+        ),
+      ).rejects.toThrow('Invalid characters in parameters')
+
+      await expect(
+        handleAnimation('add_animation', { scene_path: 'scene.tscn', anim_name: { value: 'Idle' } }, config),
+      ).rejects.toThrow('Invalid characters in anim_name')
+
+      expect(readFileSync(scenePath, 'utf-8')).toBe(original)
+    })
+
     it('should reject newlines and quotes in create_player', async () => {
       await expect(
         handleAnimation('create_player', { scene_path: 'scene.tscn', name: 'Player\n[node' }, config),

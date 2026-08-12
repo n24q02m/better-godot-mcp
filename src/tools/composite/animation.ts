@@ -8,7 +8,7 @@ import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
 import { parseSceneContent } from '../helpers/scene-parser.js'
-import { validateNoNewlines } from '../helpers/security.js'
+import { validateNoNewlines, validateStringArguments } from '../helpers/security.js'
 
 // ⚡ Bolt: Removed redundant pathExists. Instead return resolved path and use try/catch in handlers where needed.
 function resolveScene(projectRoot: string, scenePath: string): string {
@@ -16,12 +16,13 @@ function resolveScene(projectRoot: string, scenePath: string): string {
 }
 
 async function handleCreatePlayer(projectPath: string, args: Record<string, unknown>) {
+  validateStringArguments('Invalid characters in parameters', args.scene_path, args.name, args.parent)
   const scenePath = args.scene_path as string
   if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
   const playerName = (args.name as string) || 'AnimationPlayer'
   const parent = (args.parent as string) || '.'
 
-  validateNoNewlines('Invalid characters in parameters', playerName, parent)
+  validateNoNewlines('Invalid characters in parameters', scenePath, playerName, parent)
   if (playerName.includes('"') || parent.includes('"')) {
     throw new GodotMCPError('Invalid characters in parameters', 'INVALID_ARGS', 'Parameters must not contain quotes.')
   }
@@ -47,6 +48,8 @@ async function handleCreatePlayer(projectPath: string, args: Record<string, unkn
 }
 
 async function handleAddAnimation(projectPath: string, args: Record<string, unknown>) {
+  validateStringArguments(undefined, args.scene_path)
+  validateStringArguments('Invalid characters in anim_name', args.anim_name)
   const scenePath = args.scene_path as string
   if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
   const animName = args.anim_name as string
@@ -57,6 +60,7 @@ async function handleAddAnimation(projectPath: string, args: Record<string, unkn
   const duration = (args.duration as number) || 1.0
   const loop = args.loop !== false
 
+  validateNoNewlines(undefined, scenePath)
   validateNoNewlines('Invalid characters in anim_name', animName)
   if (animName.includes('"')) {
     throw new GodotMCPError('Invalid characters in anim_name', 'INVALID_ARGS', 'Parameters must not contain quotes.')
@@ -92,6 +96,14 @@ async function handleAddAnimation(projectPath: string, args: Record<string, unkn
 }
 
 async function handleAddTrack(projectPath: string, args: Record<string, unknown>) {
+  validateStringArguments(
+    'Invalid characters in parameters',
+    args.scene_path,
+    args.anim_name,
+    args.track_type,
+    args.node_path,
+    args.property,
+  )
   const scenePath = args.scene_path as string
   if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
   const animName = args.anim_name as string
@@ -102,7 +114,7 @@ async function handleAddTrack(projectPath: string, args: Record<string, unknown>
     throw new GodotMCPError('anim_name, node_path, and property required', 'INVALID_ARGS', 'All three are required.')
   }
 
-  validateNoNewlines('Invalid characters in parameters', animName, trackType, nodePath, property)
+  validateNoNewlines('Invalid characters in parameters', scenePath, animName, trackType, nodePath, property)
   if (animName.includes('"') || trackType.includes('"') || nodePath.includes('"') || property.includes('"')) {
     throw new GodotMCPError('Invalid characters in parameters', 'INVALID_ARGS', 'Parameters must not contain quotes.')
   }
@@ -150,8 +162,10 @@ async function handleAddKeyframe() {
 }
 
 async function handleListAnimations(projectPath: string, args: Record<string, unknown>) {
+  validateStringArguments(undefined, args.scene_path)
   const scenePath = args.scene_path as string
   if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
+  validateNoNewlines(undefined, scenePath)
 
   const fullPath = resolveScene(projectPath, scenePath)
   let content: string
@@ -216,6 +230,7 @@ const ANIMATION_ACTIONS: Record<string, (projectPath: string, args: Record<strin
 }
 
 export async function handleAnimation(action: string, args: Record<string, unknown>, config: GodotConfig) {
+  validateStringArguments(undefined, args.project_path)
   const projectPath = resolveProjectRoot(args.project_path, config.projectPath)
 
   if (Object.hasOwn(ANIMATION_ACTIONS, action)) {

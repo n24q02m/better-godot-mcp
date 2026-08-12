@@ -11,9 +11,10 @@ import { toGodotValue } from '../helpers/godot-types.js'
 import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
 import { parseProjectSettingsAsync, setSettingInContent } from '../helpers/project-settings.js'
 import { updateNodeInScene } from '../helpers/scene-parser.js'
-import { validateNoNewlines } from '../helpers/security.js'
+import { validateNoNewlines, validateStringArguments } from '../helpers/security.js'
 
 export async function handlePhysics(action: string, args: Record<string, unknown>, config: GodotConfig) {
+  validateStringArguments(undefined, args.project_path)
   const projectPath = (args.project_path as string) || config.projectPath || ''
 
   switch (action) {
@@ -43,6 +44,7 @@ export async function handlePhysics(action: string, args: Record<string, unknown
     }
 
     case 'collision_setup': {
+      validateStringArguments(undefined, args.scene_path, args.name)
       const scenePath = args.scene_path as string
       if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
       const nodeName = args.name as string
@@ -87,6 +89,7 @@ export async function handlePhysics(action: string, args: Record<string, unknown
     }
 
     case 'body_config': {
+      validateStringArguments(undefined, args.scene_path, args.name)
       const scenePath = args.scene_path as string
       if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
       const nodeName = args.name as string
@@ -125,6 +128,10 @@ export async function handlePhysics(action: string, args: Record<string, unknown
 
     case 'set_layer_name': {
       if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
+      validateStringArguments(undefined, args.dimension, args.name)
+      if (args.layer_number !== undefined && typeof args.layer_number !== 'number') {
+        throw new GodotMCPError('Invalid layer_number: must be a number', 'INVALID_ARGS')
+      }
       const layerNumRaw = args.layer_number !== undefined ? String(args.layer_number) : '1'
       const dimension = (args.dimension as string) || '2d'
       const name = args.name as string

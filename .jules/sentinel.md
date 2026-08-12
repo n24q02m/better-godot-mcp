@@ -34,3 +34,10 @@
 ## Rejected
 
 - PRs #1032, #1038, #1039, #1043, #1049, #1050, #1052, and #1055 were rejected after individual diff, commit, comment, linked-issue, and CI review. Their useful security ideas were reimplemented cleanly with strict raw-input validation, finite-number checks, own-property template guards, and path confinement. Do not resurrect the bot branches or their title/test bypasses.
+
+## 2025-10-24 - Newline Validation Bypass via Implicit String Coercion
+**Vulnerability:** The `validateNoNewlines` security helper relied on `typeof val === 'string'` before checking for newlines (`
+`, ``). This allowed attackers to pass arrays (e.g., `["malicious
+code"]`) containing newline characters, which bypassed the check but were later implicitly coerced to strings during template interpolation, resulting in injection vulnerabilities.
+**Learning:** Runtime type checks like `typeof` are insufficient for security validation when values are subsequently coerced implicitly by the runtime (e.g., in JavaScript template literals or Godot file generation).
+**Prevention:** When performing security validation on untyped inputs, explicitly coerce the input to the target type (e.g., `String(val)`) before applying checks like `.includes()` to ensure all potential representations are validated.

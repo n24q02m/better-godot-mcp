@@ -10,16 +10,24 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import shutil
 import sys
+import tempfile
 from pathlib import Path
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 REPO_ROOT = Path(__file__).parent.parent
-PROJECT_PATH = os.environ.get(
-    "GODOT_TEST_PROJECT", str(Path(__file__).parent.parent / "test-project-flags")
-)
+DEFAULT_PROJECT_PATH = REPO_ROOT / "test-project-flags"
+_TEMP_PROJECT_DIR: tempfile.TemporaryDirectory[str] | None = None
+_configured_project = os.environ.get("GODOT_TEST_PROJECT")
+if _configured_project:
+    PROJECT_PATH = _configured_project
+else:
+    _TEMP_PROJECT_DIR = tempfile.TemporaryDirectory(prefix="better-godot-e2e-")
+    shutil.copytree(DEFAULT_PROJECT_PATH, _TEMP_PROJECT_DIR.name, dirs_exist_ok=True)
+    PROJECT_PATH = _TEMP_PROJECT_DIR.name
 
 # Per-tool call plans: list of (label, args) tuples. Tools accept (action, ...extra).
 CALL_PLANS: dict[str, list[tuple[str, dict]]] = {
@@ -119,7 +127,7 @@ def short(text: str, n: int = 140) -> str:
 async def call_tool(session: ClientSession, tool: str, args: dict) -> tuple[bool, str]:
     try:
         res = await session.call_tool(tool, args)
-        if res.isError:
+        if getattr(res, "is_error", getattr(res, "isError", False)):
             body = res.content[0].text if res.content else "<no content>"
             return False, short(body)
         body = res.content[0].text if res.content else ""

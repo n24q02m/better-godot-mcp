@@ -1,0 +1,23 @@
+; Engine configuration file.
+; This fixture is intentionally minimal and is used by the stdio protocol harness.
+
+config_version=5
+
+[application]
+
+config/name="Better Godot MCP E2E Fixture"
+
+[display]
+
+window/size/viewport_width=640
+window/size/viewport_height=360
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+
+[input]
+
+[layer_names]
+2d_physics/layer_1="e2e_layer"

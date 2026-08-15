@@ -80,3 +80,7 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## Rejected
 
 - PRs #1029, #1031, #1037, #1040, #1048, #1051, #1053, #1054, and #1058 were rejected after individual diff, commit, comment, linked-issue, and CI review. They were duplicate or unverified cold-path optimizations and/or weakened title and test gates. Do not resurrect these patches; any needed hardening is reimplemented in a reviewed source patch.
+## 2025-02-12 - Replaced global regex with string.replaceAll
+
+**Learning:** V8 inline global regexes are slow for direct string replacements (e.g. `path.replace(/\\/g, '/')`). Fast-path methods like `replaceAll` should be preferred when simple string literals are needed, and string allocations can be entirely skipped with `.includes()` early exits.
+**Action:** Always prefer `replaceAll` over inline global regex literals for simple string replacement operations.

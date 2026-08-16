@@ -80,3 +80,7 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## Rejected
 
 - PRs #1029, #1031, #1037, #1040, #1048, #1051, #1053, #1054, and #1058 were rejected after individual diff, commit, comment, linked-issue, and CI review. They were duplicate or unverified cold-path optimizations and/or weakened title and test gates. Do not resurrect these patches; any needed hardening is reimplemented in a reviewed source patch.
+
+## 2025-06-25 - [Pre-compute valid tool names array]
+**Learning:** Using `.map()` inside a frequently called request handler (like `CallToolRequestSchema`) to extract an array of valid tool names creates unnecessary dynamic array allocations per request.
+**Action:** Pre-compute the array of valid tool names as a module-level constant (`const VALID_TOOL_NAMES = TOOLS.map(t => t.name)`) to avoid per-request array allocations and pass it directly to utilities like `findClosestMatch`.

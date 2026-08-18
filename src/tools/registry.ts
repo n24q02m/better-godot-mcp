@@ -551,6 +551,9 @@ const TOOLS = [...P0_TOOLS, ...P1_TOOLS, ...P2_TOOLS, ...P3_TOOLS].map((tool) =>
   tool.name === 'help' ? tool : { ...tool, outputSchema: DOMAIN_OUTPUT_SCHEMA },
 )
 
+// ⚡ Bolt: Pre-compute valid tool names to prevent Array.from() + .map() allocation overhead on every unknown tool invocation
+const VALID_TOOL_NAMES = TOOLS.map((t) => t.name)
+
 type ToolHandler = (
   action: string,
   args: Record<string, unknown>,
@@ -602,13 +605,12 @@ export function registerTools(server: Server, config: GodotConfig): void {
       } else {
         const handler = Object.hasOwn(TOOL_HANDLERS, name) ? TOOL_HANDLERS[name] : undefined
         if (!handler) {
-          const validTools = TOOLS.map((t) => t.name)
-          const closest = findClosestMatch(name, validTools)
+          const closest = findClosestMatch(name, VALID_TOOL_NAMES)
           const suggestion = closest ? ` Did you mean '${closest}'?` : ''
           throw new GodotMCPError(
             `Unknown tool: ${name}.${suggestion}`,
             'INVALID_ACTION',
-            `Available tools: ${validTools.join(', ')}`,
+            `Available tools: ${VALID_TOOL_NAMES.join(', ')}`,
           )
         }
         result = await handler(args.action as string, args as Record<string, unknown>, config)

@@ -7,7 +7,7 @@ import { mkdir, readdir, readFile, unlink, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
-import { safeResolve } from '../helpers/paths.js'
+import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
 import { parseSceneContent, updateNodeInScene } from '../helpers/scene-parser.js'
 import { validateStringArguments } from '../helpers/security.js'
 
@@ -292,19 +292,9 @@ async function deleteScript(args: Record<string, unknown>, resolvePath: (path: s
 }
 
 export async function handleScripts(action: string, args: Record<string, unknown>, config: GodotConfig) {
-  const baseDir = config.projectPath || process.cwd()
   validateStringArguments(undefined, args.project_path)
   // Validate args.project_path against the trusted baseDir to prevent path traversal vulnerabilities
-  const projectPath =
-    args.project_path === undefined || args.project_path === null
-      ? config.projectPath
-      : safeResolve(baseDir, args.project_path as string)
-
-  if (!projectPath && action !== 'list') {
-    // List handles missing projectPath internally, but others need it for safeResolve base
-    // Though list also throws if missing. Let's rely on standard checks inside but ensure projectPath is available for resolution.
-    // Actually, all actions check projectPath. We can resolve it early.
-  }
+  const projectPath = resolveProjectRoot(args.project_path, config.projectPath)
 
   // Helper to resolve path securely
   const resolvePath = (path: string) => {
@@ -325,7 +315,7 @@ export async function handleScripts(action: string, args: Record<string, unknown
     case 'attach':
       return attachScript(args, resolvePath)
     case 'list':
-      return listScripts(baseDir, projectPath ?? undefined)
+      return listScripts(projectPath, args.project_path as string | undefined ?? config.projectPath)
     case 'delete':
       return deleteScript(args, resolvePath)
     default:

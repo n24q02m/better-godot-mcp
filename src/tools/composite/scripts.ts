@@ -315,7 +315,10 @@ export async function handleScripts(action: string, args: Record<string, unknown
     case 'attach':
       return attachScript(args, resolvePath)
     case 'list':
-      return listScripts(projectPath, args.project_path as string | undefined ?? config.projectPath)
+      return listScripts(
+        projectPath,
+        (args.project_path as string | undefined | null) ?? config.projectPath ?? undefined,
+      )
     case 'delete':
       return deleteScript(args, resolvePath)
     default:

@@ -6,7 +6,7 @@
 import { launchGodotEditor } from '../../godot/headless.js'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
-import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
+import { resolveProjectRoot } from '../helpers/paths.js'
 import { isValidPid, validatePid } from '../helpers/security.js'
 
 /**
@@ -50,7 +50,7 @@ export async function handleEditor(action: string, args: Record<string, unknown>
         throw new GodotMCPError('Invalid project path', 'INVALID_ARGS', 'Project path must not start with a hyphen.')
       }
 
-      const { pid } = launchGodotEditor(config.godotPath, safeResolve(config.projectPath || process.cwd(), projectPath))
+      const { pid } = launchGodotEditor(config.godotPath, resolveProjectRoot(projectPath, config.projectPath))
       if (pid) {
         validatePid(pid)
         config.activePids.push(pid)

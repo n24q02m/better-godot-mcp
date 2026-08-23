@@ -34,3 +34,7 @@
 ## Rejected
 
 - PRs #1032, #1038, #1039, #1043, #1049, #1050, #1052, and #1055 were rejected after individual diff, commit, comment, linked-issue, and CI review. Their useful security ideas were reimplemented cleanly with strict raw-input validation, finite-number checks, own-property template guards, and path confinement. Do not resurrect the bot branches or their title/test bypasses.
+## 2025-10-18 - String Coercion Security Bypass
+**Vulnerability:** `typeof val === 'string'` in security validators can be bypassed by arrays (e.g. `["malicious\ncode"]`), which are not `string` type but implicitly coerce to strings with newlines during template interpolation.
+**Learning:** Checking for the type `string` before validating the content inside leaves other object types unchecked which can still be coerced.
+**Prevention:** Instead of `typeof val === 'string'`, explicitly coerce the value `String(val)` when doing string content matching (e.g., checking for newlines) to ensure arrays and other objects are properly validated.

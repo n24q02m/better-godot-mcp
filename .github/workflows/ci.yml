@@ -63,6 +63,7 @@ jobs:
             fix
             feat
             perf
+            chore
           requireScope: false
           subjectPattern: ^(?![A-Z]).+$
           subjectPatternError: |

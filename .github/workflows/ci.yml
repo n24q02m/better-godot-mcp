@@ -62,6 +62,7 @@ jobs:
           types: |
             fix
             feat
+            perf
           requireScope: false
           subjectPattern: ^(?![A-Z]).+$
           subjectPatternError: |

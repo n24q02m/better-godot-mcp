@@ -8,7 +8,7 @@ import { join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { serializeGodotObject } from '../helpers/godot-types.js'
-import { pathExists, resolveProjectRoot } from '../helpers/paths.js'
+import { resolveProjectRoot } from '../helpers/paths.js'
 import { fastTrimRange } from '../helpers/strings.js'
 
 // ⚡ Bolt: Pre-compile regular expressions to avoid recreation in hot paths
@@ -171,12 +171,23 @@ function parseEventsList(str: string): string[] {
   return results
 }
 
-async function getProjectGodotPath(projectPath: string | null | undefined, baseDir: string): Promise<string> {
+async function readProjectGodot(
+  projectPath: string | null | undefined,
+  baseDir: string,
+): Promise<{ configPath: string; content: string }> {
   if (!projectPath) throw new GodotMCPError('No project path specified', 'INVALID_ARGS', 'Provide project_path.')
   const configPath = join(resolveProjectRoot(projectPath, baseDir), 'project.godot')
-  if (!(await pathExists(configPath)))
-    throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
-  return configPath
+  let content: string
+  try {
+    // ⚡ Bolt: Using try-to-perform instead of pathExists to reduce redundant I/O calls
+    content = await readFile(configPath, 'utf-8')
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND', 'Verify the project path.')
+    }
+    throw error
+  }
+  return { configPath, content }
 }
 
 /**
@@ -330,8 +341,7 @@ export async function handleInputMap(action: string, args: Record<string, unknow
 
   switch (action) {
     case 'list': {
-      const configPath = await getProjectGodotPath(projectPath, baseDir)
-      const content = await readFile(configPath, 'utf-8')
+      const { content } = await readProjectGodot(projectPath, baseDir)
       const actions = parseInputActions(content)
 
       // ⚡ Bolt: Use a pre-allocated array and for...of loop to prevent Array.from() + .map() allocation overhead
@@ -348,7 +358,6 @@ export async function handleInputMap(action: string, args: Record<string, unknow
     }
 
     case 'add_action': {
-      const configPath = await getProjectGodotPath(projectPath, baseDir)
       const actionName = args.action_name as string
       if (!actionName) throw new GodotMCPError('No action_name specified', 'INVALID_ARGS', 'Provide action_name.')
       if (typeof actionName !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(actionName)) {
@@ -363,7 +372,8 @@ export async function handleInputMap(action: string, args: Record<string, unknow
       }
       const deadzone = (args.deadzone as number) || 0.5
 
-      let content = await readFile(configPath, 'utf-8')
+      const { configPath, content: rawContent } = await readProjectGodot(projectPath, baseDir)
+      let content = rawContent
 
       // Check if [input] section exists
       if (!content.includes('[input]')) {
@@ -384,7 +394,6 @@ export async function handleInputMap(action: string, args: Record<string, unknow
     }
 
     case 'remove_action': {
-      const configPath = await getProjectGodotPath(projectPath, baseDir)
       const actionName = args.action_name as string
       if (!actionName) throw new GodotMCPError('No action_name specified', 'INVALID_ARGS', 'Provide action_name.')
       if (typeof actionName !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(actionName)) {
@@ -395,7 +404,7 @@ export async function handleInputMap(action: string, args: Record<string, unknow
         )
       }
 
-      const content = await readFile(configPath, 'utf-8')
+      const { configPath, content } = await readProjectGodot(projectPath, baseDir)
       const { updated, found } = transformInputMap(content, actionName, () => null)
 
       if (!found) {
@@ -407,7 +416,6 @@ export async function handleInputMap(action: string, args: Record<string, unknow
     }
 
     case 'add_event': {
-      const configPath = await getProjectGodotPath(projectPath, baseDir)
       const actionName = args.action_name as string
       const eventType = args.event_type as string
       const eventValue = args.event_value as string
@@ -426,7 +434,7 @@ export async function handleInputMap(action: string, args: Record<string, unknow
         )
       }
 
-      const content = await readFile(configPath, 'utf-8')
+      const { configPath, content } = await readProjectGodot(projectPath, baseDir)
 
       // Build event object based on type
       let eventObj: string

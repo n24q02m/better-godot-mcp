@@ -80,3 +80,6 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## Rejected
 
 - PRs #1029, #1031, #1037, #1040, #1048, #1051, #1053, #1054, and #1058 were rejected after individual diff, commit, comment, linked-issue, and CI review. They were duplicate or unverified cold-path optimizations and/or weakened title and test gates. Do not resurrect these patches; any needed hardening is reimplemented in a reviewed source patch.
+## 2023-10-27 - [Optimize redundant pathExists checks in input map tool]
+**Learning:** Sequential `pathExists` followed by I/O operations like `readFile` causes redundant filesystem calls, which impacts performance. Additionally, checking `pathExists` before reading a file is not thread-safe and is prone to Time-Of-Check to Time-Of-Use (TOCTOU) race conditions.
+**Action:** Replaced `getProjectGodotPath` and its internal `pathExists` check with a new `readProjectGodot` function in `src/tools/composite/input-map.ts`. The new function attempts to `readFile` directly and wraps it in a `try...catch` handling the `ENOENT` error.

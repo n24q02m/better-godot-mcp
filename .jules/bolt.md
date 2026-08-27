@@ -80,3 +80,7 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## Rejected
 
 - PRs #1029, #1031, #1037, #1040, #1048, #1051, #1053, #1054, and #1058 were rejected after individual diff, commit, comment, linked-issue, and CI review. They were duplicate or unverified cold-path optimizations and/or weakened title and test gates. Do not resurrect these patches; any needed hardening is reimplemented in a reviewed source patch.
+
+## 2026-07-20 - [Optimize Godot value parsing]
+**Learning:** Re-evaluating regular expressions for all inputs is expensive. In `parseGodotValue`, checking `.charCodeAt(0)` first for the most common structural types (like Vector, Color, Rect2) provides a huge fast-path speedup by skipping regular expression processing on non-matching strings. Using `.charCodeAt(0)` is faster than checking string prefixes like `.startsWith()`. Also, for array parsing, using direct indexed assignments `results[rIdx++] = ...` instead of `results.push(...)` prevents array resizing overhead in the V8 JS engine, which is a significant bottleneck for deep/large scene files.
+**Action:** Implemented char code branching (`firstChar === 86` for 'V') to guard structural regex execution, and converted `.push()` to indexed assignment in the tight array-parsing hot loop.

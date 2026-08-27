@@ -63,12 +63,85 @@ export function parseGodotValue(expr: string, _depth = 0): unknown {
     return Number.parseFloat(trimmed)
   }
 
+  const len = trimmed.length
+  if (len === 0) return trimmed
+
+  const firstChar = trimmed.charCodeAt(0)
+
+  // Array ('[' = 91)
+  // ⚡ Bolt: Fast path for Array parsing using charCodeAt, inline index tracking, and integer states
+  if (firstChar === 91 && trimmed.charCodeAt(len - 1) === 93) {
+    const inner = trimmed.slice(1, -1)
+
+    let innerStart = 0
+    let innerEnd = inner.length
+    while (innerStart < innerEnd && inner.charCodeAt(innerStart) <= 32) innerStart++
+    while (innerEnd > innerStart && inner.charCodeAt(innerEnd - 1) <= 32) innerEnd--
+
+    if (innerStart >= innerEnd) return []
+
+    const results: unknown[] = []
+    let bracketLevel = 0
+    let parenLevel = 0
+    let inQuote = 0 // 0 means not in quote, 34 is ", 39 is '
+    let start = innerStart
+    let rIdx = 0 // ⚡ Bolt: Use indexed assignment instead of .push() for arrays
+
+    for (let i = innerStart; i <= innerEnd; i++) {
+      const charCode = i < innerEnd ? inner.charCodeAt(i) : 44 // 44 is ','
+
+      if (inQuote !== 0) {
+        if (charCode === inQuote && inner.charCodeAt(i - 1) !== 92) {
+          // 92 is '\'
+          inQuote = 0
+        }
+        continue
+      }
+
+      if (charCode === 34 || charCode === 39) {
+        // '"' or "'"
+        inQuote = charCode
+        continue
+      }
+
+      if (charCode === 91)
+        bracketLevel++ // '['
+      else if (charCode === 93)
+        bracketLevel-- // ']'
+      else if (charCode === 40)
+        parenLevel++ // '('
+      else if (charCode === 41)
+        parenLevel-- // ')'
+      else if (charCode === 44 && bracketLevel === 0 && parenLevel === 0) {
+        // ','
+        let itemStart = start
+        let itemEnd = i
+        while (itemStart < itemEnd && inner.charCodeAt(itemStart) <= 32) itemStart++
+        while (itemEnd > itemStart && inner.charCodeAt(itemEnd - 1) <= 32) itemEnd--
+
+        const itemLen = itemEnd - itemStart
+        if (itemLen > 0 || rIdx > 0 || i < innerEnd) {
+          const item = itemLen > 0 ? inner.slice(itemStart, itemEnd) : ''
+          results[rIdx++] = parseGodotValue(item, _depth + 1)
+        }
+        start = i + 1
+      }
+    }
+    return results
+  }
+
   // String (quoted)
-  const firstChar = trimmed.length > 0 ? trimmed.charCodeAt(0) : 0
-  if (trimmed.length >= 2) {
-    const last = trimmed.charCodeAt(trimmed.length - 1)
+  if (len >= 2) {
+    const last = trimmed.charCodeAt(len - 1)
     if ((firstChar === 34 && last === 34) || (firstChar === 39 && last === 39)) {
       return trimmed.slice(1, -1)
+    }
+  }
+
+  // Number (int or float) checking first character is '-' (45) or '0'-'9' (48-57)
+  if (firstChar === 45 || (firstChar >= 48 && firstChar <= 57)) {
+    if (NUMBER_RE.test(trimmed)) {
+      return Number.parseFloat(trimmed)
     }
   }
 
@@ -128,80 +201,19 @@ export function parseGodotValue(expr: string, _depth = 0): unknown {
     }
   }
 
-  // NodePath
-  if (trimmed.startsWith('NodePath("') && trimmed.endsWith('")')) {
+  // NodePath ('N' = 78)
+  if (firstChar === 78 && trimmed.startsWith('NodePath("') && trimmed.endsWith('")')) {
     return trimmed.slice(10, -2)
   }
 
-  // ExtResource reference
-  if (trimmed.startsWith('ExtResource("') && trimmed.endsWith('")')) {
+  // ExtResource reference ('E' = 69)
+  if (firstChar === 69 && trimmed.startsWith('ExtResource("') && trimmed.endsWith('")')) {
     return trimmed // already in correct format
   }
 
-  // SubResource reference
-  if (trimmed.startsWith('SubResource("') && trimmed.endsWith('")')) {
+  // SubResource reference ('S' = 83)
+  if (firstChar === 83 && trimmed.startsWith('SubResource("') && trimmed.endsWith('")')) {
     return trimmed // already in correct format
-  }
-
-  // Array
-  // ⚡ Bolt: Fast path for Array parsing using charCodeAt, inline index tracking, and integer states
-  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-    const inner = trimmed.slice(1, -1)
-
-    let innerStart = 0
-    let innerEnd = inner.length
-    while (innerStart < innerEnd && inner.charCodeAt(innerStart) <= 32) innerStart++
-    while (innerEnd > innerStart && inner.charCodeAt(innerEnd - 1) <= 32) innerEnd--
-
-    if (innerStart >= innerEnd) return []
-
-    const results: unknown[] = []
-    let bracketLevel = 0
-    let parenLevel = 0
-    let inQuote = 0 // 0 means not in quote, 34 is ", 39 is '
-    let start = innerStart
-
-    for (let i = innerStart; i <= innerEnd; i++) {
-      const charCode = i < innerEnd ? inner.charCodeAt(i) : 44 // 44 is ','
-
-      if (inQuote !== 0) {
-        if (charCode === inQuote && inner.charCodeAt(i - 1) !== 92) {
-          // 92 is '\'
-          inQuote = 0
-        }
-        continue
-      }
-
-      if (charCode === 34 || charCode === 39) {
-        // '"' or "'"
-        inQuote = charCode
-        continue
-      }
-
-      if (charCode === 91)
-        bracketLevel++ // '['
-      else if (charCode === 93)
-        bracketLevel-- // ']'
-      else if (charCode === 40)
-        parenLevel++ // '('
-      else if (charCode === 41)
-        parenLevel-- // ')'
-      else if (charCode === 44 && bracketLevel === 0 && parenLevel === 0) {
-        // ','
-        let itemStart = start
-        let itemEnd = i
-        while (itemStart < itemEnd && inner.charCodeAt(itemStart) <= 32) itemStart++
-        while (itemEnd > itemStart && inner.charCodeAt(itemEnd - 1) <= 32) itemEnd--
-
-        const itemLen = itemEnd - itemStart
-        if (itemLen > 0 || results.length > 0 || i < innerEnd) {
-          const item = itemLen > 0 ? inner.slice(itemStart, itemEnd) : ''
-          results.push(parseGodotValue(item, _depth + 1))
-        }
-        start = i + 1
-      }
-    }
-    return results
   }
 
   // Return as-is for unrecognized types

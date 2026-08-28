@@ -40,7 +40,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.9",
+    "@biomejs/biome": "^2.5.10",
     "@types/node": "^26.2.0",
     "@vitest/coverage-v8": "^4.1.11",
     "esbuild": "^0.28.2",

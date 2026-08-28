@@ -34,3 +34,8 @@
 ## Rejected
 
 - PRs #1032, #1038, #1039, #1043, #1049, #1050, #1052, and #1055 were rejected after individual diff, commit, comment, linked-issue, and CI review. Their useful security ideas were reimplemented cleanly with strict raw-input validation, finite-number checks, own-property template guards, and path confinement. Do not resurrect the bot branches or their title/test bypasses.
+
+## 2024-05-30 - Array Bypass in Newline Validation
+**Vulnerability:** Untyped JSON inputs (like arrays) could bypass injection validation checks (e.g., `typeof val === 'string' && val.includes('\n')`).
+**Learning:** Checking `typeof val === 'string'` before calling `.includes()` allows arrays (e.g. `["malicious\ncode"]`) to silently skip validation, but these arrays are later coerced to strings during template interpolation, leading to injection vulnerabilities.
+**Prevention:** Explicitly coerce untyped values to strings (e.g., `String(val)`) before applying security validations like `.includes()`.

@@ -85,8 +85,11 @@ export function validateNoNewlines(
   ...values: (string | number | boolean | undefined | null)[]
 ): void {
   for (const val of values) {
-    if (typeof val === 'string' && (val.includes('\n') || val.includes('\r'))) {
-      throw new GodotMCPError(customMessage || 'Invalid arguments: newlines not allowed', 'INVALID_ARGS')
+    if (val !== undefined && val !== null) {
+      const strVal = String(val)
+      if (strVal.includes('\n') || strVal.includes('\r')) {
+        throw new GodotMCPError(customMessage || 'Invalid arguments: newlines not allowed', 'INVALID_ARGS')
+      }
     }
   }
 }

@@ -39,3 +39,8 @@
 **Vulnerability:** Untyped JSON inputs (like arrays) could bypass injection validation checks (e.g., `typeof val === 'string' && val.includes('\n')`).
 **Learning:** Checking `typeof val === 'string'` before calling `.includes()` allows arrays (e.g. `["malicious\ncode"]`) to silently skip validation, but these arrays are later coerced to strings during template interpolation, leading to injection vulnerabilities.
 **Prevention:** Explicitly coerce untyped values to strings (e.g., `String(val)`) before applying security validations like `.includes()`.
+
+## 2026-08-29 - NaN/Infinity Parameter Injection
+**Vulnerability:** User-controlled numeric parameters were validated with `typeof val === 'number'`, but this check allows `NaN` and `Infinity`. When these values are interpolated into Godot file structures (like .tscn or .tres), they stringify to \NaN\ or \Infinity\, potentially causing serialization or parser errors.
+**Learning:** The `typeof val === 'number'` check is insufficient for numeric inputs that will be converted to strings in file templating.
+**Prevention:** Always use `!Number.isFinite(val)` alongside `typeof` checks for numeric inputs to ensure they are valid finite numbers before interpolation.

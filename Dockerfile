@@ -15,7 +15,7 @@ COPY . .
 RUN bun run build
 
 # Base runtime stage (shared)
-FROM node:24.19.0-alpine@sha256:d32cdf619f63fe0471182d08996dd516c6275bb5fd31ae06e55a570bd9e1ad43 AS base
+FROM node:24.20.0-alpine@sha256:e67514e5d0f6c46656005e1b693b2ec9d52e80b641307de684d4a015ba7a4eaf AS base
 
 LABEL org.opencontainers.image.source="https://github.com/n24q02m/better-godot-mcp"
 LABEL io.modelcontextprotocol.server.name="io.github.n24q02m/better-godot-mcp"

@@ -2,6 +2,72 @@
 
 <!-- version list -->
 
+## v1.23.2 (2026-08-29)
+
+### Bug Fixes
+
+- **deps**: Lock file maintenance ([#1109](https://github.com/n24q02m/better-godot-mcp/pull/1109),
+  [`273dd36`](https://github.com/n24q02m/better-godot-mcp/commit/273dd366fd37902574f15c7bfbb4c2fdd70e821e))
+
+- **deps**: Lock file maintenance ([#1106](https://github.com/n24q02m/better-godot-mcp/pull/1106),
+  [`bd06f10`](https://github.com/n24q02m/better-godot-mcp/commit/bd06f1025e8e683a9ee618aef920148b37f6e84f))
+
+- **deps**: Lock file maintenance ([#1101](https://github.com/n24q02m/better-godot-mcp/pull/1101),
+  [`4641025`](https://github.com/n24q02m/better-godot-mcp/commit/464102595980f998cb579ae0e3a89ac5bc493150))
+
+- **deps**: Lock file maintenance ([#1100](https://github.com/n24q02m/better-godot-mcp/pull/1100),
+  [`8573284`](https://github.com/n24q02m/better-godot-mcp/commit/85732843768b75beb46c1452fedde71da92a471c))
+
+- **deps**: Lock file maintenance ([#1098](https://github.com/n24q02m/better-godot-mcp/pull/1098),
+  [`383bc34`](https://github.com/n24q02m/better-godot-mcp/commit/383bc3431a9d9d4ea09e274e9f81fde844473222))
+
+- **deps**: Lock file maintenance ([#1094](https://github.com/n24q02m/better-godot-mcp/pull/1094),
+  [`85d7de3`](https://github.com/n24q02m/better-godot-mcp/commit/85d7de392d2a59e32a82b41b643b3c389f5d1133))
+
+- **deps**: Lock file maintenance ([#1092](https://github.com/n24q02m/better-godot-mcp/pull/1092),
+  [`a69f946`](https://github.com/n24q02m/better-godot-mcp/commit/a69f9467d38a9bb5123fe77f5a9b82fbee96f708))
+
+- **deps**: Lock file maintenance ([#1088](https://github.com/n24q02m/better-godot-mcp/pull/1088),
+  [`40792f3`](https://github.com/n24q02m/better-godot-mcp/commit/40792f393ccb597474e5d8251cc7d69384931e03))
+
+- **deps**: Update @biomejs/biome to ^2.5.10
+  ([#1108](https://github.com/n24q02m/better-godot-mcp/pull/1108),
+  [`4310f5e`](https://github.com/n24q02m/better-godot-mcp/commit/4310f5e001b0f5c0a4e1e862f84873131b10993a))
+
+- **deps**: Update @biomejs/biome to ^2.5.8
+  ([#1093](https://github.com/n24q02m/better-godot-mcp/pull/1093),
+  [`3feec19`](https://github.com/n24q02m/better-godot-mcp/commit/3feec191203cefa2c6f6020801ea910b6c13f0af))
+
+- **deps**: Update @types/node to ^26.2.0
+  ([#1086](https://github.com/n24q02m/better-godot-mcp/pull/1086),
+  [`d9b4cd1`](https://github.com/n24q02m/better-godot-mcp/commit/d9b4cd1a0589ad973371269160aaf742990b9b6f))
+
+- **deps**: Update minor dependencies
+  ([#1087](https://github.com/n24q02m/better-godot-mcp/pull/1087),
+  [`79e85e9`](https://github.com/n24q02m/better-godot-mcp/commit/79e85e96b9338535a807de1222558597d10c782e))
+
+- **deps**: Update oven/bun:1-alpine Docker digest to 0723557
+  ([#1097](https://github.com/n24q02m/better-godot-mcp/pull/1097),
+  [`e5aab15`](https://github.com/n24q02m/better-godot-mcp/commit/e5aab15e2c32b0d334f3b59b49017bcb555a2f09))
+
+- **deps**: Update patch dependencies
+  ([#1105](https://github.com/n24q02m/better-godot-mcp/pull/1105),
+  [`c9d84d3`](https://github.com/n24q02m/better-godot-mcp/commit/c9d84d39d0e3e4630b6d537f04b5dc4cf79913ca))
+
+- **deps**: Update patch dependencies
+  ([#1085](https://github.com/n24q02m/better-godot-mcp/pull/1085),
+  [`74eabd8`](https://github.com/n24q02m/better-godot-mcp/commit/74eabd8b8416353cbabec5da0fd914e01f7576c9))
+
+- **deps**: Update tsx to ^4.23.12 ([#1091](https://github.com/n24q02m/better-godot-mcp/pull/1091),
+  [`a275f71`](https://github.com/n24q02m/better-godot-mcp/commit/a275f71cef526676f84fa880abeeee27b06b5337))
+
+### Chores
+
+- Bump better-semantic-release to v1.4.0
+  ([#1103](https://github.com/n24q02m/better-godot-mcp/pull/1103),
+  [`50cfdd6`](https://github.com/n24q02m/better-godot-mcp/commit/50cfdd6cc849c121adac8613a095b656b2a14bf9))
+
+
 ## v1.23.1 (2026-08-14)
 
 

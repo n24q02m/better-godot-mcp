@@ -245,12 +245,18 @@ export async function handleProject(action: string, args: Record<string, unknown
       if (!key || value === undefined)
         throw new GodotMCPError('key and value required', 'INVALID_ARGS', 'Provide key and value.')
 
-      if (typeof key === 'string' && (key.includes('\n') || key.includes('\r'))) {
-        throw new GodotMCPError('Invalid key format', 'INVALID_ARGS', 'Key must not contain newlines.')
+      if (key !== undefined && key !== null) {
+        const strKey = String(key)
+        if (strKey.includes('\n') || strKey.includes('\r')) {
+          throw new GodotMCPError('Invalid key format', 'INVALID_ARGS', 'Key must not contain newlines.')
+        }
       }
 
-      if (typeof value === 'string' && (value.includes('\n') || value.includes('\r'))) {
-        throw new GodotMCPError('Invalid value format', 'INVALID_ARGS', 'Value must not contain newlines.')
+      if (value !== undefined && value !== null) {
+        const strVal = String(value)
+        if (strVal.includes('\n') || strVal.includes('\r')) {
+          throw new GodotMCPError('Invalid value format', 'INVALID_ARGS', 'Value must not contain newlines.')
+        }
       }
 
       const configPath = join(resolveProjectRoot(projectPath, config.projectPath), 'project.godot')

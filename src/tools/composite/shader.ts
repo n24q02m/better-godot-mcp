@@ -10,6 +10,8 @@ import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '..
 import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
 import { validateStringArguments } from '../helpers/security.js'
 
+const SHADER_TYPE_REGEX = /shader_type\s+(\w+);/
+
 const SHADER_TEMPLATES: Record<string, string> = {
   canvas_item: `shader_type canvas_item;
 
@@ -171,7 +173,8 @@ export async function handleShader(action: string, args: Record<string, unknown>
           })
         }
 
-        const typeMatch = content.match(/shader_type\s+(\w+);/)
+        // ⚡ Bolt: Pre-compile regex and use .exec() instead of .match()
+        const typeMatch = SHADER_TYPE_REGEX.exec(content)
         return formatJSON({
           shader: shaderPath,
           shaderType: typeMatch?.[1] || 'unknown',

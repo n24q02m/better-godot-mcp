@@ -22,6 +22,9 @@ import {
   setSettingInContent,
 } from '../helpers/project-settings.js'
 import { isValidPid, validatePid } from '../helpers/security.js'
+
+const PACKED_STRING_ARRAY_REGEX = /PackedStringArray\((.+)\)/
+
 import { fastTrimRange, parseCommaSeparatedList } from '../helpers/strings.js'
 
 async function parseProjectGodot(projectPath: string): Promise<ProjectInfo> {
@@ -79,7 +82,8 @@ async function parseProjectGodot(projectPath: string): Promise<ProjectInfo> {
             if (key === 'config/name') info.name = value
             if (key === 'run/main_scene') info.mainScene = value
             if (key === 'config/features') {
-              const featMatch = rawValue.match(/PackedStringArray\((.+)\)/)
+              // ⚡ Bolt: Pre-compile regex and use .exec() instead of .match()
+              const featMatch = PACKED_STRING_ARRAY_REGEX.exec(rawValue)
               if (featMatch) {
                 info.features = parseCommaSeparatedList(featMatch[1])
               }

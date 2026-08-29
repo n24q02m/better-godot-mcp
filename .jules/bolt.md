@@ -80,3 +80,7 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## Rejected
 
 - PRs #1029, #1031, #1037, #1040, #1048, #1051, #1053, #1054, and #1058 were rejected after individual diff, commit, comment, linked-issue, and CI review. They were duplicate or unverified cold-path optimizations and/or weakened title and test gates. Do not resurrect these patches; any needed hardening is reimplemented in a reviewed source patch.
+
+## 2026-07-15 - [Pre-compile Regex in detector, project, and shader tools]
+**Learning:** Initializing regular expressions inline in `src/godot/detector.ts`, `src/tools/composite/project.ts`, and `src/tools/composite/shader.ts` incurs unnecessary overhead. Although non-global, executing them via `String.prototype.match()` adds dispatch overhead and allocates a new array.
+**Action:** Extract these non-global regular expressions into module-scoped constants and replace `.match()` with `.exec()` to improve performance and consistency without changing functionality.

@@ -26,12 +26,15 @@ import type { DetectionResult, GodotVersion } from './types.js'
 const GODOT_BINARY_NAMES = ['godot', 'godot4', 'godot-preview', 'Godot_v4']
 const MIN_VERSION = { major: 4, minor: 1 }
 
+const GODOT_VERSION_REGEX = /v?(\d+)\.(\d+)(?:\.(\d+))?(?:[.\s-]+([^\s.-]\S*))?/
+
 /**
  * Parse Godot version string (e.g., "Godot Engine v4.6.stable.official")
  */
 export function parseGodotVersion(versionOutput: string): GodotVersion | null {
   // Match patterns like "Godot Engine v4.6.stable" or "4.6.1.stable"
-  const match = versionOutput.match(/v?(\d+)\.(\d+)(?:\.(\d+))?(?:[.\s-]+([^\s.-]\S*))?/)
+  // ⚡ Bolt: Pre-compile regex and use .exec() instead of .match()
+  const match = GODOT_VERSION_REGEX.exec(versionOutput)
   if (!match) return null
 
   return {

@@ -81,6 +81,6 @@ describe('signals security', () => {
         },
         config,
       ),
-      ).rejects.toThrow('flags must be a finite number')
+    ).rejects.toThrow('flags must be a finite number')
   })
 })

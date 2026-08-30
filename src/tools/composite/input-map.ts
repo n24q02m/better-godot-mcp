@@ -358,8 +358,8 @@ export async function handleInputMap(action: string, args: Record<string, unknow
           'Action names must contain only alphanumeric characters, underscores, and hyphens.',
         )
       }
-      if (args.deadzone !== undefined && typeof args.deadzone !== 'number') {
-        throw new GodotMCPError('deadzone must be a number', 'INVALID_ARGS')
+      if (args.deadzone !== undefined && (typeof args.deadzone !== 'number' || !Number.isFinite(args.deadzone))) {
+        throw new GodotMCPError('deadzone must be a finite number', 'INVALID_ARGS')
       }
       const deadzone = (args.deadzone as number) || 0.5
 

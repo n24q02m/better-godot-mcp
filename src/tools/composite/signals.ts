@@ -69,8 +69,8 @@ async function handleConnectSignal(projectPath: string, args: Record<string, unk
   }
 
   const flags = args.flags as number | undefined
-  if (flags !== undefined && typeof flags !== 'number') {
-    throw new GodotMCPError('flags must be a number', 'INVALID_ARGS')
+  if (flags !== undefined && (typeof flags !== 'number' || !Number.isFinite(flags))) {
+    throw new GodotMCPError('flags must be a finite number', 'INVALID_ARGS')
   }
 
   validateParameters(signal, from, to, method, flags)

@@ -2,6 +2,29 @@
 
 <!-- version list -->
 
+## v1.23.3-beta.1 (2026-08-31)
+
+### Bug Fixes
+
+- Enforce finite numbers on numeric parameters
+  ([`6bea295`](https://github.com/n24q02m/better-godot-mcp/commit/6bea2957883a7aa56f9f1af8159d4a9b09603e47))
+
+- Reject non-finite numeric scene parameters
+  ([`6bea295`](https://github.com/n24q02m/better-godot-mcp/commit/6bea2957883a7aa56f9f1af8159d4a9b09603e47))
+
+- **deps**: Bump mcp-core to 1.23.1
+  ([`35cb5e4`](https://github.com/n24q02m/better-godot-mcp/commit/35cb5e4074c058e82f256449b908f72d0b2b4950))
+
+- **deps**: Lock file maintenance ([#1118](https://github.com/n24q02m/better-godot-mcp/pull/1118),
+  [`717a787`](https://github.com/n24q02m/better-godot-mcp/commit/717a78795aca0db8a48bd80ce267d9c94f31d94d))
+
+- **deps**: Lock file maintenance ([#1114](https://github.com/n24q02m/better-godot-mcp/pull/1114),
+  [`72f7ee2`](https://github.com/n24q02m/better-godot-mcp/commit/72f7ee2688e273fe8499e08415e511ec1acb0f6b))
+
+- **deps**: Lock file maintenance ([#1113](https://github.com/n24q02m/better-godot-mcp/pull/1113),
+  [`e6ef325`](https://github.com/n24q02m/better-godot-mcp/commit/e6ef325d59c401f34c0adf13239507ec44d31bfc))
+
+
 ## v1.23.2 (2026-08-29)
 
 ### Bug Fixes

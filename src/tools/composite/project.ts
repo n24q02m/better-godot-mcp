@@ -24,6 +24,9 @@ import {
 import { isValidPid, validatePid } from '../helpers/security.js'
 import { fastTrimRange, parseCommaSeparatedList } from '../helpers/strings.js'
 
+// ⚡ Bolt: Pre-compile regex to avoid inline compilation overhead in the parsing loop
+const FEATURES_REGEX = /PackedStringArray\((.+)\)/
+
 async function parseProjectGodot(projectPath: string): Promise<ProjectInfo> {
   const configPath = join(projectPath, 'project.godot')
 
@@ -79,7 +82,8 @@ async function parseProjectGodot(projectPath: string): Promise<ProjectInfo> {
             if (key === 'config/name') info.name = value
             if (key === 'run/main_scene') info.mainScene = value
             if (key === 'config/features') {
-              const featMatch = rawValue.match(/PackedStringArray\((.+)\)/)
+              // ⚡ Bolt: Use .exec() instead of .match() for better performance on non-global regex
+              const featMatch = FEATURES_REGEX.exec(rawValue)
               if (featMatch) {
                 info.features = parseCommaSeparatedList(featMatch[1])
               }

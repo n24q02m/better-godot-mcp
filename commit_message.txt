@@ -1,0 +1,4 @@
+perf: ⚡ Bolt: [performance improvement] Optimize non-global regex
+
+- Extracted inline non-global regexes into module-level constants in project.ts, detector.ts, and shader.ts.
+- Replaced String.prototype.match() with RegExp.prototype.exec() to eliminate recreation overhead and improve parsing loop performance.

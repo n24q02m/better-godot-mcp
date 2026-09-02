@@ -80,3 +80,6 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## Rejected
 
 - PRs #1029, #1031, #1037, #1040, #1048, #1051, #1053, #1054, and #1058 were rejected after individual diff, commit, comment, linked-issue, and CI review. They were duplicate or unverified cold-path optimizations and/or weakened title and test gates. Do not resurrect these patches; any needed hardening is reimplemented in a reviewed source patch.
+## 2026-07-15 - [Optimize non-global RegExp matching]
+**Learning:** For non-global inline regexes (such as extracting specific config flags from a single string value), compiling the regex on every iteration inside a parsing loop adds significant object allocation overhead in V8. Replacing `str.match(/.../)` with a hoisted `const REGEX = /.../` and calling `REGEX.exec(str)` executes identically but eliminates regex recreation overhead.
+**Action:** Extract inline non-global `/.../` regular expressions into module-level `const` variables and use `.exec()` instead of `.match()` within tight parsing functions like `parseProjectGodot` or `parseGodotVersion`.

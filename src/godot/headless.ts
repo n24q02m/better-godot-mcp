@@ -114,13 +114,30 @@ export async function execGodotAsync(
 function pushLog(pid: number, chunk: Buffer): void {
   const buf = projectLogs.get(pid)
   if (!buf) return
-  for (const line of chunk.toString('utf8').split(/\r?\n/)) {
-    if (line === '') continue
-    buf.lines.push(line)
-    if (buf.lines.length > RING_MAX) {
-      buf.lines.shift()
-      buf.dropped = true
+  const str = chunk.toString('utf8')
+  let pos = 0
+  const len = str.length
+
+  while (pos < len) {
+    let nextNewline = str.indexOf('\n', pos)
+    if (nextNewline === -1) nextNewline = len
+
+    // ⚡ Bolt: Avoid split('\\n') and string allocation overhead
+    let lineEnd = nextNewline
+    if (lineEnd > pos && str.charCodeAt(lineEnd - 1) === 13) {
+      // \r
+      lineEnd--
     }
+
+    if (lineEnd > pos) {
+      buf.lines.push(str.slice(pos, lineEnd))
+      if (buf.lines.length > RING_MAX) {
+        buf.lines.shift()
+        buf.dropped = true
+      }
+    }
+
+    pos = nextNewline + 1
   }
 }
 

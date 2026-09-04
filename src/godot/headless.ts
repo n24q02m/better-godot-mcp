@@ -114,12 +114,43 @@ export async function execGodotAsync(
 function pushLog(pid: number, chunk: Buffer): void {
   const buf = projectLogs.get(pid)
   if (!buf) return
-  for (const line of chunk.toString('utf8').split(/\r?\n/)) {
-    if (line === '') continue
-    buf.lines.push(line)
-    if (buf.lines.length > RING_MAX) {
-      buf.lines.shift()
-      buf.dropped = true
+
+  // ⚡ Bolt: Avoid split(/\r?\n/) for high-throughput stream processing to heavily reduce garbage collection pressure.
+  const str = chunk.toString('utf8')
+  let start = 0
+  let end = str.indexOf('\n')
+
+  while (end !== -1) {
+    let lineEnd = end
+    // Handle \r\n
+    if (lineEnd > start && str.charCodeAt(lineEnd - 1) === 13) {
+      lineEnd--
+    }
+
+    if (lineEnd > start) {
+      buf.lines.push(str.slice(start, lineEnd))
+      if (buf.lines.length > RING_MAX) {
+        buf.lines.shift()
+        buf.dropped = true
+      }
+    }
+
+    start = end + 1
+    end = str.indexOf('\n', start)
+  }
+
+  // Handle remaining chunk without a newline
+  if (start < str.length) {
+    let lineEnd = str.length
+    if (lineEnd > start && str.charCodeAt(lineEnd - 1) === 13) {
+      lineEnd--
+    }
+    if (lineEnd > start) {
+      buf.lines.push(str.slice(start, lineEnd))
+      if (buf.lines.length > RING_MAX) {
+        buf.lines.shift()
+        buf.dropped = true
+      }
     }
   }
 }

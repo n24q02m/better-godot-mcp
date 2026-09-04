@@ -83,3 +83,7 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## 2026-07-15 - [Optimize non-global RegExp matching]
 **Learning:** For non-global inline regexes (such as extracting specific config flags from a single string value), compiling the regex on every iteration inside a parsing loop adds significant object allocation overhead in V8. Replacing `str.match(/.../)` with a hoisted `const REGEX = /.../` and calling `REGEX.exec(str)` executes identically but eliminates regex recreation overhead.
 **Action:** Extract inline non-global `/.../` regular expressions into module-level `const` variables and use `.exec()` instead of `.match()` within tight parsing functions like `parseProjectGodot` or `parseGodotVersion`.
+
+## 2026-09-04 - [Optimize stream processing line splitting]
+**Learning:** For high-throughput stream processing functions (e.g., `pushLog` in `src/godot/headless.ts`), using `chunk.toString().split(/\r?\n/)` introduces unnecessary array allocations and regular expression execution overhead, which can cause significant garbage collection pressure.
+**Action:** Replace the string split approach with a manual `while` loop that utilizes `.indexOf('\n')`, string slicing, and inline integer checks (e.g., `.charCodeAt(lineEnd - 1) === 13`) to extract lines incrementally without intermediate allocations.

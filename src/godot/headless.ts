@@ -4,6 +4,7 @@
 
 import { execFile, execFileSync, spawn, spawnSync } from 'node:child_process'
 import { promisify } from 'node:util'
+import { isValidPid } from '../tools/helpers/security.js'
 import type { HeadlessResult } from './types.js'
 
 const DEFAULT_TIMEOUT_MS = 30_000
@@ -225,6 +226,8 @@ export function getTrackedPids(): number[] {
  * was already gone.
  */
 export function killProcessTree(pid: number): boolean {
+  if (!isValidPid(pid)) return false
+
   try {
     if (process.platform === 'win32') {
       try {

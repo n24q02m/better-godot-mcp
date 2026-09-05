@@ -44,3 +44,7 @@
 **Vulnerability:** User-controlled numeric parameters were validated with `typeof val === 'number'`, but this check allows `NaN` and `Infinity`. When these values are interpolated into Godot file structures (like .tscn or .tres), they stringify to \NaN\ or \Infinity\, potentially causing serialization or parser errors.
 **Learning:** The `typeof val === 'number'` check is insufficient for numeric inputs that will be converted to strings in file templating.
 **Prevention:** Always use `!Number.isFinite(val)` alongside `typeof` checks for numeric inputs to ensure they are valid finite numbers before interpolation.
+## 2025-05-30 - PID Validation Check Missing in killProcessTree
+**Vulnerability:** Command injection was possible through `killProcessTree` when `taskkill` was executed on Windows, if an untrusted or non-numeric PID string was somehow provided.
+**Learning:** JS typing (e.g. `pid: number`) does not guarantee runtime validity, especially if untyped data is parsed directly from MCP tool arguments.
+**Prevention:** Ensured `isValidPid(pid)` check is added explicitly at the top of the `killProcessTree` function.

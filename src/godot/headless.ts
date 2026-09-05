@@ -111,15 +111,42 @@ export async function execGodotAsync(
   }
 }
 
+// ⚡ Bolt: Optimize log processing to reduce garbage collection overhead
+// Replaces chunk.toString().split(/\r?\n/) with manual traversal to avoid intermediate array allocations and regex overhead
 function pushLog(pid: number, chunk: Buffer): void {
   const buf = projectLogs.get(pid)
   if (!buf) return
-  for (const line of chunk.toString('utf8').split(/\r?\n/)) {
-    if (line === '') continue
-    buf.lines.push(line)
-    if (buf.lines.length > RING_MAX) {
-      buf.lines.shift()
-      buf.dropped = true
+
+  const text = chunk.toString('utf8')
+  let start = 0
+  let end = text.indexOf('\n')
+
+  while (end !== -1) {
+    let lineEnd = end
+    if (lineEnd > start && text.charCodeAt(lineEnd - 1) === 13) {
+      lineEnd--
+    }
+
+    if (lineEnd > start) {
+      buf.lines.push(text.slice(start, lineEnd))
+      if (buf.lines.length > RING_MAX) {
+        buf.lines.shift()
+        buf.dropped = true
+      }
+    }
+
+    start = end + 1
+    end = text.indexOf('\n', start)
+  }
+
+  if (start < text.length) {
+    const remaining = text.slice(start)
+    if (remaining !== '') {
+      buf.lines.push(remaining)
+      if (buf.lines.length > RING_MAX) {
+        buf.lines.shift()
+        buf.dropped = true
+      }
     }
   }
 }

@@ -44,3 +44,8 @@
 **Vulnerability:** User-controlled numeric parameters were validated with `typeof val === 'number'`, but this check allows `NaN` and `Infinity`. When these values are interpolated into Godot file structures (like .tscn or .tres), they stringify to \NaN\ or \Infinity\, potentially causing serialization or parser errors.
 **Learning:** The `typeof val === 'number'` check is insufficient for numeric inputs that will be converted to strings in file templating.
 **Prevention:** Always use `!Number.isFinite(val)` alongside `typeof` checks for numeric inputs to ensure they are valid finite numbers before interpolation.
+
+## 2025-02-24 - Fix Command Injection Vulnerability via Typecasting Bypass
+**Vulnerability:** Untyped arbitrary strings could bypass input validation and be injected into text templates (like `.tres` Godot files or `project.godot`) via `as number` assertions bypassing the check: `(args.font_size ?? 16) as number` allowed `args.font_size = "malicious\ncode"` to bypass type-checking at runtime resulting in arbitrary script or configuration file generation.
+**Learning:** Type coercion through assertions (`as Type`) does not provide runtime safety for user inputs and can result in execution of malicious arguments if untyped inputs are not explicitly guarded by conditional evaluations (`typeof arg === "number" && Number.isFinite(arg)`).
+**Prevention:** Guard all numeric inputs using runtime type validation explicitly. Do not assume `undefined` checks or TypeScript `as number` assertions will validate arbitrary inputs on runtime; use the new `validateNumberArguments` utility.

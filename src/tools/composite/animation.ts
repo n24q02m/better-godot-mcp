@@ -57,7 +57,7 @@ async function handleAddAnimation(projectPath: string, args: Record<string, unkn
   if (args.duration !== undefined && (typeof args.duration !== 'number' || !Number.isFinite(args.duration))) {
     throw new GodotMCPError('duration must be a finite number', 'INVALID_ARGS')
   }
-  const duration = (args.duration as number) || 1.0
+  const duration = args.duration !== undefined ? (args.duration as number) : 1.0
   const loop = args.loop !== false
 
   validateNoNewlines(undefined, scenePath)

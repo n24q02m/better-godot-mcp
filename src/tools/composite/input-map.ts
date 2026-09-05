@@ -361,7 +361,7 @@ export async function handleInputMap(action: string, args: Record<string, unknow
       if (args.deadzone !== undefined && (typeof args.deadzone !== 'number' || !Number.isFinite(args.deadzone))) {
         throw new GodotMCPError('deadzone must be a finite number', 'INVALID_ARGS')
       }
-      const deadzone = (args.deadzone as number) || 0.5
+      const deadzone = args.deadzone !== undefined ? (args.deadzone as number) : 0.5
 
       let content = await readFile(configPath, 'utf-8')
 

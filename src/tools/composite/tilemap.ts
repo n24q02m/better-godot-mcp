@@ -25,7 +25,7 @@ export async function handleTilemap(action: string, args: Record<string, unknown
       if (args.tile_size !== undefined && (typeof args.tile_size !== 'number' || !Number.isFinite(args.tile_size))) {
         throw new GodotMCPError('tile_size must be a finite number', 'INVALID_ARGS')
       }
-      const tileSize = (args.tile_size as number) || 16
+      const tileSize = args.tile_size !== undefined ? (args.tile_size as number) : 16
 
       const fullPath = safeResolve(projectPath, tilesetPath)
 

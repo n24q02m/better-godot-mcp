@@ -169,7 +169,11 @@ async function handleSetTheme(projectPath: string, args: Record<string, unknown>
 
   const fullPath = safeResolve(projectPath || process.cwd(), themePath)
 
-  const fontSize = (args.font_size ?? 16) as number
+  let fontSize = 16
+  if (args.font_size !== undefined && args.font_size !== null) {
+    // We have already validated above that if it exists, it is a finite number
+    fontSize = args.font_size as number
+  }
 
   const content = ['[gd_resource type="Theme" format=3]', '', '[resource]', `default_font_size = ${fontSize}`, ''].join(
     '\n',

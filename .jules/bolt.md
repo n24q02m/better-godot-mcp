@@ -83,3 +83,7 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## 2026-07-15 - [Optimize non-global RegExp matching]
 **Learning:** For non-global inline regexes (such as extracting specific config flags from a single string value), compiling the regex on every iteration inside a parsing loop adds significant object allocation overhead in V8. Replacing `str.match(/.../)` with a hoisted `const REGEX = /.../` and calling `REGEX.exec(str)` executes identically but eliminates regex recreation overhead.
 **Action:** Extract inline non-global `/.../` regular expressions into module-level `const` variables and use `.exec()` instead of `.match()` within tight parsing functions like `parseProjectGodot` or `parseGodotVersion`.
+
+## 2024-05-18 - [Avoid intermediate arrays and Regex overhead for Stream buffering]
+**Learning:** High throughput buffering functions processing node `Buffer` objects run frequently and face GC and compute bottlenecks. Native string methods combined with a `split(/\r?\n/)` incurs heavy GC pressure from the creation of intermediate array objects.
+**Action:** Use native loop indexing instead, such as a `while` loop keeping track of string bounds. Find offsets manually via `.indexOf('\n')` and handle Carriage Returns logic by comparing `.charCodeAt(lineEnd - 1) === 13`. Then string slicing will efficiently parse chunks without large temporary arrays.

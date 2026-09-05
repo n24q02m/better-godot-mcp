@@ -111,16 +111,33 @@ export async function execGodotAsync(
   }
 }
 
+// ⚡ Bolt: Optimize high-throughput stream processing by avoiding regex .split() and intermediate array allocations
 function pushLog(pid: number, chunk: Buffer): void {
   const buf = projectLogs.get(pid)
   if (!buf) return
-  for (const line of chunk.toString('utf8').split(/\r?\n/)) {
-    if (line === '') continue
-    buf.lines.push(line)
-    if (buf.lines.length > RING_MAX) {
-      buf.lines.shift()
-      buf.dropped = true
+
+  const str = chunk.toString('utf8')
+  let start = 0
+
+  while (start < str.length) {
+    let end = str.indexOf('\n', start)
+    if (end === -1) {
+      end = str.length
     }
+
+    let lineEnd = end
+    if (lineEnd > start && str.charCodeAt(lineEnd - 1) === 13) {
+      lineEnd--
+    }
+
+    if (lineEnd > start) {
+      buf.lines.push(str.slice(start, lineEnd))
+      if (buf.lines.length > RING_MAX) {
+        buf.lines.shift()
+        buf.dropped = true
+      }
+    }
+    start = end + 1
   }
 }
 

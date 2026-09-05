@@ -83,3 +83,7 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## 2026-07-15 - [Optimize non-global RegExp matching]
 **Learning:** For non-global inline regexes (such as extracting specific config flags from a single string value), compiling the regex on every iteration inside a parsing loop adds significant object allocation overhead in V8. Replacing `str.match(/.../)` with a hoisted `const REGEX = /.../` and calling `REGEX.exec(str)` executes identically but eliminates regex recreation overhead.
 **Action:** Extract inline non-global `/.../` regular expressions into module-level `const` variables and use `.exec()` instead of `.match()` within tight parsing functions like `parseProjectGodot` or `parseGodotVersion`.
+
+## 2023-10-27 - [Proper ENOENT handling in EAFP path checks]
+**Learning:** When refactoring sequential `pathExists` + `readFile` calls into a single `readFile` with a `try/catch` block (the EAFP pattern), the resulting `ENOENT` error caught from the filesystem cannot be allowed to propagate raw. Callers expect the specific domain error that was originally thrown on `pathExists === false`.
+**Action:** When catching an error after an I/O operation that replaces `pathExists`, explicitly check `if ((error as Record<string, unknown>)?.code === 'ENOENT')` and throw the domain-specific application error (e.g., `new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND')`). Ensure this pattern is applied to *all* refactored call-sites to prevent regressions.

@@ -8,6 +8,7 @@ import { extname, join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
+import { validateStringArguments } from '../helpers/security.js'
 
 const TYPE_REGEX = /type="([^"]*)"/
 const PATH_REGEX = /path="([^"]*)"/
@@ -192,6 +193,7 @@ const RESOURCE_ACTIONS: Record<
 }
 
 export async function handleResources(action: string, args: Record<string, unknown>, config: GodotConfig) {
+  validateStringArguments(undefined, args.project_path)
   const projectRoot = resolveProjectRoot(args.project_path, config.projectPath)
 
   if (action === 'list' && !args.project_path && !config.projectPath) {

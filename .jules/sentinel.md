@@ -44,3 +44,7 @@
 **Vulnerability:** User-controlled numeric parameters were validated with `typeof val === 'number'`, but this check allows `NaN` and `Infinity`. When these values are interpolated into Godot file structures (like .tscn or .tres), they stringify to \NaN\ or \Infinity\, potentially causing serialization or parser errors.
 **Learning:** The `typeof val === 'number'` check is insufficient for numeric inputs that will be converted to strings in file templating.
 **Prevention:** Always use `!Number.isFinite(val)` alongside `typeof` checks for numeric inputs to ensure they are valid finite numbers before interpolation.
+## 2026-09-06 - Fix project_path String Validation Gap
+**Vulnerability:** Untrusted `args.project_path` inputs were sometimes passed directly to `resolveProjectRoot` without explicit string validation. An attacker could pass a non-string object (e.g., an array or an object) which could bypass intended string-specific checks or cause unexpected coercions inside path operations.
+**Learning:** Even though `resolveProjectRoot` defaults/recovers, missing upfront string validation allows for type injection vulnerabilities which can lead to unexpected edge-case errors or unhandled behaviors before failing safely.
+**Prevention:** Consistently call `validateStringArguments(undefined, args.project_path)` at the entry point of every tool handler before attempting to interact with the `project_path`.

@@ -9,6 +9,7 @@ import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { serializeGodotObject } from '../helpers/godot-types.js'
 import { pathExists, resolveProjectRoot } from '../helpers/paths.js'
+import { validateStringArguments } from '../helpers/security.js'
 import { fastTrimRange } from '../helpers/strings.js'
 
 // ⚡ Bolt: Pre-compile regular expressions to avoid recreation in hot paths
@@ -325,6 +326,7 @@ function transformInputMap(
   return { updated: result.join('\n'), found: foundAction }
 }
 export async function handleInputMap(action: string, args: Record<string, unknown>, config: GodotConfig) {
+  validateStringArguments(undefined, args.project_path)
   const baseDir = config.projectPath || process.cwd()
   const projectPath = (args.project_path as string) || config.projectPath
 

@@ -8,9 +8,11 @@ import { dirname } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
+import { validateStringArguments } from '../helpers/security.js'
 import { countSubstring } from '../helpers/strings.js'
 
 export async function handleTilemap(action: string, args: Record<string, unknown>, config: GodotConfig) {
+  validateStringArguments(undefined, args.project_path)
   const projectPath = resolveProjectRoot(args.project_path, config.projectPath)
 
   switch (action) {

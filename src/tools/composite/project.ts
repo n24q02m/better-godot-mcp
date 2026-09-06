@@ -21,7 +21,7 @@ import {
   parseProjectSettingsAsync,
   setSettingInContent,
 } from '../helpers/project-settings.js'
-import { isValidPid, validatePid } from '../helpers/security.js'
+import { isValidPid, validatePid, validateStringArguments } from '../helpers/security.js'
 import { fastTrimRange, parseCommaSeparatedList } from '../helpers/strings.js'
 
 // ⚡ Bolt: Pre-compile regex to avoid inline compilation overhead in the parsing loop
@@ -103,6 +103,7 @@ async function parseProjectGodot(projectPath: string): Promise<ProjectInfo> {
 }
 
 export async function handleProject(action: string, args: Record<string, unknown>, config: GodotConfig) {
+  validateStringArguments(undefined, args.project_path)
   switch (action) {
     case 'info': {
       const projectPath = (args.project_path as string) || config.projectPath

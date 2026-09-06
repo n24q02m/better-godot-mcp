@@ -43,9 +43,9 @@ async function readSceneFile(fullPath: string, scenePath: string): Promise<strin
 function normalizeNodePath(path: string): { path: string; corrected: boolean } {
   if (!path || path === '.') return { path, corrected: false }
 
-  // Normalize backslashes to forward slashes
-  const normalized = path.replace(/\\/g, '/')
+  // ⚡ Bolt: Fast-path early exit and use .replaceAll to avoid regex engine overhead
   const corrected = path.includes('\\')
+  const normalized = corrected ? path.replaceAll('\\', '/') : path
 
   // Case-insensitive check for /root/ or root/ prefix
   // These are common LLM mistakes when they try to use absolute paths.

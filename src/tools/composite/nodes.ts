@@ -16,9 +16,6 @@ import {
 } from '../helpers/scene-parser.js'
 import { validateStringArguments } from '../helpers/security.js'
 
-// ⚡ Bolt: Pre-compile regular expressions to avoid recreation in hot paths
-const ROOT_PATH_REGEX = /^\/?root\/(.+)$/i
-
 function resolveScenePath(projectPath: string, scenePath: string): string {
   return safeResolve(projectPath, scenePath)
 }
@@ -43,21 +40,29 @@ async function readSceneFile(fullPath: string, scenePath: string): Promise<strin
 function normalizeNodePath(path: string): { path: string; corrected: boolean } {
   if (!path || path === '.') return { path, corrected: false }
 
-  // Normalize backslashes to forward slashes
-  const normalized = path.replace(/\\/g, '/')
+  // ⚡ Bolt: Fast-path for backslash normalization using string includes and replaceAll
   const corrected = path.includes('\\')
+  const normalized = corrected ? path.replaceAll('\\', '/') : path
+
+  // ⚡ Bolt: Fast-path for root prefix matching using string methods instead of Regex
+  const lowerNormalized = normalized.toLowerCase()
+  let afterRoot: string | undefined
+
+  if (lowerNormalized.startsWith('/root/')) {
+    afterRoot = normalized.slice(6)
+  } else if (lowerNormalized.startsWith('root/')) {
+    afterRoot = normalized.slice(5)
+  }
 
   // Case-insensitive check for /root/ or root/ prefix
   // These are common LLM mistakes when they try to use absolute paths.
-  const rootMatch = ROOT_PATH_REGEX.exec(normalized)
-  if (rootMatch) {
-    const afterRoot = rootMatch[1]
+  if (afterRoot !== undefined) {
     const segments = afterRoot.split('/').filter(Boolean)
     if (segments.length <= 1) {
       return { path: '.', corrected: true }
     }
-    const remaining = segments.slice(1).join('/')
-    return { path: remaining, corrected: true }
+    // ⚡ Bolt: Re-join segments using standard string method
+    return { path: segments.slice(1).join('/'), corrected: true }
   }
 
   // Handle /root or root (exact match)
@@ -65,7 +70,7 @@ function normalizeNodePath(path: string): { path: string; corrected: boolean } {
   // But wait, if someone has a node named "Root" that is NOT the scene root?
   // In Godot, the root of the scene being edited is often named after the scene or "Root".
   // LLMs often use "/root/SceneName/..."
-  if (normalized.toLowerCase() === '/root') {
+  if (lowerNormalized === '/root') {
     return { path: '.', corrected: true }
   }
 

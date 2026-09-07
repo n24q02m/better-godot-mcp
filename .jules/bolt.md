@@ -83,3 +83,7 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## 2026-07-15 - [Optimize non-global RegExp matching]
 **Learning:** For non-global inline regexes (such as extracting specific config flags from a single string value), compiling the regex on every iteration inside a parsing loop adds significant object allocation overhead in V8. Replacing `str.match(/.../)` with a hoisted `const REGEX = /.../` and calling `REGEX.exec(str)` executes identically but eliminates regex recreation overhead.
 **Action:** Extract inline non-global `/.../` regular expressions into module-level `const` variables and use `.exec()` instead of `.match()` within tight parsing functions like `parseProjectGodot` or `parseGodotVersion`.
+
+## 2026-07-16 - [Optimize node path normalization by replacing RegExp with fast-path string methods]
+**Learning:** Evaluating a compiled Regular Expression (ROOT_PATH_REGEX) on a hot path function like `normalizeNodePath` introduces overhead. Common path prefixes (`/root/` and `root/`) can be verified using fast-path `startsWith()` substring checks on lowercased input, avoiding regex execution entirely.
+**Action:** Replaced ROOT_PATH_REGEX matching with fast-path `.toLowerCase()` and `.startsWith()` checks, and eliminated regex usage in path normalization. Also replaced backslash normalization `replace(/\\/g, '/')` with conditional `.replaceAll('\\', '/')` guarding it with a `.includes('\\')` check to avoid allocations when no backslashes are present.

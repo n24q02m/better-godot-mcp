@@ -125,6 +125,23 @@ describe('animation', () => {
       expect(content).toContain('length = 2.5')
       expect(content).toContain('loop_mode = 0')
     })
+    it('should preserve a zero duration', async () => {
+      createTmpScene(projectPath, 'test.tscn', MINIMAL_TSCN)
+
+      await handleAnimation(
+        'add_animation',
+        {
+          project_path: projectPath,
+          scene_path: 'test.tscn',
+          anim_name: 'Instant',
+          duration: 0,
+        },
+        config,
+      )
+
+      const content = readFileSync(join(projectPath, 'test.tscn'), 'utf-8')
+      expect(content).toContain('length = 0')
+    })
   })
 
   // ==========================================

@@ -56,6 +56,12 @@ describe('tilemap', () => {
       const content = readFileSync(join(projectPath, 'tilesets/tiles32.tres'), 'utf-8')
       expect(content).toContain('Vector2i(32, 32)')
     })
+    it('should preserve a zero tile_size', async () => {
+      await handleTilemap('create_tileset', { tileset_path: 'tilesets/tiles0.tres', tile_size: 0 }, config)
+
+      const content = readFileSync(join(projectPath, 'tilesets/tiles0.tres'), 'utf-8')
+      expect(content).toContain('Vector2i(0, 0)')
+    })
 
     it('should throw if tileset already exists', async () => {
       await handleTilemap('create_tileset', { tileset_path: 'tilesets/main.tres' }, config)

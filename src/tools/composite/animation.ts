@@ -8,7 +8,7 @@ import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
 import { parseSceneContent } from '../helpers/scene-parser.js'
-import { validateNoNewlines, validateStringArguments } from '../helpers/security.js'
+import { validateNoNewlines, validateNumberArguments, validateStringArguments } from '../helpers/security.js'
 
 // ⚡ Bolt: Removed redundant pathExists. Instead return resolved path and use try/catch in handlers where needed.
 function resolveScene(projectRoot: string, scenePath: string): string {
@@ -54,10 +54,8 @@ async function handleAddAnimation(projectPath: string, args: Record<string, unkn
   if (!scenePath) throw new GodotMCPError('No scene_path specified', 'INVALID_ARGS', 'Provide scene_path.')
   const animName = args.anim_name as string
   if (!animName) throw new GodotMCPError('No anim_name specified', 'INVALID_ARGS', 'Provide animation name.')
-  if (args.duration !== undefined && (typeof args.duration !== 'number' || !Number.isFinite(args.duration))) {
-    throw new GodotMCPError('duration must be a finite number', 'INVALID_ARGS')
-  }
-  const duration = (args.duration as number) || 1.0
+  validateNumberArguments('duration must be a finite number', args.duration)
+  const duration = args.duration !== undefined ? (args.duration as number) : 1.0
   const loop = args.loop !== false
 
   validateNoNewlines(undefined, scenePath)

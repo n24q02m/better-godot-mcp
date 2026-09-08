@@ -4,6 +4,7 @@
 
 import { execFile, execFileSync, spawn, spawnSync } from 'node:child_process'
 import { promisify } from 'node:util'
+import { isValidPid } from '../tools/helpers/security.js'
 import type { HeadlessResult } from './types.js'
 
 const DEFAULT_TIMEOUT_MS = 30_000
@@ -114,12 +115,32 @@ export async function execGodotAsync(
 function pushLog(pid: number, chunk: Buffer): void {
   const buf = projectLogs.get(pid)
   if (!buf) return
-  for (const line of chunk.toString('utf8').split(/\r?\n/)) {
-    if (line === '') continue
-    buf.lines.push(line)
-    if (buf.lines.length > RING_MAX) {
-      buf.lines.shift()
-      buf.dropped = true
+  const text = chunk.toString('utf8')
+  let start = 0
+  let end = text.indexOf('\n')
+
+  while (end !== -1) {
+    let lineEnd = end
+    if (lineEnd > start && text.charCodeAt(lineEnd - 1) === 13) lineEnd--
+    if (lineEnd > start) {
+      buf.lines.push(text.slice(start, lineEnd))
+      if (buf.lines.length > RING_MAX) {
+        buf.lines.shift()
+        buf.dropped = true
+      }
+    }
+    start = end + 1
+    end = text.indexOf('\n', start)
+  }
+
+  if (start < text.length) {
+    const lineEnd = text.endsWith('\r') ? text.length - 1 : text.length
+    if (lineEnd > start) {
+      buf.lines.push(text.slice(start, lineEnd))
+      if (buf.lines.length > RING_MAX) {
+        buf.lines.shift()
+        buf.dropped = true
+      }
     }
   }
 }
@@ -225,6 +246,8 @@ export function getTrackedPids(): number[] {
  * was already gone.
  */
 export function killProcessTree(pid: number): boolean {
+  if (!isValidPid(pid)) return false
+
   try {
     if (process.platform === 'win32') {
       try {

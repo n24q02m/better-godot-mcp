@@ -7,7 +7,7 @@ import { launchGodotEditor } from '../../godot/headless.js'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { safeResolve } from '../helpers/paths.js'
-import { isValidPid, validatePid } from '../helpers/security.js'
+import { isValidPid, validatePid, validateStringArguments } from '../helpers/security.js'
 
 /**
  * Check if tracked Godot processes are running
@@ -33,6 +33,7 @@ function getGodotProcesses(config: GodotConfig): Array<{ pid: string; name: stri
 }
 
 export async function handleEditor(action: string, args: Record<string, unknown>, config: GodotConfig) {
+  validateStringArguments(undefined, args.project_path)
   switch (action) {
     case 'launch': {
       if (!config.godotPath) {

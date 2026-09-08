@@ -8,6 +8,7 @@ import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
 import { parseSceneContent } from '../helpers/scene-parser.js'
+import { validateStringArguments } from '../helpers/security.js'
 
 function validateParameters(...params: unknown[]) {
   for (const param of params) {
@@ -161,6 +162,7 @@ const SIGNAL_ACTIONS: Record<
 }
 
 export async function handleSignals(action: string, args: Record<string, unknown>, config: GodotConfig) {
+  validateStringArguments(undefined, args.project_path)
   const projectPath = resolveProjectRoot(args.project_path, config.projectPath)
 
   if (Object.hasOwn(SIGNAL_ACTIONS, action)) {

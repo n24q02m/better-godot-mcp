@@ -8,9 +8,11 @@ import { dirname } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
+import { validateNumberArguments, validateStringArguments } from '../helpers/security.js'
 import { countSubstring } from '../helpers/strings.js'
 
 export async function handleTilemap(action: string, args: Record<string, unknown>, config: GodotConfig) {
+  validateStringArguments(undefined, args.project_path)
   const projectPath = resolveProjectRoot(args.project_path, config.projectPath)
 
   switch (action) {
@@ -22,10 +24,8 @@ export async function handleTilemap(action: string, args: Record<string, unknown
           'INVALID_ARGS',
           'Provide tileset_path (e.g., "tilesets/main.tres").',
         )
-      if (args.tile_size !== undefined && (typeof args.tile_size !== 'number' || !Number.isFinite(args.tile_size))) {
-        throw new GodotMCPError('tile_size must be a finite number', 'INVALID_ARGS')
-      }
-      const tileSize = (args.tile_size as number) || 16
+      validateNumberArguments('tile_size must be a finite number', args.tile_size)
+      const tileSize = args.tile_size !== undefined ? (args.tile_size as number) : 16
 
       const fullPath = safeResolve(projectPath, tilesetPath)
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   isValidPid,
   validateNoNewlines,
+  validateNumberArguments,
   validatePid,
   validateStringArguments,
   wrapToolResult,
@@ -192,6 +193,28 @@ describe('security', () => {
       expect(() => validateStringArguments(undefined, { value: 'unsafe' })).toThrow(
         'Invalid arguments: expected string values',
       )
+    })
+  })
+  // ==========================================
+  // validateNumberArguments
+  // ==========================================
+  describe('validateNumberArguments', () => {
+    it('should pass for finite numbers, including zero, and omitted values', () => {
+      expect(() => validateNumberArguments(undefined, 0, -1.5, undefined, null)).not.toThrow()
+    })
+
+    it.each([
+      ['a string', 'string'],
+      [Number.NaN, 'NaN'],
+      [Number.POSITIVE_INFINITY, 'Infinity'],
+    ])('should reject %s', (value) => {
+      expect(() => validateNumberArguments(undefined, value)).toThrow(
+        'Invalid arguments: expected finite number values',
+      )
+    })
+
+    it('should use a custom message when provided', () => {
+      expect(() => validateNumberArguments('Duration must be numeric', '1')).toThrow('Duration must be numeric')
     })
   })
 

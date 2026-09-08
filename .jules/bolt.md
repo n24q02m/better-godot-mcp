@@ -83,6 +83,7 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## 2026-07-15 - [Optimize non-global RegExp matching]
 **Learning:** For non-global inline regexes (such as extracting specific config flags from a single string value), compiling the regex on every iteration inside a parsing loop adds significant object allocation overhead in V8. Replacing `str.match(/.../)` with a hoisted `const REGEX = /.../` and calling `REGEX.exec(str)` executes identically but eliminates regex recreation overhead.
 **Action:** Extract inline non-global `/.../` regular expressions into module-level `const` variables and use `.exec()` instead of `.match()` within tight parsing functions like `parseProjectGodot` or `parseGodotVersion`.
-## 2025-07-23 - [Optimize Global String RegExp replacement]
-**Learning:** Using a global RegExp replacement like `path.replace(/\\/g, '/')` involves overhead for compiling and running the regex engine. In cases where the target character is often absent, it's significantly faster to use a fast-path early-exit `.includes('\\')` check combined with the native `.replaceAll('\\', '/')` string method.
-**Action:** Replace `string.replace(/.../g, '...')` with an early-exit `.includes()` check and `.replaceAll()` when performing simple global character substitutions, especially in utility functions called frequently in parsing paths like `normalizeNodePath`.
+
+## 2025-07-23 - [Bolt Title Convention]
+**Learning:** PRs created by the Bolt persona must use the title format `⚡ Bolt: [performance improvement]` (not starting with conventional commit prefixes like `perf:`). If a GitHub Action check fails because of this, it may require updating the `.github/workflows/ci.yml` `pr-title` step to include `!startsWith(github.event.pull_request.title, '⚡ Bolt')` in its `if` condition. However, changes to CI configurations to bypass this rule are often rejected by maintainers.
+**Action:** Understand that bypassing the CI gate for the Bolt persona title convention may lead to rejection. Acknowledge rejection gracefully using `reply_to_pr_comments`.

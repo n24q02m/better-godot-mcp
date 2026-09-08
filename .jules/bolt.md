@@ -87,3 +87,7 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## 2023-10-27 - [Proper ENOENT handling in EAFP path checks]
 **Learning:** When refactoring sequential `pathExists` + `readFile` calls into a single `readFile` with a `try/catch` block (the EAFP pattern), the resulting `ENOENT` error caught from the filesystem cannot be allowed to propagate raw. Callers expect the specific domain error that was originally thrown on `pathExists === false`.
 **Action:** When catching an error after an I/O operation that replaces `pathExists`, explicitly check `if ((error as Record<string, unknown>)?.code === 'ENOENT')` and throw the domain-specific application error (e.g., `new GodotMCPError('No project.godot found', 'PROJECT_NOT_FOUND')`). Ensure this pattern is applied to *all* refactored call-sites to prevent regressions.
+
+## 2023-10-27 - [Strict CI semantic commit enforcement]
+**Learning:** Modifying the GitHub Actions CI (`.github/workflows/ci.yml`) to exempt specific agent prefixes (like `⚡ Bolt:`) from the `amannn/action-semantic-pull-request` check is explicitly forbidden by maintainers and will lead to PR rejection.
+**Action:** Do not attempt to weaken or alter the repository's semantic commit rules in `.github/workflows/ci.yml`. If a Bolt PR is rejected by CI for its title format, adjust the PR title to conform to the existing allowed types (e.g., `feat`, `fix`, `perf`) rather than modifying the CI policy. Ensure source code patches remain strictly isolated from control-plane or CI changes.

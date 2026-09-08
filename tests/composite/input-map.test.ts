@@ -90,6 +90,20 @@ describe('input-map', () => {
       const content = readFileSync(join(projectPath, 'project.godot'), 'utf-8')
       expect(content).toContain('"deadzone": 0.3')
     })
+    it('should preserve a zero deadzone', async () => {
+      await handleInputMap(
+        'add_action',
+        {
+          project_path: projectPath,
+          action_name: 'instant',
+          deadzone: 0,
+        },
+        config,
+      )
+
+      const content = readFileSync(join(projectPath, 'project.godot'), 'utf-8')
+      expect(content).toContain('"deadzone": 0')
+    })
 
     it('should throw for duplicate action', async () => {
       await expect(

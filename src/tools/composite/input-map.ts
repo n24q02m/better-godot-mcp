@@ -9,6 +9,7 @@ import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { serializeGodotObject } from '../helpers/godot-types.js'
 import { pathExists, resolveProjectRoot } from '../helpers/paths.js'
+import { validateNumberArguments, validateStringArguments } from '../helpers/security.js'
 import { fastTrimRange } from '../helpers/strings.js'
 
 // ⚡ Bolt: Pre-compile regular expressions to avoid recreation in hot paths
@@ -325,6 +326,7 @@ function transformInputMap(
   return { updated: result.join('\n'), found: foundAction }
 }
 export async function handleInputMap(action: string, args: Record<string, unknown>, config: GodotConfig) {
+  validateStringArguments(undefined, args.project_path)
   const baseDir = config.projectPath || process.cwd()
   const projectPath = (args.project_path as string) || config.projectPath
 
@@ -358,10 +360,8 @@ export async function handleInputMap(action: string, args: Record<string, unknow
           'Action names must contain only alphanumeric characters, underscores, and hyphens.',
         )
       }
-      if (args.deadzone !== undefined && (typeof args.deadzone !== 'number' || !Number.isFinite(args.deadzone))) {
-        throw new GodotMCPError('deadzone must be a finite number', 'INVALID_ARGS')
-      }
-      const deadzone = (args.deadzone as number) || 0.5
+      validateNumberArguments('deadzone must be a finite number', args.deadzone)
+      const deadzone = args.deadzone !== undefined ? (args.deadzone as number) : 0.5
 
       let content = await readFile(configPath, 'utf-8')
 

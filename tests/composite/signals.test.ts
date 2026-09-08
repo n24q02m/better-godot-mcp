@@ -45,6 +45,27 @@ describe('signals', () => {
       expect(data.connections[0].from).toBe('Player')
       expect(data.connections[0].method).toBe('_on_body_entered')
     })
+    it('should disconnect an exact connection without removing adjacent names', async () => {
+      const scene = `${MINIMAL_TSCN.trimEnd()}\n[connection signal="pressed" from="Root" to="Root" method="_on_pressed"]\n[connection signal="pressed_extra" from="Root" to="Root" method="_on_pressed_extra"]\n`
+      createTmpScene(projectPath, 'collision.tscn', scene)
+
+      await handleSignals(
+        'disconnect',
+        {
+          project_path: projectPath,
+          scene_path: 'collision.tscn',
+          signal: 'pressed',
+          from: 'Root',
+          to: 'Root',
+          method: '_on_pressed',
+        },
+        config,
+      )
+
+      const content = readFileSync(join(projectPath, 'collision.tscn'), 'utf-8')
+      expect(content).not.toContain('signal="pressed"')
+      expect(content).toContain('signal="pressed_extra"')
+    })
 
     it('should return empty list for scene without connections', async () => {
       createTmpScene(projectPath, 'empty.tscn', MINIMAL_TSCN)

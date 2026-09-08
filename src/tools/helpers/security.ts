@@ -107,6 +107,17 @@ export function validateStringArguments(customMessage: string | undefined, ...va
     }
   }
 }
+/**
+ * Validates that supplied numeric values are finite numbers when present.
+ * Prevents runtime type assertions from allowing strings, NaN, or Infinity into generated files.
+ */
+export function validateNumberArguments(customMessage: string | undefined, ...values: unknown[]): void {
+  for (const val of values) {
+    if (val !== undefined && val !== null && (typeof val !== 'number' || !Number.isFinite(val))) {
+      throw new GodotMCPError(customMessage || 'Invalid arguments: expected finite number values', 'INVALID_ARGS')
+    }
+  }
+}
 
 /**
  * Validates that a PID is a positive safe integer.

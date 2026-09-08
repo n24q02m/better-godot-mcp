@@ -11,6 +11,7 @@ import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '..
 import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
 import { setSettingInContent } from '../helpers/project-settings.js'
 import { parseSceneContent } from '../helpers/scene-parser.js'
+import { validateStringArguments } from '../helpers/security.js'
 
 async function findSceneFiles(dir: string, results: string[] = []): Promise<string[]> {
   try {
@@ -89,6 +90,7 @@ function resolvePath(base: string | undefined, relativePath: string): string {
 }
 
 export async function handleScenes(action: string, args: Record<string, unknown>, config: GodotConfig) {
+  validateStringArguments(undefined, args.project_path)
   const baseDir = config.projectPath || process.cwd()
   const { projectPath, scenePath, newPath } = validateSceneArgs(action, args, config)
 

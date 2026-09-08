@@ -9,7 +9,7 @@ import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
 import { parseScene, updateNodeInScene } from '../helpers/scene-parser.js'
-import { validateStringArguments } from '../helpers/security.js'
+import { validateNumberArguments, validateStringArguments } from '../helpers/security.js'
 
 const CONTROL_TEMPLATES: Record<string, Record<string, string>> = {
   Button: { text: '"Click"' },
@@ -159,17 +159,10 @@ async function handleSetTheme(projectPath: string, args: Record<string, unknown>
   if (!themePath)
     throw new GodotMCPError('No theme_path specified', 'INVALID_ARGS', 'Provide theme_path (e.g., "themes/main.tres").')
 
-  if (
-    args.font_size !== undefined &&
-    args.font_size !== null &&
-    (typeof args.font_size !== 'number' || !Number.isFinite(args.font_size))
-  ) {
-    throw new GodotMCPError('font_size must be a number', 'INVALID_ARGS')
-  }
-
+  validateNumberArguments('font_size must be a number', args.font_size)
   const fullPath = safeResolve(projectPath || process.cwd(), themePath)
 
-  const fontSize = (args.font_size ?? 16) as number
+  const fontSize = args.font_size !== undefined && args.font_size !== null ? (args.font_size as number) : 16
 
   const content = ['[gd_resource type="Theme" format=3]', '', '[resource]', `default_font_size = ${fontSize}`, ''].join(
     '\n',

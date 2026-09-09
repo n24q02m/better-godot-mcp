@@ -83,3 +83,7 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## 2026-07-15 - [Optimize non-global RegExp matching]
 **Learning:** For non-global inline regexes (such as extracting specific config flags from a single string value), compiling the regex on every iteration inside a parsing loop adds significant object allocation overhead in V8. Replacing `str.match(/.../)` with a hoisted `const REGEX = /.../` and calling `REGEX.exec(str)` executes identically but eliminates regex recreation overhead.
 **Action:** Extract inline non-global `/.../` regular expressions into module-level `const` variables and use `.exec()` instead of `.match()` within tight parsing functions like `parseProjectGodot` or `parseGodotVersion`.
+
+## 2023-10-25 - [Optimize exact case-insensitive string matching]
+**Learning:** Checking exactly for a short string case-insensitively (e.g. `normalized.toLowerCase() === '/root'`) in a parsing hot path involves an unconditional `.toLowerCase()` string allocation for every input, even when the input length is completely incorrect.
+**Action:** Guard the expensive `.toLowerCase()` dynamic string allocation with a fast-path length check (e.g., `str.length === 5 && str.toLowerCase() === '/root'`) to avoid allocating new strings for unrelated paths.

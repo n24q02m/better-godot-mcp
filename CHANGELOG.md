@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v1.24.1 (2026-09-11)
+
+### Bug Fixes
+
+- **deps**: Update @biomejs/biome to ^2.5.12
+  ([#1151](https://github.com/n24q02m/better-godot-mcp/pull/1151),
+  [`b901c59`](https://github.com/n24q02m/better-godot-mcp/commit/b901c59b3a571a0e007b4302ea6b9bcdf5dbb003))
+
+
 ## v1.24.0 (2026-09-11)
 
 ### Bug Fixes

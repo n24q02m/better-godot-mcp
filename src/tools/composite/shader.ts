@@ -12,6 +12,7 @@ import { validateStringArguments } from '../helpers/security.js'
 
 // ⚡ Bolt: Pre-compile regex to avoid inline compilation overhead
 const SHADER_TYPE_REGEX = /shader_type\s+(\w+);/
+const UNIFORM_REGEX = /uniform\s+(\w+)\s+(\w+)(?:\s*:\s*(\w+(?:\([^)]*\))?))?(?:\s*=\s*([^;]+))?;/g
 
 const SHADER_TEMPLATES: Record<string, string> = {
   canvas_item: `shader_type canvas_item;
@@ -164,8 +165,7 @@ export async function handleShader(action: string, args: Record<string, unknown>
         const content = await readFile(fullPath, 'utf-8')
         const params: { name: string; type: string; hint?: string; default?: string }[] = []
 
-        const uniformRegex = /uniform\s+(\w+)\s+(\w+)(?:\s*:\s*(\w+(?:\([^)]*\))?))?(?:\s*=\s*([^;]+))?;/g
-        for (const match of content.matchAll(uniformRegex)) {
+        for (const match of content.matchAll(UNIFORM_REGEX)) {
           params.push({
             type: match[1],
             name: match[2],

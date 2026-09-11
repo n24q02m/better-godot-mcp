@@ -219,13 +219,12 @@ export function toGodotValue(value: unknown): string {
   if (typeof value === 'string') return `"${value}"`
 
   if (Array.isArray(value)) {
-    // ⚡ Bolt: Use a pre-allocated array and .join() to avoid intermediate string allocations
-    if (value.length === 0) return '[]'
-    const items = new Array(value.length)
+    let result = '['
     for (let i = 0; i < value.length; i++) {
-      items[i] = toGodotValue(value[i])
+      if (i > 0) result += ', '
+      result += toGodotValue(value[i])
     }
-    return `[${items.join(', ')}]`
+    return `${result}]`
   }
 
   if (typeof value === 'object' && value !== null) {

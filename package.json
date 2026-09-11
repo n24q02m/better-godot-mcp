@@ -36,8 +36,8 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
-    "@n24q02m/mcp-core": "1.23.2",
-    "zod": "^4.5.4"
+    "@n24q02m/mcp-core": "1.24.0",
+    "zod": "^4.6.2"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.11",
@@ -52,7 +52,7 @@
     "esbuild"
   ],
   "engines": {
-    "node": ">=24.20.0"
+    "node": ">=24.21.0"
   },
   "keywords": [
     "mcp",

@@ -6,7 +6,7 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
-import { safeResolve } from '../helpers/paths.js'
+import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
 import {
   getNodeProperty,
   parseSceneContent,
@@ -291,7 +291,7 @@ const NODE_ACTIONS: Record<
 export async function handleNodes(action: string, args: Record<string, unknown>, config: GodotConfig) {
   validateStringArguments(undefined, args.project_path)
   const baseProjectPath = config.projectPath || process.cwd()
-  const projectPath = args.project_path ? safeResolve(baseProjectPath, args.project_path as string) : baseProjectPath
+  const projectPath = args.project_path ? resolveProjectRoot(args.project_path, baseProjectPath) : baseProjectPath
 
   if (Object.hasOwn(NODE_ACTIONS, action)) {
     const handler = NODE_ACTIONS[action]

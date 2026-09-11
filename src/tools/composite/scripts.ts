@@ -7,7 +7,7 @@ import { mkdir, readdir, readFile, unlink, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
-import { safeResolve } from '../helpers/paths.js'
+import { resolveProjectRoot, safeResolve } from '../helpers/paths.js'
 import { parseSceneContent, updateNodeInScene } from '../helpers/scene-parser.js'
 import { validateStringArguments } from '../helpers/security.js'
 
@@ -298,7 +298,7 @@ export async function handleScripts(action: string, args: Record<string, unknown
   const projectPath =
     args.project_path === undefined || args.project_path === null
       ? config.projectPath
-      : safeResolve(baseDir, args.project_path as string)
+      : resolveProjectRoot(args.project_path, baseDir)
 
   if (!projectPath && action !== 'list') {
     // List handles missing projectPath internally, but others need it for safeResolve base

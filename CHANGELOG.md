@@ -2,6 +2,31 @@
 
 <!-- version list -->
 
+## v1.24.2 (2026-09-12)
+
+### Bug Fixes
+
+- **deps**: Update dawidd6/action-send-mail action to v21
+  ([#1153](https://github.com/n24q02m/better-godot-mcp/pull/1153),
+  [`5cfe788`](https://github.com/n24q02m/better-godot-mcp/commit/5cfe7888b154e1eb8be4f12cafb4d50d65b766c0))
+
+- **deps**: Update minor dependencies
+  ([#1152](https://github.com/n24q02m/better-godot-mcp/pull/1152),
+  [`7c752ea`](https://github.com/n24q02m/better-godot-mcp/commit/7c752ea1674fab5f108ab65b0e53d3c03830f8d9))
+
+### Chores
+
+- Pin BSR action to v1.6.1 stable (6e688489)
+  ([#1149](https://github.com/n24q02m/better-godot-mcp/pull/1149),
+  [`7d475db`](https://github.com/n24q02m/better-godot-mcp/commit/7d475db777c3bb06dace76e777a37081b5ffb4a9))
+
+- **rulesets**: Align IaC with repo-bootstrap template
+  ([`7c634ea`](https://github.com/n24q02m/better-godot-mcp/commit/7c634eac3776a3d1b6ad0e2b72b3df1f4b6bb869))
+
+- **rulesets**: Format ruleset IaC per Biome
+  ([`be53875`](https://github.com/n24q02m/better-godot-mcp/commit/be538751f1eccdf3d3654776b186d4a61d3023d4))
+
+
 ## v1.24.1 (2026-09-11)
 
 ### Bug Fixes

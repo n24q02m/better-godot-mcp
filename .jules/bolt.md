@@ -83,3 +83,7 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## 2026-07-15 - [Optimize non-global RegExp matching]
 **Learning:** For non-global inline regexes (such as extracting specific config flags from a single string value), compiling the regex on every iteration inside a parsing loop adds significant object allocation overhead in V8. Replacing `str.match(/.../)` with a hoisted `const REGEX = /.../` and calling `REGEX.exec(str)` executes identically but eliminates regex recreation overhead.
 **Action:** Extract inline non-global `/.../` regular expressions into module-level `const` variables and use `.exec()` instead of `.match()` within tight parsing functions like `parseProjectGodot` or `parseGodotVersion`.
+
+## 2026-07-20 - [Optimize Array construction in hot paths]
+**Learning:** In string serialization hot paths, such as serializing arrays to Godot strings, using standard iterative string concatenation (`result += ...`) creates many intermediate string allocations, triggering garbage collection pressure.
+**Action:** Replace iterative string concatenation for arrays with a pre-allocated array (`const items = new Array(len)`) and using `.join(', ')` to eliminate intermediate strings and improve GC efficiency.

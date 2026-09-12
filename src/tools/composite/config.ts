@@ -8,6 +8,7 @@ import { detectGodot, isExecutable, isVersionSupported, tryGetVersion } from '..
 import type { GodotConfig } from '../../godot/types.js'
 import { formatJSON, formatSuccess, GodotMCPError, throwUnknownAction } from '../helpers/errors.js'
 import { pathExists } from '../helpers/paths.js'
+import { validateStringArguments } from '../helpers/security.js'
 
 // Mutable runtime config
 const runtimeConfig: Record<string, string> = {}
@@ -28,6 +29,7 @@ async function handleStatus(_args: Record<string, unknown>, config: GodotConfig)
  * Set a configuration value.
  */
 async function handleSet(args: Record<string, unknown>, config: GodotConfig) {
+  validateStringArguments(undefined, args.key, args.value)
   const key = args.key as string
   const value = args.value as string
 

@@ -3,7 +3,6 @@ name: CD
 on:
   push:
     branches:
-      - staging
       - main
   workflow_dispatch:
     inputs:
@@ -23,7 +22,7 @@ permissions:
 env:
   # Unified release ladder: push to staging = beta, push to main = stable.
   # workflow_dispatch keeps release_type as an explicit override.
-  RELEASE_TYPE: ${{ github.event_name == 'push' && (github.ref_name == 'staging' && 'beta' || 'stable') || inputs.release_type }}
+  RELEASE_TYPE: ${{ github.event_name == 'push' && 'stable' || inputs.release_type }}
   DOCKERHUB_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/better-godot-mcp
   GHCR_IMAGE: ghcr.io/${{ github.repository }}
 

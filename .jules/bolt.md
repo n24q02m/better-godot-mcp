@@ -87,3 +87,6 @@ This ensures that "create" matches "create" even if "create_node" appears earlie
 ## 2026-07-20 - [Optimize Array construction in hot paths]
 **Learning:** In string serialization hot paths, such as serializing arrays to Godot strings, using standard iterative string concatenation (`result += ...`) creates many intermediate string allocations, triggering garbage collection pressure.
 **Action:** Replace iterative string concatenation for arrays with a pre-allocated array (`const items = new Array(len)`) and using `.join(', ')` to eliminate intermediate strings and improve GC efficiency.
+## 2026-09-12 - [Optimize case-insensitive check]
+**Learning:** Guarding expensive string operations like `.toLowerCase()` with fast-path length checks prevents unnecessary string allocations in hot paths where a short-circuit string comparison is intended (e.g. checking exactly `'/root'`).
+**Action:** Use a fast-path length check (`str.length === X && str.toLowerCase() === '...'`) when performing strict case-insensitive equality comparisons.

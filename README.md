@@ -1,3 +1,5 @@
+> **ARCHIVED 2026-09-13** — This repository is no longer maintained. Use the Godot editor + GDScript CLI toolchain instead of this MCP server. Existing installations keep working but receive no updates or support.
+
 # Better Godot MCP
 
 mcp-name: io.github.n24q02m/better-godot-mcp

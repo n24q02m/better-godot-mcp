@@ -5,7 +5,7 @@ mcp-name: io.github.n24q02m/better-godot-mcp
 **Composite MCP server for Godot Engine -- 17 composite tools for AI-assisted game development.**
 
 <!-- Badge Row 1: Status -->
-[![Mode: stdio · http local non-relay](https://img.shields.io/badge/mode-stdio_%C2%B7_http--local--non--relay-blue)](https://mcp.n24q02m.com/get-started/modes-overview/)
+[![Mode: stdio · http local non-relay](https://img.shields.io/badge/mode-stdio_%C2%B7_http--local--non--relay-5C6BC0)](https://mcp.n24q02m.com/get-started/modes-overview/)
 [![CI](https://github.com/n24q02m/better-godot-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/n24q02m/better-godot-mcp/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/n24q02m/better-godot-mcp/graph/badge.svg?token=PF94LT0K2L)](https://codecov.io/gh/n24q02m/better-godot-mcp)
 [![npm](https://img.shields.io/npm/v/@n24q02m/better-godot-mcp?logo=npm&logoColor=white)](https://www.npmjs.com/package/@n24q02m/better-godot-mcp)

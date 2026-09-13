@@ -2,6 +2,28 @@
 
 <!-- version list -->
 
+## v1.24.4 (2026-09-13)
+
+### Bug Fixes
+
+- **config**: Prevent array bypass on config set
+  ([#1159](https://github.com/n24q02m/better-godot-mcp/pull/1159),
+  [`89ba257`](https://github.com/n24q02m/better-godot-mcp/commit/89ba257904885b1508988d36a64d6402d1f8d825))
+
+### Documentation
+
+- Add mode badge to README (mode-matrix parity)
+  ([#1162](https://github.com/n24q02m/better-godot-mcp/pull/1162),
+  [`afbd75d`](https://github.com/n24q02m/better-godot-mcp/commit/afbd75d137579d1d6369c2438a55cd0ef7bdc539))
+
+- Align mode badge with fleet standard (label 'mode', color 5C6BC0)
+  ([`039ff18`](https://github.com/n24q02m/better-godot-mcp/commit/039ff1820b401107e119501ebe06b708f234b9ef))
+
+- Archival notice — repo no longer maintained (2026-09-13)
+  ([#1164](https://github.com/n24q02m/better-godot-mcp/pull/1164),
+  [`f86af68`](https://github.com/n24q02m/better-godot-mcp/commit/f86af6812541867c961d1a0c39401a62876c343c))
+
+
 ## v1.24.3 (2026-09-13)
 
 ### Bug Fixes

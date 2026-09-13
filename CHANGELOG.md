@@ -2,6 +2,22 @@
 
 <!-- version list -->
 
+## v1.24.3 (2026-09-13)
+
+### Bug Fixes
+
+- Bump mcp-core to 1.24.1 ([#1157](https://github.com/n24q02m/better-godot-mcp/pull/1157),
+  [`9a1b2f6`](https://github.com/n24q02m/better-godot-mcp/commit/9a1b2f6fb316bdb66bf920291dbc5ec65bcfae46))
+
+### Chores
+
+- **release**: Fix stale two-branch comment (single-main lane)
+  ([`89d3023`](https://github.com/n24q02m/better-godot-mcp/commit/89d3023c9e3595e301f81c74198ed429adda5cc1))
+
+- **release**: Single-main release lane (staging branch retired)
+  ([`a637878`](https://github.com/n24q02m/better-godot-mcp/commit/a637878f73d782bd63e2c85aebfec254cbf481d6))
+
+
 ## v1.24.2 (2026-09-12)
 
 ### Bug Fixes

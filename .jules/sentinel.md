@@ -53,3 +53,8 @@
 **Vulnerability:** Path traversal vulnerabilities allowed accessing directories outside of the intended project root in the nodes and scripts handling operations. Although `safeResolve` was used as `safeResolve(baseDir, args.project_path as string)`, it still didn't safely constrain `project_path` against the configured project root before subsequent usage, whereas `resolveProjectRoot` specifically exists for this purpose.
 **Learning:** For user-supplied project paths, relying solely on `safeResolve` with a local `baseDir` variable can still permit paths that escape the `config.projectPath`. Using `resolveProjectRoot` guarantees that the path does not escape the configured boundary, and safely handles types.
 **Prevention:** In actions taking a `project_path` argument, derive the base project directory using `resolveProjectRoot(args.project_path, config.projectPath)` (or `baseDir` if derived from `config.projectPath`) instead of using `safeResolve` with `args.project_path` directly.
+
+## 2026-10-01 - Array Bypass in Configuration Settings
+**Vulnerability:** In `src/tools/composite/config.ts`, `args.key` and `args.value` were unsafely cast to string via `as string`. An attacker could pass a JSON array like `["timeout"]` which bypasses strict type-checks intended for strings but implicitly coerces later.
+**Learning:** `as string` casts in TypeScript offer no runtime protection. If data originates from an untrusted source (like tool JSON arguments), it must be explicitly type-checked at runtime before assignment to typed records or configurations.
+**Prevention:** Use `validateStringArguments(undefined, args.key, args.value)` immediately when extracting string parameters from tool `args` mapping objects.
